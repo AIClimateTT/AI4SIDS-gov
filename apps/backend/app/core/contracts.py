@@ -46,3 +46,34 @@ class IngestResult(BaseModel):
     duplicates_flagged: int
     unmapped_values: dict[str, list[str]]
     pii_columns_dropped: list[str]
+
+
+class TemplateParam(BaseModel):
+    name: str
+    required: bool = False
+
+
+class DataRequirement(BaseModel):
+    module: str
+    metric: str
+    params: dict = {}
+
+
+class NarrationConfig(BaseModel):
+    system_prompt: str
+    output_sections: list[str]
+
+
+class RenderConfig(BaseModel):
+    format: Literal["markdown"] = "markdown"
+    include_citation_appendix: bool = True
+
+
+class Template(BaseModel):
+    name: str
+    title: str
+    description: str
+    params: list[TemplateParam]
+    data_requirements: list[DataRequirement]
+    narration: NarrationConfig
+    render: RenderConfig
