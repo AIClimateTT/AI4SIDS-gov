@@ -223,3 +223,76 @@ def casualty_summary(params: dict, session: Session) -> list[Fact]:
             citation=deaths_citation,
         ),
     ]
+
+
+FOLLOW_UP_FLAG_KEYS = ["relief_supplied", "forwarded_to_agency", "further_assessment_required", "other"]
+
+
+def street_level_tally(params: dict, session: Session) -> list[Fact]:
+    rows = session.execute(base_query(params)).scalars().all()
+
+    breakdown: dict[str, int] = {}
+    for r in rows:
+        community = r.community or "(unknown community)"
+        street = r.street or "(unknown street)"
+        key = f"{community} / {street}"
+        breakdown[key] = breakdown.get(key, 0) + 1
+
+    global_ids = [r.global_id for r in rows]
+    citation = build_citation(
+        "street_level_tally",
+        0,
+        params,
+        global_ids,
+        f"Survey123 street-level tally, {build_window_label(params.get('date_from'), params.get('date_to'))}",
+    )
+
+    return [
+        Fact(
+            metric="street_level_tally",
+            value=len(rows),
+            unit="incidents",
+            scope=build_scope(params),
+            breakdown=breakdown or None,
+            verification=determine_verification([r.validation_status for r in rows]),
+            citation=citation,
+        )
+    ]
+
+
+def relief_actions_summary(params: dict, session: Session) -> list[Fact]:
+    rows = session.execute(base_query(params)).scalars().all()
+
+    breakdown = {key: 0 for key in FOLLOW_UP_FLAG_KEYS}
+    contributing_ids: set[str] = set()
+    for r in rows:
+        flags = r.follow_up_flags or {}
+        any_flag = False
+        for key in FOLLOW_UP_FLAG_KEYS:
+            if flags.get(key):
+                breakdown[key] += 1
+                any_flag = True
+        if any_flag:
+            contributing_ids.add(r.global_id)
+
+    global_ids = sorted(contributing_ids)
+    contributing_rows = [r for r in rows if r.global_id in contributing_ids]
+    citation = build_citation(
+        "relief_actions_summary",
+        0,
+        params,
+        global_ids,
+        f"Survey123 relief actions, {build_window_label(params.get('date_from'), params.get('date_to'))}",
+    )
+
+    return [
+        Fact(
+            metric="relief_actions_summary",
+            value=len(contributing_ids),
+            unit="incidents",
+            scope=build_scope(params),
+            breakdown=breakdown,
+            verification=determine_verification([r.validation_status for r in contributing_rows]),
+            citation=citation,
+        )
+    ]
