@@ -1,7 +1,7 @@
 import json
 from typing import Protocol
 
-import anthropic
+from langchain_ollama import ChatOllama
 
 from app.config import settings
 
@@ -31,22 +31,17 @@ class FakeLLMClient:
         return "\n\n".join(lines)
 
 
-class AnthropicLLMClient:
-    def __init__(self, api_key: str, model: str, client: "anthropic.Anthropic | None" = None):
-        self._client = client or anthropic.Anthropic(api_key=api_key)
-        self._model = model
+class OllamaLLMClient:
+    def __init__(self, base_url: str, model: str, chat: "ChatOllama | None" = None):
+        self._chat = chat or ChatOllama(base_url=base_url, model=model)
 
     def generate(self, system_prompt: str, user_content: str) -> str:
-        response = self._client.messages.create(
-            model=self._model,
-            max_tokens=4096,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_content}],
-        )
-        return response.content[0].text
+        messages = [("system", system_prompt), ("human", user_content)]
+        response = self._chat.invoke(messages)
+        return response.content
 
 
 def get_default_llm_client() -> LLMClient:
-    if settings.anthropic_api_key:
-        return AnthropicLLMClient(api_key=settings.anthropic_api_key, model=settings.anthropic_model)
+    if settings.llm_provider == "ollama":
+        return OllamaLLMClient(base_url=settings.ollama_base_url, model=settings.ollama_model)
     return FakeLLMClient()

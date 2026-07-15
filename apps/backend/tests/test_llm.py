@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 from app.core.contracts import Citation, Fact, FactTable
-from app.core.llm import AnthropicLLMClient, FakeLLMClient, get_default_llm_client
+from app.core.llm import FakeLLMClient, OllamaLLMClient, get_default_llm_client
 
 
 def make_fact_table() -> FactTable:
@@ -57,38 +57,44 @@ def test_fake_llm_client_repeats_final_response_once_queue_has_one_left():
     assert client.generate("p", "u") == "only"
 
 
-def test_anthropic_client_generate_calls_sdk_correctly():
-    mock_client = MagicMock()
+def test_ollama_client_generate_calls_chat_correctly():
+    mock_chat = MagicMock()
     mock_response = MagicMock()
-    mock_response.content = [MagicMock(text="generated narrative")]
-    mock_client.messages.create.return_value = mock_response
+    mock_response.content = "generated narrative"
+    mock_chat.invoke.return_value = mock_response
 
-    client = AnthropicLLMClient(api_key="fake-key", model="claude-sonnet-5", client=mock_client)
+    client = OllamaLLMClient(base_url="http://localhost:11434", model="gemma3:4b", chat=mock_chat)
     result = client.generate("system prompt", "user content")
 
     assert result == "generated narrative"
-    mock_client.messages.create.assert_called_once_with(
-        model="claude-sonnet-5",
-        max_tokens=4096,
-        system="system prompt",
-        messages=[{"role": "user", "content": "user content"}],
+    mock_chat.invoke.assert_called_once_with([("system", "system prompt"), ("human", "user content")])
+
+
+def test_get_default_llm_client_returns_ollama_by_default(monkeypatch):
+    monkeypatch.setattr(
+        "app.core.llm.settings",
+        type(
+            "S",
+            (),
+            {"llm_provider": "ollama", "ollama_base_url": "http://localhost:11434", "ollama_model": "gemma3:4b"},
+        )(),
     )
 
+    client = get_default_llm_client()
 
-def test_get_default_llm_client_returns_fake_when_no_api_key(monkeypatch):
-    monkeypatch.setattr("app.core.llm.settings", type("S", (), {"anthropic_api_key": None, "anthropic_model": "claude-sonnet-5"})())
+    assert isinstance(client, OllamaLLMClient)
+
+
+def test_get_default_llm_client_returns_fake_when_provider_is_fake(monkeypatch):
+    monkeypatch.setattr(
+        "app.core.llm.settings",
+        type(
+            "S",
+            (),
+            {"llm_provider": "fake", "ollama_base_url": "http://localhost:11434", "ollama_model": "gemma3:4b"},
+        )(),
+    )
 
     client = get_default_llm_client()
 
     assert isinstance(client, FakeLLMClient)
-
-
-def test_get_default_llm_client_returns_anthropic_when_api_key_set(monkeypatch):
-    monkeypatch.setattr(
-        "app.core.llm.settings",
-        type("S", (), {"anthropic_api_key": "sk-test-123", "anthropic_model": "claude-sonnet-5"})(),
-    )
-
-    client = get_default_llm_client()
-
-    assert isinstance(client, AnthropicLLMClient)
