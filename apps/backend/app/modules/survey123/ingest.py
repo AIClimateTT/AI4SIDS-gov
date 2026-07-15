@@ -1,8 +1,15 @@
+import csv
 import hashlib
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
 
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.core.contracts import IngestResult
+from app.modules.survey123.models import Incident
 from app.modules.survey123.normalize import (
     normalize_corporation,
     normalize_incident_type,
@@ -125,3 +132,108 @@ def parse_row(row: dict[str, str], salt: str) -> dict:
         "officer_position": (row.get("Position") or "").strip() or None,
         "dedup_hash": compute_dedup_hash(row.get("Identification Card Number"), salt),
     }
+
+
+def ingest_csv(file_path: Path, session: Session, salt: str) -> IngestResult:
+    with open(file_path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        raw_rows = list(reader)
+
+    parsed = [(raw, parse_row(raw, salt)) for raw in raw_rows]
+
+    batch_groups: dict[tuple[str, datetime], list[int]] = {}
+    for idx, (_raw, fields) in enumerate(parsed):
+        if fields["dedup_hash"] is not None and fields["event_date"] is not None:
+            key = (fields["dedup_hash"], fields["event_date"])
+            batch_groups.setdefault(key, []).append(idx)
+
+    in_batch_duplicate_indices: set[int] = set()
+    for indices in batch_groups.values():
+        if len(indices) > 1:
+            in_batch_duplicate_indices.update(indices)
+
+    rows_read = 0
+    rows_inserted = 0
+    rows_updated = 0
+    duplicates_flagged = 0
+    unmapped_values: dict[str, list[str]] = {}
+
+    for idx, (raw, fields) in enumerate(parsed):
+        rows_read += 1
+
+        if fields["raw_corporation"]:
+            values = unmapped_values.setdefault("Municipal Boundary", [])
+            if fields["raw_corporation"] not in values:
+                values.append(fields["raw_corporation"])
+        if fields["raw_incident_type"]:
+            values = unmapped_values.setdefault("Incident Type", [])
+            if fields["raw_incident_type"] not in values:
+                values.append(fields["raw_incident_type"])
+
+        is_duplicate = False
+        duplicate_reason: str | None = None
+
+        if is_duplicate_marker(raw.get("Name of Person"), raw.get("Incident Summary")):
+            is_duplicate = True
+            duplicate_reason = "marker"
+        elif idx in in_batch_duplicate_indices:
+            is_duplicate = True
+            duplicate_reason = "repeated_id_date"
+        elif fields["dedup_hash"] is not None and fields["event_date"] is not None:
+            existing_match = (
+                session.execute(
+                    select(Incident).where(
+                        Incident.dedup_hash == fields["dedup_hash"],
+                        Incident.event_date == fields["event_date"],
+                        Incident.global_id != fields["global_id"],
+                    )
+                )
+                .scalars()
+                .first()
+            )
+            if existing_match is not None:
+                is_duplicate = True
+                duplicate_reason = "repeated_id_date"
+
+        if is_duplicate:
+            duplicates_flagged += 1
+
+        existing = (
+            session.execute(select(Incident).where(Incident.global_id == fields["global_id"]))
+            .scalars()
+            .first()
+        )
+
+        if existing is None:
+            incident = Incident(
+                **fields,
+                is_duplicate=is_duplicate,
+                duplicate_reason=duplicate_reason,
+                source_file=str(file_path),
+                ingested_at=datetime.now(timezone.utc),
+            )
+            session.add(incident)
+            rows_inserted += 1
+        else:
+            incoming_edit_date = fields["edit_date"]
+            if incoming_edit_date is not None and (
+                existing.edit_date is None or incoming_edit_date > existing.edit_date
+            ):
+                for key, value in fields.items():
+                    setattr(existing, key, value)
+                existing.is_duplicate = is_duplicate
+                existing.duplicate_reason = duplicate_reason
+                existing.source_file = str(file_path)
+                existing.ingested_at = datetime.now(timezone.utc)
+                rows_updated += 1
+
+    session.commit()
+
+    return IngestResult(
+        rows_read=rows_read,
+        rows_inserted=rows_inserted,
+        rows_updated=rows_updated,
+        duplicates_flagged=duplicates_flagged,
+        unmapped_values=unmapped_values,
+        pii_columns_dropped=list(PII_COLUMNS),
+    )

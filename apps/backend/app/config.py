@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     anthropic_model: str = "claude-sonnet-5"
     report_timezone: str = "America/Port_of_Spain"
     app_env: str = "development"
+    dedup_salt: str = "dev-salt-change-in-production"
 
 
 @lru_cache
