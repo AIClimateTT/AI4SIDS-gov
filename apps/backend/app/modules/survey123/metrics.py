@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from typing import Literal
 
 from sqlalchemy import Select, select
@@ -296,3 +297,105 @@ def relief_actions_summary(params: dict, session: Session) -> list[Fact]:
             citation=citation,
         )
     ]
+
+
+def special_needs_count(params: dict, session: Session) -> list[Fact]:
+    rows = session.execute(base_query(params)).scalars().all()
+    contributing = [r for r in rows if (r.special_needs_occupants or 0) > 0]
+
+    global_ids = [r.global_id for r in contributing]
+    citation = build_citation(
+        "special_needs_count",
+        0,
+        params,
+        global_ids,
+        f"Survey123 special needs occupants, {build_window_label(params.get('date_from'), params.get('date_to'))}",
+    )
+
+    return [
+        Fact(
+            metric="special_needs_count",
+            value=sum(r.special_needs_occupants or 0 for r in rows),
+            unit="persons",
+            scope=build_scope(params),
+            breakdown=None,
+            verification=determine_verification([r.validation_status for r in contributing]),
+            citation=citation,
+        )
+    ]
+
+
+def estimated_damage_total(params: dict, session: Session) -> list[Fact]:
+    rows = session.execute(base_query(params)).scalars().all()
+    with_cost = [r for r in rows if r.estimated_damage_cost is not None]
+
+    total = sum((r.estimated_damage_cost for r in with_cost), start=Decimal("0"))
+    global_ids = [r.global_id for r in with_cost]
+    citation = build_citation(
+        "estimated_damage_total",
+        0,
+        params,
+        global_ids,
+        f"Survey123 estimated damage cost, {build_window_label(params.get('date_from'), params.get('date_to'))}",
+    )
+
+    return [
+        Fact(
+            metric="estimated_damage_total",
+            value=float(total),
+            unit="TTD",
+            scope=build_scope(params),
+            breakdown={"records_reporting_cost": len(with_cost), "records_total": len(rows)},
+            verification=determine_verification([r.validation_status for r in with_cost]),
+            citation=citation,
+        )
+    ]
+
+
+def data_coverage(params: dict, session: Session) -> list[Fact]:
+    stmt = select(Incident)
+    if params.get("corporation") is not None:
+        stmt = stmt.where(Incident.corporation == params["corporation"])
+    if params.get("community") is not None:
+        stmt = stmt.where(Incident.community == params["community"])
+    date_from = parse_date_param(params.get("date_from"))
+    if date_from is not None:
+        stmt = stmt.where(Incident.event_date >= date_from)
+    date_to = parse_date_param(params.get("date_to"))
+    if date_to is not None:
+        stmt = stmt.where(Incident.event_date <= date_to)
+
+    rows = session.execute(stmt).scalars().all()
+
+    by_corp: dict[str, list[Incident]] = {}
+    for r in rows:
+        key = r.corporation or "(no corporation recorded)"
+        by_corp.setdefault(key, []).append(r)
+
+    facts: list[Fact] = []
+    for index, (corp_label, corp_rows) in enumerate(sorted(by_corp.items())):
+        n = len(corp_rows)
+        pct_validated = round(100.0 * sum(1 for r in corp_rows if r.validation_status == "validated") / n, 1)
+        pct_duplicates = round(100.0 * sum(1 for r in corp_rows if r.is_duplicate) / n, 1)
+        latest = max((r.creation_date for r in corp_rows if r.creation_date is not None), default=None)
+        latest_label = latest.isoformat() if latest is not None else "unknown"
+        global_ids = [r.global_id for r in corp_rows]
+        citation = build_citation(
+            "data_coverage",
+            index,
+            params,
+            global_ids,
+            f"Survey123 data coverage for {corp_label}, latest record as of {latest_label}",
+        )
+        facts.append(
+            Fact(
+                metric="data_coverage",
+                value=n,
+                unit="records",
+                scope=build_scope(params, corporation=corp_label),
+                breakdown={"pct_validated": pct_validated, "pct_duplicates": pct_duplicates},
+                verification="n/a",
+                citation=citation,
+            )
+        )
+    return facts
