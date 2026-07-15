@@ -54,3 +54,48 @@ def _split_sentences(text: str) -> list[str]:
 
 def _matches_any(value: float, candidates: set[float], epsilon: float = 1e-6) -> bool:
     return any(abs(value - c) < epsilon for c in candidates)
+
+
+CITATION_MARKER_RE = re.compile(r"\[([A-Za-z0-9_-]+)\]")
+NUMBER_TOKEN_RE = re.compile(r"\d[\d,]*(?:\.\d+)?%?")
+
+
+def check_citations(narrative: str, fact_table: FactTable) -> CitationCheckResult:
+    fact_numbers = _collect_fact_numbers(fact_table)
+    valid_cids = _valid_cids(fact_table)
+    violations: list[CitationViolation] = []
+
+    for sentence in _split_sentences(narrative):
+        cited_ids = set(CITATION_MARKER_RE.findall(sentence))
+        has_valid_citation = bool(cited_ids & valid_cids)
+
+        text_for_numbers = CITATION_MARKER_RE.sub("", sentence)
+        text_for_numbers = _strip_dates(text_for_numbers)
+        tokens = NUMBER_TOKEN_RE.findall(text_for_numbers)
+
+        if not tokens:
+            continue
+
+        if not has_valid_citation:
+            violations.append(
+                CitationViolation(
+                    kind="missing_citation",
+                    detail="Sentence contains a figure but no valid [cid] citation marker",
+                    sentence=sentence,
+                    token=None,
+                )
+            )
+
+        for token in tokens:
+            value = _parse_number_token(token)
+            if not _matches_any(value, fact_numbers):
+                violations.append(
+                    CitationViolation(
+                        kind="invented_number",
+                        detail=f"Number {token!r} does not match any fact or breakdown value",
+                        sentence=sentence,
+                        token=token,
+                    )
+                )
+
+    return CitationCheckResult(passed=not violations, violations=violations)
