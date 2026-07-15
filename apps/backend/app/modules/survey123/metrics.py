@@ -2,8 +2,9 @@ from datetime import datetime
 from typing import Literal
 
 from sqlalchemy import Select, select
+from sqlalchemy.orm import Session
 
-from app.core.contracts import Citation
+from app.core.contracts import Citation, Fact
 from app.modules.survey123.models import Incident
 
 
@@ -77,3 +78,63 @@ def base_query(params: dict) -> Select:
     if not params.get("include_pending", False):
         stmt = stmt.where(Incident.validation_status == "validated")
     return stmt
+
+
+def incident_count(params: dict, session: Session) -> list[Fact]:
+    rows = session.execute(base_query(params)).scalars().all()
+
+    breakdown: dict[str, int] = {}
+    for r in rows:
+        key = r.incident_type or "(no incident type recorded)"
+        breakdown[key] = breakdown.get(key, 0) + 1
+
+    global_ids = [r.global_id for r in rows]
+    citation = build_citation(
+        "incident_count",
+        0,
+        params,
+        global_ids,
+        f"Survey123 incident count, {build_window_label(params.get('date_from'), params.get('date_to'))}",
+    )
+
+    return [
+        Fact(
+            metric="incident_count",
+            value=len(rows),
+            unit="incidents",
+            scope=build_scope(params),
+            breakdown=breakdown or None,
+            verification=determine_verification([r.validation_status for r in rows]),
+            citation=citation,
+        )
+    ]
+
+
+def incidents_by_corporation(params: dict, session: Session) -> list[Fact]:
+    rows = session.execute(base_query(params)).scalars().all()
+
+    breakdown: dict[str, int] = {}
+    for r in rows:
+        key = r.corporation or "(no corporation recorded)"
+        breakdown[key] = breakdown.get(key, 0) + 1
+
+    global_ids = [r.global_id for r in rows]
+    citation = build_citation(
+        "incidents_by_corporation",
+        0,
+        params,
+        global_ids,
+        f"Survey123 incidents by corporation, {build_window_label(params.get('date_from'), params.get('date_to'))}",
+    )
+
+    return [
+        Fact(
+            metric="incidents_by_corporation",
+            value=len(rows),
+            unit="incidents",
+            scope=build_scope(params),
+            breakdown=breakdown or None,
+            verification=determine_verification([r.validation_status for r in rows]),
+            citation=citation,
+        )
+    ]
