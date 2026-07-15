@@ -138,3 +138,88 @@ def incidents_by_corporation(params: dict, session: Session) -> list[Fact]:
             citation=citation,
         )
     ]
+
+
+HOME_AFFECTING_INCIDENT_TYPES = {"flooding_", "fire", "blown_off_roof"}
+
+
+def homes_affected_count(params: dict, session: Session) -> list[Fact]:
+    full_params = dict(params)
+    full_params["include_pending"] = True
+    rows = session.execute(base_query(full_params)).scalars().all()
+
+    affected = [
+        r for r in rows if (r.building_damage or "").strip() or r.incident_type in HOME_AFFECTING_INCIDENT_TYPES
+    ]
+
+    breakdown = {"validated": 0, "pending": 0}
+    for r in affected:
+        if r.validation_status in breakdown:
+            breakdown[r.validation_status] += 1
+
+    include_pending = bool(params.get("include_pending", False))
+    contributing = affected if include_pending else [r for r in affected if r.validation_status == "validated"]
+
+    global_ids = [r.global_id for r in contributing]
+    citation = build_citation(
+        "homes_affected_count",
+        0,
+        params,
+        global_ids,
+        f"Survey123 homes affected, {build_window_label(params.get('date_from'), params.get('date_to'))}",
+    )
+
+    return [
+        Fact(
+            metric="homes_affected_count",
+            value=len(contributing),
+            unit="incidents",
+            scope=build_scope(params),
+            breakdown=breakdown,
+            verification=determine_verification([r.validation_status for r in contributing]),
+            citation=citation,
+        )
+    ]
+
+
+def casualty_summary(params: dict, session: Session) -> list[Fact]:
+    rows = session.execute(base_query(params)).scalars().all()
+
+    injury_rows = [r for r in rows if (r.injuries_count or 0) > 0]
+    death_rows = [r for r in rows if (r.deaths_count or 0) > 0]
+
+    injuries_citation = build_citation(
+        "casualty_summary",
+        0,
+        params,
+        [r.global_id for r in injury_rows],
+        f"Survey123 injuries, {build_window_label(params.get('date_from'), params.get('date_to'))}",
+    )
+    deaths_citation = build_citation(
+        "casualty_summary",
+        1,
+        params,
+        [r.global_id for r in death_rows],
+        f"Survey123 deaths, {build_window_label(params.get('date_from'), params.get('date_to'))}",
+    )
+
+    return [
+        Fact(
+            metric="casualty_summary",
+            value=sum(r.injuries_count or 0 for r in rows),
+            unit="persons",
+            scope=build_scope(params, category="injuries"),
+            breakdown=None,
+            verification=determine_verification([r.validation_status for r in injury_rows]),
+            citation=injuries_citation,
+        ),
+        Fact(
+            metric="casualty_summary",
+            value=sum(r.deaths_count or 0 for r in rows),
+            unit="persons",
+            scope=build_scope(params, category="deaths"),
+            breakdown=None,
+            verification=determine_verification([r.validation_status for r in death_rows]),
+            citation=deaths_citation,
+        ),
+    ]
