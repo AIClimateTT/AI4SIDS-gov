@@ -2,6 +2,7 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
+import app.core.llm as llm_module
 from app.core.registry import reset_registry, reset_template_registry
 from app.db import Base, engine as db_engine
 from cli import app
@@ -30,7 +31,15 @@ def test_list_templates_shows_both_real_templates():
     _reset_state()
 
 
-def test_generate_minister_regional_comparison_produces_markdown_report():
+def test_generate_minister_regional_comparison_produces_markdown_report(monkeypatch):
+    # Force the fake, network-free provider regardless of Settings.llm_provider's
+    # real-world default ("ollama") — this test must stay testable without a
+    # network connection or a running Ollama server, per PLAN.md's "everything
+    # except core/llm.py must be testable without a network" guardrail. Real
+    # Ollama coverage is exercised manually (see the Ollama plan's Task 1 Step 9),
+    # never in the automated suite.
+    monkeypatch.setattr(llm_module.settings, "llm_provider", "fake")
+
     _reset_state()
     Base.metadata.create_all(db_engine)
 
