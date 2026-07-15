@@ -2,6 +2,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 
+from app.api.ingest import router as ingest_router
 from app.api.meta import router as meta_router
 from app.api.reports import router as reports_router
 from app.core.registry import register_module, register_template
@@ -15,6 +16,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title="DMCU Reporting API")
     app.include_router(meta_router)
     app.include_router(reports_router)
+    app.include_router(ingest_router)
     register_module(survey123_module)
     for template in load_templates_from_directory(TEMPLATES_DIR):
         register_template(template)
