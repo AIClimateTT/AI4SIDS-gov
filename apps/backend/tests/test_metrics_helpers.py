@@ -220,3 +220,18 @@ def test_base_query_filters_by_date_range(tmp_path):
     rows = session.execute(base_query({"date_from": "2024-06-10"})).scalars().all()
 
     assert [r.global_id for r in rows] == ["G2"]
+
+
+def test_base_query_date_to_is_inclusive_of_the_whole_day(tmp_path):
+    # Real Survey123 exports carry a time of day on event_date (e.g. 14:35:00),
+    # not just midnight — a naive `event_date <= date_to` (parsed to midnight)
+    # would silently drop every incident that happened later on the last day
+    # of the window. This locks in that date_to must include the whole day.
+    session = make_session(tmp_path)
+    session.add(make_incident(global_id="G1", event_date=datetime(2024, 6, 30, 14, 35, 0)))
+    session.add(make_incident(global_id="G2", event_date=datetime(2024, 7, 1, 0, 0, 0)))
+    session.commit()
+
+    rows = session.execute(base_query({"date_to": "2024-06-30"})).scalars().all()
+
+    assert [r.global_id for r in rows] == ["G1"]

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Literal
 
@@ -64,8 +64,7 @@ def build_citation(metric_name: str, index: int, params: dict, global_ids: list[
     )
 
 
-def base_query(params: dict) -> Select:
-    stmt = select(Incident).where(Incident.is_duplicate.is_(False))
+def apply_common_filters(stmt: Select, params: dict) -> Select:
     if params.get("corporation") is not None:
         stmt = stmt.where(Incident.corporation == params["corporation"])
     if params.get("community") is not None:
@@ -75,7 +74,18 @@ def base_query(params: dict) -> Select:
         stmt = stmt.where(Incident.event_date >= date_from)
     date_to = parse_date_param(params.get("date_to"))
     if date_to is not None:
-        stmt = stmt.where(Incident.event_date <= date_to)
+        # date_to arrives as a date-only ISO string (e.g. "2024-06-30"), which
+        # parse_date_param parses to midnight. Real event_date values carry a
+        # time of day, so "<= midnight" would silently exclude every incident
+        # that occurred later that same day. Compare against the start of the
+        # NEXT day instead, so date_to is inclusive of the whole day.
+        stmt = stmt.where(Incident.event_date < date_to + timedelta(days=1))
+    return stmt
+
+
+def base_query(params: dict) -> Select:
+    stmt = select(Incident).where(Incident.is_duplicate.is_(False))
+    stmt = apply_common_filters(stmt, params)
     if not params.get("include_pending", False):
         stmt = stmt.where(Incident.validation_status == "validated")
     return stmt
@@ -353,17 +363,7 @@ def estimated_damage_total(params: dict, session: Session) -> list[Fact]:
 
 
 def data_coverage(params: dict, session: Session) -> list[Fact]:
-    stmt = select(Incident)
-    if params.get("corporation") is not None:
-        stmt = stmt.where(Incident.corporation == params["corporation"])
-    if params.get("community") is not None:
-        stmt = stmt.where(Incident.community == params["community"])
-    date_from = parse_date_param(params.get("date_from"))
-    if date_from is not None:
-        stmt = stmt.where(Incident.event_date >= date_from)
-    date_to = parse_date_param(params.get("date_to"))
-    if date_to is not None:
-        stmt = stmt.where(Incident.event_date <= date_to)
+    stmt = apply_common_filters(select(Incident), params)
 
     rows = session.execute(stmt).scalars().all()
 
