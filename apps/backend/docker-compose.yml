@@ -1,0 +1,23 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: dmcu
+      POSTGRES_PASSWORD: dmcu
+      POSTGRES_DB: dmcu
+    volumes:
+      - dmcu_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  backend:
+    build: .
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql+psycopg://dmcu:dmcu@db:5432/dmcu
+    ports:
+      - "8000:8000"
+
+volumes:
+  dmcu_postgres_data:
