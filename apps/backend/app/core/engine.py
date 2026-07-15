@@ -1,10 +1,16 @@
 import re
+import uuid
 from datetime import datetime, timezone
+from typing import Literal
 
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.core.citation_check import CitationViolation, check_citations
 from app.core.contracts import DataRequirement, Fact, FactTable, Template
+from app.core.llm import LLMClient
 from app.core.registry import get_module
+from app.core.renderer import render_report
 
 PLACEHOLDER_RE = re.compile(r"^\{(\w+)\}$")
 
@@ -54,4 +60,51 @@ def assemble_fact_table(template: Template, params: dict, session: Session, requ
         generated_at=datetime.now(timezone.utc),
         facts=renumbered,
         gaps=gaps,
+    )
+
+
+class GeneratedReport(BaseModel):
+    request_id: str
+    template: str
+    params: dict
+    fact_table: FactTable
+    narrative: str
+    status: Literal["ok", "needs_review"]
+    violations: list[CitationViolation]
+    markdown: str
+
+
+def build_retry_content(user_content: str, violations: list[CitationViolation]) -> str:
+    violation_lines = "\n".join(f"- {v.kind}: {v.detail} (sentence: {v.sentence!r})" for v in violations)
+    return (
+        f"{user_content}\n\n"
+        f"Your previous narrative had citation violations. Fix them and regenerate:\n{violation_lines}"
+    )
+
+
+def generate_report(template: Template, params: dict, session: Session, llm_client: LLMClient) -> GeneratedReport:
+    request_id = str(uuid.uuid4())
+    fact_table = assemble_fact_table(template, params, session, request_id)
+
+    user_content = fact_table.model_dump_json()
+    narrative = llm_client.generate(template.narration.system_prompt, user_content)
+    result = check_citations(narrative, fact_table)
+
+    if not result.passed:
+        retry_content = build_retry_content(user_content, result.violations)
+        narrative = llm_client.generate(template.narration.system_prompt, retry_content)
+        result = check_citations(narrative, fact_table)
+
+    status: Literal["ok", "needs_review"] = "ok" if result.passed else "needs_review"
+    markdown = render_report(template, fact_table, narrative)
+
+    return GeneratedReport(
+        request_id=request_id,
+        template=template.name,
+        params=params,
+        fact_table=fact_table,
+        narrative=narrative,
+        status=status,
+        violations=result.violations,
+        markdown=markdown,
     )
