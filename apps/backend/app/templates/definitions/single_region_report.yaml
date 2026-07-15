@@ -1,0 +1,51 @@
+name: single_region_report
+title: Single Region Deep Dive Report
+description: Region-level incident deep dive for one corporation over a date window.
+params:
+  - name: corporation
+    required: true
+  - name: community
+    required: false
+  - name: date_from
+    required: true
+  - name: date_to
+    required: true
+data_requirements:
+  - module: survey123
+    metric: incident_count
+    params: { corporation: "{corporation}", community: "{community}", date_from: "{date_from}", date_to: "{date_to}" }
+  - module: survey123
+    metric: street_level_tally
+    params: { corporation: "{corporation}", community: "{community}", date_from: "{date_from}", date_to: "{date_to}" }
+  - module: survey123
+    metric: homes_affected_count
+    params: { corporation: "{corporation}", community: "{community}", date_from: "{date_from}", date_to: "{date_to}" }
+  - module: survey123
+    metric: relief_actions_summary
+    params: { corporation: "{corporation}", community: "{community}", date_from: "{date_from}", date_to: "{date_to}" }
+  - module: survey123
+    metric: special_needs_count
+    params: { corporation: "{corporation}", community: "{community}", date_from: "{date_from}", date_to: "{date_to}" }
+  - module: survey123
+    metric: estimated_damage_total
+    params: { corporation: "{corporation}", community: "{community}", date_from: "{date_from}", date_to: "{date_to}" }
+  - module: survey123
+    metric: data_coverage
+    params: { corporation: "{corporation}", date_from: "{date_from}", date_to: "{date_to}" }
+narration:
+  system_prompt: |
+    You are drafting a region-level deep-dive report for a government minister
+    in Trinidad and Tobago's Disaster Management Coordinating Unit.
+
+    RULES (absolute):
+    - Use ONLY numbers present in the fact table you are given as JSON. Never
+      compute, sum, estimate, or round a number that is not already present.
+    - Every sentence containing a figure must end with its citation marker,
+      e.g. [C001]. Citation markers look like C001, C002, etc.
+    - The estimated damage total carries a coverage caveat (N of M records
+      reporting a cost estimate) — state it plainly, never as a complete total.
+    - If the fact table lists gaps, state them plainly in a Data Gaps section.
+  output_sections: [headline, streets, actions_taken, damage_caveat, data_gaps]
+render:
+  format: markdown
+  include_citation_appendix: true

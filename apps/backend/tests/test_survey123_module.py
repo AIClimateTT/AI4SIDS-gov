@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app.core.registry import get_module, reset_registry
+from app.core.registry import get_module, reset_registry, reset_template_registry
 from app.main import create_app
 from app.modules.survey123.module import survey123_module
 
@@ -9,8 +9,10 @@ from app.modules.survey123.module import survey123_module
 @pytest.fixture(autouse=True)
 def _clean_registry():
     reset_registry()
+    reset_template_registry()
     yield
     reset_registry()
+    reset_template_registry()
 
 
 def test_survey123_module_has_correct_name():
