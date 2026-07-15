@@ -17,13 +17,15 @@ def test_survey123_module_has_correct_name():
     assert survey123_module.name == "survey123"
 
 
-def test_survey123_module_list_metrics_is_empty():
-    assert survey123_module.list_metrics() == []
+def test_survey123_module_list_metrics_returns_nine_specs():
+    specs = survey123_module.list_metrics()
+    assert len(specs) == 9
+    assert all(spec.module == "survey123" for spec in specs)
 
 
 def test_survey123_module_run_metric_raises_for_unknown_metric():
-    with pytest.raises(ValueError, match="incident_count"):
-        survey123_module.run_metric("incident_count", {}, session=None)
+    with pytest.raises(ValueError, match="not_a_real_metric"):
+        survey123_module.run_metric("not_a_real_metric", {}, session=None)
 
 
 def test_create_app_registers_survey123_module():
@@ -42,4 +44,4 @@ def test_modules_endpoint_includes_survey123_after_create_app():
     body = response.json()
     assert len(body) == 1
     assert body[0]["name"] == "survey123"
-    assert body[0]["metrics"] == []
+    assert len(body[0]["metrics"]) == 9

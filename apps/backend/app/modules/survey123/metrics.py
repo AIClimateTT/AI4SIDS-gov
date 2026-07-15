@@ -5,7 +5,7 @@ from typing import Literal
 from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
-from app.core.contracts import Citation, Fact
+from app.core.contracts import Citation, Fact, MetricSpec
 from app.modules.survey123.models import Incident
 
 
@@ -399,3 +399,97 @@ def data_coverage(params: dict, session: Session) -> list[Fact]:
             )
         )
     return facts
+
+
+METRIC_PARAMS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "corporation": {"type": "string"},
+        "community": {"type": "string"},
+        "date_from": {"type": "string", "format": "date"},
+        "date_to": {"type": "string", "format": "date"},
+        "include_pending": {"type": "boolean", "default": False},
+    },
+}
+
+METRIC_SPECS: list[MetricSpec] = [
+    MetricSpec(
+        name="incident_count",
+        description="Total incidents, breakdown by incident_type.",
+        params_schema=METRIC_PARAMS_SCHEMA,
+        module="survey123",
+    ),
+    MetricSpec(
+        name="incidents_by_corporation",
+        description="Counts per corporation, including a (no corporation recorded) bucket for blanks.",
+        params_schema=METRIC_PARAMS_SCHEMA,
+        module="survey123",
+    ),
+    MetricSpec(
+        name="homes_affected_count",
+        description=(
+            "Incidents where building damage text is non-empty OR incident_type is flooding_, fire, "
+            "or blown_off_roof; breakdown validated vs pending."
+        ),
+        params_schema=METRIC_PARAMS_SCHEMA,
+        module="survey123",
+    ),
+    MetricSpec(
+        name="casualty_summary",
+        description="Injuries and deaths totals, reported as two separate citable facts.",
+        params_schema=METRIC_PARAMS_SCHEMA,
+        module="survey123",
+    ),
+    MetricSpec(
+        name="street_level_tally",
+        description="Incidents grouped by community and street.",
+        params_schema=METRIC_PARAMS_SCHEMA,
+        module="survey123",
+    ),
+    MetricSpec(
+        name="relief_actions_summary",
+        description=(
+            "Counts of follow-up actions taken: relief supplied, forwarded to agency, "
+            "further assessment required, other."
+        ),
+        params_schema=METRIC_PARAMS_SCHEMA,
+        module="survey123",
+    ),
+    MetricSpec(
+        name="special_needs_count",
+        description="Sum of special needs occupants.",
+        params_schema=METRIC_PARAMS_SCHEMA,
+        module="survey123",
+    ),
+    MetricSpec(
+        name="estimated_damage_total",
+        description=(
+            "Sum of estimated damage cost where present, with an explicit coverage caveat "
+            "(N of M records reporting a cost estimate) — this field is sparsely filled and "
+            "must never be presented as a complete total."
+        ),
+        params_schema=METRIC_PARAMS_SCHEMA,
+        module="survey123",
+    ),
+    MetricSpec(
+        name="data_coverage",
+        description=(
+            "Per-corporation record count, % validated, % duplicates flagged, and latest record "
+            "timestamp. Spans all rows including pending and flagged duplicates by design."
+        ),
+        params_schema=METRIC_PARAMS_SCHEMA,
+        module="survey123",
+    ),
+]
+
+METRIC_FUNCTIONS = {
+    "incident_count": incident_count,
+    "incidents_by_corporation": incidents_by_corporation,
+    "homes_affected_count": homes_affected_count,
+    "casualty_summary": casualty_summary,
+    "street_level_tally": street_level_tally,
+    "relief_actions_summary": relief_actions_summary,
+    "special_needs_count": special_needs_count,
+    "estimated_damage_total": estimated_damage_total,
+    "data_coverage": data_coverage,
+}
