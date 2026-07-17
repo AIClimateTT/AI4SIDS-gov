@@ -56,6 +56,7 @@ def assemble_fact_table(template: Template, params: dict, session: Session, requ
     return FactTable(
         request_id=request_id,
         template=template.name,
+        template_version=template.version,
         params=params,
         generated_at=datetime.now(timezone.utc),
         facts=renumbered,
@@ -66,6 +67,7 @@ def assemble_fact_table(template: Template, params: dict, session: Session, requ
 class GeneratedReport(BaseModel):
     request_id: str
     template: str
+    template_version: int = 1
     params: dict
     fact_table: FactTable
     narrative: str
@@ -101,6 +103,7 @@ def generate_report(template: Template, params: dict, session: Session, llm_clie
     return GeneratedReport(
         request_id=request_id,
         template=template.name,
+        template_version=template.version,
         params=params,
         fact_table=fact_table,
         narrative=narrative,

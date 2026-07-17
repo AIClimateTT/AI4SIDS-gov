@@ -54,7 +54,7 @@ def make_minister_template() -> Template:
 
 def test_generate_report_with_auto_narrative_fake_client_passes(tmp_path):
     session = make_session(tmp_path)
-    template = make_minister_template()
+    template = make_minister_template().model_copy(update={"version": 2})
 
     report = generate_report(
         template, {"date_from": "2024-06-01", "date_to": "2024-06-30"}, session, FakeLLMClient()
@@ -62,6 +62,8 @@ def test_generate_report_with_auto_narrative_fake_client_passes(tmp_path):
 
     assert report.status == "ok"
     assert report.violations == []
+    assert report.template_version == 2
+    assert report.fact_table.template_version == 2
     assert "# Regional Comparison Briefing" in report.markdown
     assert "## Citation Appendix" in report.markdown
     assert report.request_id

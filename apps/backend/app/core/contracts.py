@@ -26,6 +26,7 @@ class Fact(BaseModel):
 class FactTable(BaseModel):
     request_id: str
     template: str
+    template_version: int = 1
     params: dict
     generated_at: datetime
     facts: list[Fact]
@@ -71,6 +72,7 @@ class RenderConfig(BaseModel):
 
 class Template(BaseModel):
     name: str
+    version: int = 1
     title: str
     description: str
     params: list[TemplateParam]

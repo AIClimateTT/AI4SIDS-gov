@@ -129,3 +129,18 @@ render: {}
 
 def test_load_templates_from_directory_empty_directory_returns_empty_list(tmp_path):
     assert load_templates_from_directory(tmp_path) == []
+
+
+def test_template_version_defaults_to_one():
+    template = Template.model_validate(make_minimal_template_dict())
+
+    assert template.version == 1
+
+
+def test_template_version_can_be_set_explicitly():
+    raw = make_minimal_template_dict()
+    raw["version"] = 3
+
+    template = Template.model_validate(raw)
+
+    assert template.version == 3

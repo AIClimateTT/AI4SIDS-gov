@@ -123,3 +123,16 @@ def test_ingest_result_reports_unmapped_values_and_dropped_pii_columns():
 
     assert result.rows_read == 14942
     assert "Identification Card Number" in result.pii_columns_dropped
+
+
+def test_fact_table_template_version_defaults_to_one():
+    table = FactTable(
+        request_id="req-001",
+        template="minister_regional_comparison",
+        params={},
+        generated_at=datetime(2026, 2, 1, tzinfo=timezone.utc),
+        facts=[],
+        gaps=[],
+    )
+
+    assert table.template_version == 1

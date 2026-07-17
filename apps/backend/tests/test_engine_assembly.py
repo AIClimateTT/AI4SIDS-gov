@@ -100,7 +100,7 @@ def test_validate_params_raises_listing_missing_required_names():
 
 def test_assemble_fact_table_calls_all_data_requirements_and_renumbers_citations(tmp_path):
     session = make_session(tmp_path)
-    template = make_minister_template()
+    template = make_minister_template().model_copy(update={"version": 4})
 
     fact_table = assemble_fact_table(
         template, {"date_from": "2024-06-01", "date_to": "2024-06-30"}, session, "req-1"
@@ -108,6 +108,7 @@ def test_assemble_fact_table_calls_all_data_requirements_and_renumbers_citations
 
     assert fact_table.request_id == "req-1"
     assert fact_table.template == "minister_regional_comparison"
+    assert fact_table.template_version == 4
     assert len(fact_table.facts) == 8
     assert [f.citation.cid for f in fact_table.facts] == [f"C{i:03d}" for i in range(1, 9)]
 
