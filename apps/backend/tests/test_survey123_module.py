@@ -45,3 +45,23 @@ def test_modules_endpoint_includes_survey123_after_create_app():
     assert len(body) == 1
     assert body[0]["name"] == "survey123"
     assert len(body[0]["metrics"]) == 9
+
+
+def test_get_survey123_module_returns_inprocess_singleton_by_default(monkeypatch):
+    from app.modules.survey123.module import get_survey123_module
+
+    monkeypatch.setattr("app.modules.survey123.module.settings.survey123_transport", "inprocess")
+
+    assert get_survey123_module() is survey123_module
+
+
+def test_get_survey123_module_returns_mcp_adapter_when_configured(monkeypatch):
+    from app.core.mcp_module import McpDataModule
+    from app.modules.survey123.module import get_survey123_module
+
+    monkeypatch.setattr("app.modules.survey123.module.settings.survey123_transport", "mcp")
+
+    module = get_survey123_module()
+
+    assert isinstance(module, McpDataModule)
+    assert module.name == "survey123"

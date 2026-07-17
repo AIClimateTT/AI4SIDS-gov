@@ -1,9 +1,12 @@
+import sys
 from pathlib import Path
 
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.core.contracts import Fact, IngestResult, MetricSpec
+from app.core.mcp_module import McpDataModule
+from app.core.registry import DataModule
 from app.modules.survey123.ingest import ingest_csv
 from app.modules.survey123.metrics import METRIC_FUNCTIONS, METRIC_SPECS
 
@@ -31,3 +34,13 @@ class Survey123Module:
 
 
 survey123_module = Survey123Module()
+
+
+def get_survey123_module() -> DataModule:
+    if settings.survey123_transport == "mcp":
+        return McpDataModule(
+            name="survey123",
+            command=sys.executable,
+            args=["-m", "app.mcp_server.survey123_server"],
+        )
+    return survey123_module

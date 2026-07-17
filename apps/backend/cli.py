@@ -13,7 +13,7 @@ from app.core.template_store import (
     list_latest_templates,
 )
 from app.db import SessionLocal
-from app.modules.survey123.module import survey123_module
+from app.modules.survey123.module import get_survey123_module, survey123_module
 from app.templates.loader import load_template
 
 app = typer.Typer()
@@ -25,7 +25,7 @@ app.add_typer(templates_app, name="templates")
 
 def _ensure_survey123_registered() -> None:
     if get_module("survey123") is None:
-        register_module(survey123_module)
+        register_module(get_survey123_module())
 
 
 @ingest_app.command("survey123")
