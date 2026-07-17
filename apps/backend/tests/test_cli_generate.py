@@ -3,7 +3,7 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 import app.core.llm as llm_module
-from app.core.registry import reset_registry, reset_template_registry
+from app.core.registry import reset_registry
 from app.db import Base, engine as db_engine
 from cli import app
 
@@ -15,20 +15,25 @@ DEV_DB_PATH = Path(__file__).parent.parent / "dev.db"
 
 def _reset_state():
     reset_registry()
-    reset_template_registry()
+    db_engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()
 
 
 def test_list_templates_shows_both_real_templates():
     _reset_state()
+    Base.metadata.create_all(db_engine)
 
-    result = runner.invoke(app, ["list-templates"])
+    try:
+        runner.invoke(app, ["templates", "import-all", str(Path(__file__).parent.parent / "app" / "templates" / "definitions")])
 
-    assert result.exit_code == 0, result.stdout
-    assert "minister_regional_comparison" in result.stdout
-    assert "single_region_report" in result.stdout
-    _reset_state()
+        result = runner.invoke(app, ["list-templates"])
+
+        assert result.exit_code == 0, result.stdout
+        assert "minister_regional_comparison" in result.stdout
+        assert "single_region_report" in result.stdout
+    finally:
+        _reset_state()
 
 
 def test_generate_minister_regional_comparison_produces_markdown_report(monkeypatch):
@@ -44,6 +49,8 @@ def test_generate_minister_regional_comparison_produces_markdown_report(monkeypa
     Base.metadata.create_all(db_engine)
 
     try:
+        runner.invoke(app, ["templates", "import-all", str(Path(__file__).parent.parent / "app" / "templates" / "definitions")])
+
         ingest_result = runner.invoke(app, ["ingest", "survey123", str(FIXTURE_PATH)])
         assert ingest_result.exit_code == 0, ingest_result.stdout
 
@@ -71,6 +78,8 @@ def test_generate_missing_required_param_errors():
     Base.metadata.create_all(db_engine)
 
     try:
+        runner.invoke(app, ["templates", "import-all", str(Path(__file__).parent.parent / "app" / "templates" / "definitions")])
+
         result = runner.invoke(app, ["generate", "minister_regional_comparison", "--date-from", "2024-06-01"])
 
         assert result.exit_code == 1
