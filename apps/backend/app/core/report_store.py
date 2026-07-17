@@ -10,6 +10,7 @@ def save_report(report: GeneratedReport, session: Session) -> Report:
     db_report = Report(
         id=report.request_id,
         template=report.template,
+        template_version=report.template_version,
         params=report.params,
         fact_table=report.fact_table.model_dump(mode="json"),
         narrative=report.narrative,

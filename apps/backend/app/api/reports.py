@@ -43,6 +43,7 @@ def create_report(
 class ReportDetail(BaseModel):
     id: str
     template: str
+    template_version: int
     params: dict
     fact_table: dict
     narrative: str
@@ -60,6 +61,7 @@ def read_report(report_id: str, session: Session = Depends(get_session)) -> Repo
     return ReportDetail(
         id=db_report.id,
         template=db_report.template,
+        template_version=db_report.template_version,
         params=db_report.params,
         fact_table=db_report.fact_table,
         narrative=db_report.narrative,

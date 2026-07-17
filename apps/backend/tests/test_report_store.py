@@ -16,7 +16,7 @@ def make_session(tmp_path):
     return Session()
 
 
-def make_generated_report(status="ok", violations=None) -> GeneratedReport:
+def make_generated_report(status="ok", violations=None, template_version=1) -> GeneratedReport:
     citation = Citation(
         cid="C001",
         module="survey123",
@@ -37,6 +37,7 @@ def make_generated_report(status="ok", violations=None) -> GeneratedReport:
     fact_table = FactTable(
         request_id="req-1",
         template="minister_regional_comparison",
+        template_version=template_version,
         params={"date_from": "2024-06-01", "date_to": "2024-06-30"},
         generated_at=datetime(2024, 7, 1, tzinfo=timezone.utc),
         facts=[fact],
@@ -45,6 +46,7 @@ def make_generated_report(status="ok", violations=None) -> GeneratedReport:
     return GeneratedReport(
         request_id="req-1",
         template="minister_regional_comparison",
+        template_version=template_version,
         params={"date_from": "2024-06-01", "date_to": "2024-06-30"},
         fact_table=fact_table,
         narrative="There were 19 incidents recorded [C001].",
@@ -100,3 +102,21 @@ def test_get_report_returns_none_for_unknown_id(tmp_path):
     session = make_session(tmp_path)
 
     assert get_report("does-not-exist", session) is None
+
+
+def test_save_report_persists_default_template_version(tmp_path):
+    session = make_session(tmp_path)
+    report = make_generated_report()
+
+    saved = save_report(report, session)
+
+    assert saved.template_version == 1
+
+
+def test_save_report_persists_explicit_template_version(tmp_path):
+    session = make_session(tmp_path)
+    report = make_generated_report(template_version=3)
+
+    saved = save_report(report, session)
+
+    assert saved.template_version == 3

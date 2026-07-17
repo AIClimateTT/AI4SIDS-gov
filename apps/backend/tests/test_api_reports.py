@@ -101,6 +101,7 @@ def test_get_reports_by_id_returns_full_detail(monkeypatch):
     body = response.json()
     assert body["id"] == report_id
     assert body["template"] == "minister_regional_comparison"
+    assert body["template_version"] == 1
     assert "facts" in body["fact_table"]
     assert isinstance(body["violations"], list)
 

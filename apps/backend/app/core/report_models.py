@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, String, Text
+from sqlalchemy import JSON, DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -11,6 +11,7 @@ class Report(Base):
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     template: Mapped[str] = mapped_column(String, nullable=False)
+    template_version: Mapped[int] = mapped_column(Integer, nullable=False)
     params: Mapped[dict] = mapped_column(JSON, nullable=False)
     fact_table: Mapped[dict] = mapped_column(JSON, nullable=False)
     narrative: Mapped[str] = mapped_column(Text, nullable=False)
