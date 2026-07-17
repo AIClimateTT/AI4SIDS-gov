@@ -1,22 +1,45 @@
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
-from app.core.registry import reset_registry, reset_template_registry
+from app.core.registry import reset_registry
+from app.core.template_store import import_template_directory
+from app.db import Base, engine as db_engine
 from app.main import create_app
+
+TEMPLATES_DIR = Path(__file__).parent.parent / "app" / "templates" / "definitions"
+DEV_DB_PATH = Path(__file__).parent.parent / "dev.db"
 
 
 @pytest.fixture(autouse=True)
-def _clean_registry():
+def _clean_state():
     reset_registry()
-    reset_template_registry()
+    db_engine.dispose()
+    if DEV_DB_PATH.exists():
+        DEV_DB_PATH.unlink()
     yield
     reset_registry()
-    reset_template_registry()
+    db_engine.dispose()
+    if DEV_DB_PATH.exists():
+        DEV_DB_PATH.unlink()
+
+
+def make_client() -> TestClient:
+    from sqlalchemy.orm import sessionmaker
+
+    Base.metadata.create_all(db_engine)
+    Session = sessionmaker(bind=db_engine)
+    session = Session()
+    import_template_directory(TEMPLATES_DIR, session)
+    session.close()
+
+    app = create_app()
+    return TestClient(app)
 
 
 def test_get_templates_returns_both_real_templates():
-    app = create_app()
-    client = TestClient(app)
+    client = make_client()
 
     response = client.get("/templates")
 
@@ -24,11 +47,11 @@ def test_get_templates_returns_both_real_templates():
     body = response.json()
     names = {t["name"] for t in body}
     assert names == {"minister_regional_comparison", "single_region_report"}
+    assert all(t["version"] == 1 for t in body)
 
 
 def test_get_templates_includes_params_with_required_flags():
-    app = create_app()
-    client = TestClient(app)
+    client = make_client()
 
     response = client.get("/templates")
 

@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.core.registry import reset_registry, reset_template_registry
+from app.core.registry import reset_registry
 from app.db import Base, engine as db_engine
 from app.main import create_app
 
@@ -14,13 +14,11 @@ DEV_DB_PATH = Path(__file__).parent.parent / "dev.db"
 @pytest.fixture(autouse=True)
 def _clean_registry():
     reset_registry()
-    reset_template_registry()
     db_engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()
     yield
     reset_registry()
-    reset_template_registry()
     db_engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()

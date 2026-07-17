@@ -3,7 +3,7 @@ from typing import Protocol
 
 from sqlalchemy.orm import Session
 
-from app.core.contracts import Fact, IngestResult, MetricSpec, Template
+from app.core.contracts import Fact, IngestResult, MetricSpec
 
 
 class DataModule(Protocol):
@@ -35,24 +35,3 @@ def list_modules() -> list[DataModule]:
 
 def reset_registry() -> None:
     _modules.clear()
-
-
-_templates: dict[str, Template] = {}
-
-
-def register_template(template: Template) -> None:
-    if template.name in _templates:
-        raise ValueError(f"template already registered: {template.name}")
-    _templates[template.name] = template
-
-
-def get_template(name: str) -> Template | None:
-    return _templates.get(name)
-
-
-def list_templates() -> list[Template]:
-    return list(_templates.values())
-
-
-def reset_template_registry() -> None:
-    _templates.clear()

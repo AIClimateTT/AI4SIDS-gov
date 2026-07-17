@@ -3,33 +3,40 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.core.registry import reset_registry, reset_template_registry
+from app.core.registry import reset_registry
 from app.db import Base, engine as db_engine
 from app.main import create_app
 from app.modules.survey123.ingest import ingest_csv
 
 FIXTURE_PATH = Path(__file__).parent.parent / "fixtures" / "sample_small.csv"
+TEMPLATES_DIR = Path(__file__).parent.parent / "app" / "templates" / "definitions"
 DEV_DB_PATH = Path(__file__).parent.parent / "dev.db"
 
 
 @pytest.fixture(autouse=True)
 def _clean_registry():
     reset_registry()
-    reset_template_registry()
     db_engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()
     yield
     reset_registry()
-    reset_template_registry()
     db_engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()
 
 
 def make_client(monkeypatch) -> TestClient:
+    from sqlalchemy.orm import sessionmaker
+
+    from app.core.template_store import import_template_directory
+
     monkeypatch.setattr("app.core.llm.settings.llm_provider", "fake")
     Base.metadata.create_all(db_engine)
+    Session = sessionmaker(bind=db_engine)
+    session = Session()
+    import_template_directory(TEMPLATES_DIR, session)
+    session.close()
     app = create_app()
     return TestClient(app)
 

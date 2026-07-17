@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 
 from app.core.engine import generate_report
 from app.core.llm import get_default_llm_client
-from app.core.registry import get_template
 from app.core.report_store import get_report, save_report
+from app.core.template_store import get_latest_template_version
 from app.db import get_session
 
 router = APIRouter()
@@ -26,7 +26,7 @@ class GenerateReportResponse(BaseModel):
 def create_report(
     request: GenerateReportRequest, session: Session = Depends(get_session)
 ) -> GenerateReportResponse:
-    template = get_template(request.template)
+    template = get_latest_template_version(request.template, session)
     if template is None:
         raise HTTPException(status_code=404, detail=f"unknown template: {request.template}")
 
