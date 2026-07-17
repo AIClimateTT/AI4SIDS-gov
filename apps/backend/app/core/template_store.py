@@ -25,6 +25,8 @@ def _to_template(record: TemplateRecord) -> Template:
 
 
 def create_template_version(template: Template, session: Session) -> Template:
+    # Read-then-write pattern: assumes single-writer usage (CLI-driven template imports, not concurrent API calls).
+    # Concurrent writers for the same template name would need retry-on-IntegrityError or DB-level locking.
     latest_version = session.execute(
         select(func.max(TemplateRecord.version)).where(TemplateRecord.name == template.name)
     ).scalar()
