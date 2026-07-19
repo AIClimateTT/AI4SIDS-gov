@@ -42,9 +42,9 @@ def test_modules_endpoint_includes_survey123_after_create_app():
 
     assert response.status_code == 200
     body = response.json()
-    assert len(body) == 1
-    assert body[0]["name"] == "survey123"
-    assert len(body[0]["metrics"]) == 9
+    assert {m["name"] for m in body} == {"survey123", "sitreps"}
+    survey123_entry = next(m for m in body if m["name"] == "survey123")
+    assert len(survey123_entry["metrics"]) == 9
 
 
 def test_get_survey123_module_returns_inprocess_singleton_by_default(monkeypatch):

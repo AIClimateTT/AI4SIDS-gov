@@ -13,6 +13,8 @@ from app.core.template_store import (
     list_latest_templates,
 )
 from app.db import SessionLocal
+from app.modules.sitreps.ingest import ingest_sitrep_csv
+from app.modules.sitreps.module import sitrep_module
 from app.modules.survey123.module import get_survey123_module, survey123_module
 from app.templates.loader import load_template
 
@@ -36,6 +38,21 @@ def ingest_survey123(file_path: Path) -> None:
     typer.echo(f"rows_inserted={result.rows_inserted}")
     typer.echo(f"rows_updated={result.rows_updated}")
     typer.echo(f"duplicates_flagged={result.duplicates_flagged}")
+    typer.echo(f"unmapped_values={result.unmapped_values}")
+    typer.echo(f"pii_columns_dropped={result.pii_columns_dropped}")
+
+
+@ingest_app.command("sitreps")
+def ingest_sitreps(corporation: str, file_path: Path) -> None:
+    session = SessionLocal()
+    try:
+        result = ingest_sitrep_csv(file_path, corporation, session)
+    finally:
+        session.close()
+
+    typer.echo(f"rows_read={result.rows_read}")
+    typer.echo(f"rows_inserted={result.rows_inserted}")
+    typer.echo(f"rows_updated={result.rows_updated}")
     typer.echo(f"unmapped_values={result.unmapped_values}")
     typer.echo(f"pii_columns_dropped={result.pii_columns_dropped}")
 
