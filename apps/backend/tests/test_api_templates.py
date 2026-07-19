@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from app.core.registry import reset_registry
 from app.core.template_store import import_template_directory
 from app.db import Base, engine as db_engine
-from app.main import create_app
+from app import create_app
 
 TEMPLATES_DIR = Path(__file__).parent.parent / "app" / "templates" / "definitions"
 DEV_DB_PATH = Path(__file__).parent.parent / "dev.db"

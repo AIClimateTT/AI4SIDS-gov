@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 
 from app.core.contracts import IngestResult, MetricSpec
 from app.core.registry import register_module, reset_registry
-from app.main import app
+from app import app
 
 
 @pytest.fixture(autouse=True)

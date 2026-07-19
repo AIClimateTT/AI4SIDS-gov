@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.core.registry import get_module, reset_registry
-from app.main import create_app
+from app import create_app
 from app.modules.survey123.module import survey123_module
 
 
