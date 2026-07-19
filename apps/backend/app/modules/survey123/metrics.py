@@ -52,11 +52,12 @@ def determine_verification(statuses: list[str]) -> Literal["validated", "pending
 
 
 def build_citation(metric_name: str, index: int, params: dict, global_ids: list[str], description: str) -> Citation:
+    module = params.get("source", "survey123")
     ordered = sorted(global_ids)
     record_ids = ordered[:200] if len(ordered) <= 200 else None
     return Citation(
-        cid=f"survey123-{metric_name}-{index}",
-        module="survey123",
+        cid=f"{module}-{metric_name}-{index}",
+        module=module,
         description=description,
         query_ref=build_query_ref(metric_name, params),
         record_ids=record_ids,
@@ -65,6 +66,8 @@ def build_citation(metric_name: str, index: int, params: dict, global_ids: list[
 
 
 def apply_common_filters(stmt: Select, params: dict) -> Select:
+    if params.get("source") is not None:
+        stmt = stmt.where(Incident.source == params["source"])
     if params.get("corporation") is not None:
         stmt = stmt.where(Incident.corporation == params["corporation"])
     if params.get("community") is not None:

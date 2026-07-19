@@ -50,6 +50,15 @@ def test_run_metric_dispatches_to_incident_count(tmp_path):
     assert facts[0].value == 19
 
 
+def test_run_metric_tags_citation_module_as_survey123(tmp_path):
+    session = make_session(tmp_path)
+
+    facts = survey123_module.run_metric("incident_count", {}, session)
+
+    assert facts[0].citation.module == "survey123"
+    assert facts[0].citation.cid == "survey123-incident_count-0"
+
+
 def test_run_metric_dispatches_to_data_coverage_multi_fact(tmp_path):
     session = make_session(tmp_path)
 

@@ -30,7 +30,7 @@ class Survey123Module:
         fn = METRIC_FUNCTIONS.get(name)
         if fn is None:
             raise ValueError(f"unknown metric for survey123: {name}")
-        return fn(params, session)
+        return fn({**params, "source": "survey123"}, session)
 
 
 survey123_module = Survey123Module()

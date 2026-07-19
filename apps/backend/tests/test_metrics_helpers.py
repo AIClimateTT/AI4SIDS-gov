@@ -142,7 +142,7 @@ def make_incident(**overrides) -> Incident:
         crops_livestock=None,
         personal_items=None,
         furniture_appliances=None,
-        action_taken=None,
+        action_taken="action_taken",
         relief_items=None,
         shelter=None,
         special_needs_occupants=None,
@@ -160,6 +160,7 @@ def make_incident(**overrides) -> Incident:
         officer_name=None,
         officer_position=None,
         dedup_hash=None,
+        source="survey123",
         source_file="test.csv",
         ingested_at=datetime(2024, 6, 1),
     )
@@ -235,3 +236,39 @@ def test_base_query_date_to_is_inclusive_of_the_whole_day(tmp_path):
     rows = session.execute(base_query({"date_to": "2024-06-30"})).scalars().all()
 
     assert [r.global_id for r in rows] == ["G1"]
+
+
+def test_apply_common_filters_filters_by_source(tmp_path):
+    session = make_session(tmp_path)
+    session.add(make_incident(global_id="G1", source="survey123"))
+    session.add(make_incident(global_id="G2", source="sitreps"))
+    session.commit()
+
+    rows = session.execute(base_query({"source": "sitreps"})).scalars().all()
+
+    assert [r.global_id for r in rows] == ["G2"]
+
+
+def test_base_query_without_source_param_includes_all_sources(tmp_path):
+    session = make_session(tmp_path)
+    session.add(make_incident(global_id="G1", source="survey123"))
+    session.add(make_incident(global_id="G2", source="sitreps"))
+    session.commit()
+
+    rows = session.execute(base_query({})).scalars().all()
+
+    assert sorted(r.global_id for r in rows) == ["G1", "G2"]
+
+
+def test_build_citation_defaults_module_to_survey123_when_no_source_param():
+    citation = build_citation("incident_count", 0, {}, ["GUID-1"], "test description")
+
+    assert citation.module == "survey123"
+    assert citation.cid == "survey123-incident_count-0"
+
+
+def test_build_citation_uses_source_param_for_module_and_cid():
+    citation = build_citation("incident_count", 0, {"source": "sitreps"}, ["GUID-1"], "test description")
+
+    assert citation.module == "sitreps"
+    assert citation.cid == "sitreps-incident_count-0"

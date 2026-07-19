@@ -13,6 +13,7 @@ class Incident(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     global_id: Mapped[str] = mapped_column(String, unique=True, index=True)
     object_id: Mapped[int] = mapped_column(Integer)
+    source: Mapped[str] = mapped_column(String, nullable=False, default="survey123")
 
     corporation: Mapped[str | None] = mapped_column(String, nullable=True)
     raw_corporation: Mapped[str | None] = mapped_column(String, nullable=True)
