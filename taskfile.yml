@@ -1,0 +1,107 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+version: "3"
+
+vars:
+  BACKEND_DIR: ./apps/backend
+  FRONTEND_DIR: ./apps/frontend
+  DATABASE_URL: "postgres://dmcu:dmcu_local@localhost:5434/dmcu"
+  COMPOSE_FILE: docker-compose.local.yml
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+
+  # Setup
+  install:
+    desc: Install all dependencies
+    cmds:
+      - task: install:backend
+      - task: install:frontend
+
+  install:backend:
+    desc: Install backend dependencies
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - source .venv/bin/activate && uv pip install -r requirements.txt
+
+  install:frontend:
+    desc: Install frontend dependencies
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - pnpm install
+
+  # Build
+  build:
+    desc: Build all React Apps
+    cmds:
+      - task: build:frontend
+
+  build:frontend:
+    desc: Build the frontend
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - pnpm build
+
+  # Start
+  start-local:
+    desc: Start all Apps
+    cmds:
+      - task: start:backend
+      - task: start:frontend
+
+  start:backend:
+    shell: zsh
+    desc: Start the backend
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - printf "\033]0;backend\007"
+      - uv run fastapi dev app --host 0.0.0.0
+
+  start:frontend:
+    desc: Start the frontend
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - printf "\033]0;admin\007"
+      - pnpm dev
+
+  # Migrations (alembic)
+  migrate:up:
+    desc: Run all pending migrations
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - uv run alembic upgrade head
+
+  migrate:reset:
+    desc: Rollback all migrations
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - uv run alembic downgrade base
+
+  migrate:down:
+    desc: Rollback the last migration
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - uv run alembic downgrade -1
+
+  # Database
+  db:start:
+    desc: Start the PostgreSQL database
+    cmds:
+      - docker compose -f {{.SERVICES_COMPOSE_FILE}} up -d postgres
+      - |
+        echo "Waiting for PostgreSQL to be ready..."
+        for i in $(seq 1 30); do
+          if docker compose -f {{.SERVICES_COMPOSE_FILE}} exec postgres pg_isready -U dith -d dith_local -q 2>/dev/null; then
+            echo "PostgreSQL is ready."
+            exit 0
+          fi
+          sleep 1
+        done
+        echo "Timed out waiting for PostgreSQL."
+        exit 1
+
+
+
+ 
