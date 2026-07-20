@@ -111,6 +111,75 @@ def test_get_reports_by_id_returns_full_detail(monkeypatch):
     assert body["template_version"] == 1
     assert "facts" in body["fact_table"]
     assert isinstance(body["violations"], list)
+    assert body["created_at"]
+
+
+def test_get_reports_list_returns_paginated_items(monkeypatch):
+    client = make_client(monkeypatch)
+    _ingest_fixture()
+
+    first = client.post(
+        "/reports",
+        json={
+            "template": "minister_regional_comparison",
+            "params": {"date_from": "2024-06-01", "date_to": "2024-06-30"},
+        },
+    )
+    second = client.post(
+        "/reports",
+        json={
+            "template": "single_region_report",
+            "params": {
+                "corporation": "Diego Martin",
+                "date_from": "2024-06-01",
+                "date_to": "2024-06-30",
+            },
+        },
+    )
+    assert first.status_code == 200, first.text
+    assert second.status_code == 200, second.text
+
+    response = client.get("/reports", params={"page": 1, "page_size": 10})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] >= 2
+    assert len(body["items"]) >= 2
+    assert {"id", "template", "template_version", "params", "status", "created_at"} <= set(
+        body["items"][0]
+    )
+
+
+def test_get_reports_list_filters_by_q_and_status(monkeypatch):
+    client = make_client(monkeypatch)
+    _ingest_fixture()
+
+    client.post(
+        "/reports",
+        json={
+            "template": "minister_regional_comparison",
+            "params": {"date_from": "2024-06-01", "date_to": "2024-06-30"},
+        },
+    )
+    client.post(
+        "/reports",
+        json={
+            "template": "single_region_report",
+            "params": {
+                "corporation": "Diego Martin",
+                "date_from": "2024-06-01",
+                "date_to": "2024-06-30",
+            },
+        },
+    )
+
+    by_template = client.get("/reports", params={"q": "minister"})
+    assert by_template.status_code == 200
+    assert by_template.json()["total"] >= 1
+    assert all("minister" in item["template"] for item in by_template.json()["items"])
+
+    by_status = client.get("/reports", params={"status": "ok"})
+    assert by_status.status_code == 200
+    assert all(item["status"] == "ok" for item in by_status.json()["items"])
 
 
 def test_get_reports_unknown_id_returns_404(monkeypatch):
