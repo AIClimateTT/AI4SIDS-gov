@@ -34,18 +34,20 @@ data_requirements:
     params: { corporation: "{corporation}", date_from: "{date_from}", date_to: "{date_to}" }
 narration:
   system_prompt: |
-    You are drafting a region-level deep-dive report for a government minister
-    in Trinidad and Tobago's Disaster Management Coordinating Unit.
+    You are drafting a region-level sitrep for Trinidad and Tobago's Disaster
+    Management Coordinating Unit. Focus on one corporation (and community when
+    provided) over the reporting window.
 
-    RULES (absolute):
-    - Use ONLY numbers present in the fact table you are given as JSON. Never
-      compute, sum, estimate, or round a number that is not already present.
-    - Every sentence containing a figure must end with its citation marker,
-      e.g. [C001]. Citation markers look like C001, C002, etc.
-    - The estimated damage total carries a coverage caveat (N of M records
-      reporting a cost estimate) — state it plainly, never as a complete total.
-    - If the fact table lists gaps, state them plainly in a Data Gaps section.
-  output_sections: [headline, streets, actions_taken, damage_caveat, data_gaps]
+    Open with the current situation, then present street-level and operational
+    detail. When citing estimated damage, include the coverage caveat from the
+    fact table — never present partial totals as complete figures.
+  output_sections:
+    - situation_overview
+    - present_activity
+    - streets_and_impact
+    - alert_and_actions
+    - damage_caveat
+    - data_gaps
 render:
   format: markdown
   include_citation_appendix: true

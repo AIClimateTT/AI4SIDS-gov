@@ -5,12 +5,17 @@ import { Button } from '@/components/ui/button'
 import {
   EmptyState,
   LoadingBlock,
-  MarkdownPreview,
   PageHeader,
   StatusBadge,
 } from '@/components/shared'
 import { ContentCard } from '@/components/shared/content-card'
+import {
+  CitationMarkdown,
+  ReportFactTable,
+  ViolationsPanel,
+} from '@/components/reports'
 import { reportQueries } from '@/lib/queries/reports'
+import { formatConstant } from '@/lib/format-constant'
 
 export const Route = createFileRoute('/reports/$reportId')({
   component: ReportDetailPage,
@@ -26,7 +31,7 @@ function ReportDetailPage() {
     <div className="space-y-6">
       <PageHeader
         title={data ? `Report ${data.id}` : 'Report'}
-        description="Citation-checked markdown, fact table, and review violations."
+        description="Citation-checked briefing with linked fact table."
         actions={
           <Button variant="outline" render={<Link to="/reports" />}>
             Back to reports
@@ -55,12 +60,12 @@ function ReportDetailPage() {
             </span>
           </div>
 
-          <ContentCard title="Parameters">
-            <dl className="grid gap-2 sm:grid-cols-2">
+          <ContentCard title="Parameters" size="sm">
+            <dl className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {Object.entries(data.params).map(([key, value]) => (
                 <div key={key}>
                   <dt className="text-xs uppercase tracking-wide text-muted-foreground">
-                    {key}
+                    {formatConstant(key)}
                   </dt>
                   <dd className="text-sm font-medium">{value}</dd>
                 </div>
@@ -68,32 +73,41 @@ function ReportDetailPage() {
             </dl>
           </ContentCard>
 
-          {data.violations.length > 0 ? (
-            <ContentCard
-              title="Citation violations"
-              description="This report needs review before it can be trusted."
-            >
-              <ul className="list-disc space-y-1 pl-5 text-sm">
-                {data.violations.map((violation, index) => (
-                  <li key={`${violation.kind}-${index}`}>
-                    <span className="font-medium">{violation.kind}</span>
-                    {': '}
-                    {violation.detail}
+          {data.data_requirements.length > 0 ? (
+            <ContentCard title="Metrics used" size="sm">
+              <ul className="space-y-2 text-sm">
+                {data.data_requirements.map((requirement) => (
+                  <li
+                    key={`${requirement.module}.${requirement.metric}`}
+                    className="font-mono"
+                  >
+                    {requirement.module}.{requirement.metric}
                   </li>
                 ))}
               </ul>
             </ContentCard>
           ) : null}
 
-          <ContentCard title="Markdown">
-            <MarkdownPreview markdown={data.markdown} />
-          </ContentCard>
+          <ViolationsPanel violations={data.violations} />
 
-          <ContentCard title="Fact table">
-            <pre className="overflow-x-auto rounded-lg bg-muted/40 p-4 font-mono text-xs">
-              {JSON.stringify(data.fact_table, null, 2)}
-            </pre>
-          </ContentCard>
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+            <ContentCard
+              title="Briefing"
+              description="Click a citation marker like [C001] to jump to its fact."
+            >
+              <CitationMarkdown
+                markdown={data.markdown}
+                violations={data.violations}
+              />
+            </ContentCard>
+
+            <ContentCard
+              title="Fact table"
+              description="Every cited number in the briefing maps to a row below."
+            >
+              <ReportFactTable factTable={data.fact_table} />
+            </ContentCard>
+          </div>
         </>
       ) : null}
     </div>

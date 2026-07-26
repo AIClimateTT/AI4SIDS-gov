@@ -1,5 +1,6 @@
 
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
@@ -141,5 +142,20 @@ body {
   }
   html {
     @apply font-sans;
+  }
+}
+
+@keyframes citation-flash {
+  0% {
+    background-color: color-mix(in oklch, var(--primary) 28%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@layer utilities {
+  .citation-flash {
+    animation: citation-flash 1.2s ease-out;
   }
 }

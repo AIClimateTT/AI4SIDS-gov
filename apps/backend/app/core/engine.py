@@ -14,6 +14,17 @@ from app.core.renderer import render_report
 
 PLACEHOLDER_RE = re.compile(r"^\{(\w+)\}$")
 
+CITATION_RULES = """RULES (absolute — always apply):
+- Use ONLY numbers present in the fact table you are given as JSON. Never compute, sum, estimate, or round a number that is not already present.
+- Every sentence containing a figure must end with its citation marker, e.g. [C001]. Citation markers look like C001, C002, etc.
+- Distinguish validated vs pending figures exactly as labeled in the fact table's "verification" field.
+- If the fact table lists gaps, state them plainly in a Data Gaps section."""
+
+
+def compose_system_prompt(template: Template) -> str:
+    user_prompt = template.narration.system_prompt.strip()
+    return f"{CITATION_RULES}\n\n{user_prompt}" if user_prompt else CITATION_RULES
+
 
 def resolve_params(raw_params: dict, template_params: dict) -> dict:
     resolved = {}
@@ -33,12 +44,28 @@ def validate_params(template: Template, params: dict) -> None:
         raise ValueError(f"missing required params for template {template.name!r}: {missing}")
 
 
-def assemble_fact_table(template: Template, params: dict, session: Session, request_id: str) -> FactTable:
+def resolve_effective_requirements(
+    template: Template,
+    data_requirements: list[DataRequirement] | None,
+) -> list[DataRequirement]:
+    effective = data_requirements if data_requirements is not None else template.data_requirements
+    if not effective:
+        raise ValueError("at least one data requirement is required to generate a report")
+    return effective
+
+
+def assemble_fact_table(
+    template: Template,
+    params: dict,
+    session: Session,
+    request_id: str,
+    requirements: list[DataRequirement],
+) -> FactTable:
     validate_params(template, params)
     all_facts: list[Fact] = []
     gaps: list[str] = []
 
-    for requirement in template.data_requirements:
+    for requirement in requirements:
         module = get_module(requirement.module)
         if module is None:
             raise ValueError(f"unknown data module: {requirement.module}")
@@ -69,6 +96,7 @@ class GeneratedReport(BaseModel):
     template: str
     template_version: int = 1
     params: dict
+    data_requirements: list[DataRequirement]
     fact_table: FactTable
     narrative: str
     status: Literal["ok", "needs_review"]
@@ -84,17 +112,25 @@ def build_retry_content(user_content: str, violations: list[CitationViolation]) 
     )
 
 
-def generate_report(template: Template, params: dict, session: Session, llm_client: LLMClient) -> GeneratedReport:
+def generate_report(
+    template: Template,
+    params: dict,
+    session: Session,
+    llm_client: LLMClient,
+    data_requirements: list[DataRequirement] | None = None,
+) -> GeneratedReport:
     request_id = str(uuid.uuid4())
-    fact_table = assemble_fact_table(template, params, session, request_id)
+    effective_requirements = resolve_effective_requirements(template, data_requirements)
+    fact_table = assemble_fact_table(template, params, session, request_id, effective_requirements)
 
+    system_prompt = compose_system_prompt(template)
     user_content = fact_table.model_dump_json()
-    narrative = llm_client.generate(template.narration.system_prompt, user_content)
+    narrative = llm_client.generate(system_prompt, user_content)
     result = check_citations(narrative, fact_table)
 
     if not result.passed:
         retry_content = build_retry_content(user_content, result.violations)
-        narrative = llm_client.generate(template.narration.system_prompt, retry_content)
+        narrative = llm_client.generate(system_prompt, retry_content)
         result = check_citations(narrative, fact_table)
 
     status: Literal["ok", "needs_review"] = "ok" if result.passed else "needs_review"
@@ -105,6 +141,7 @@ def generate_report(template: Template, params: dict, session: Session, llm_clie
         template=template.name,
         template_version=template.version,
         params=params,
+        data_requirements=effective_requirements,
         fact_table=fact_table,
         narrative=narrative,
         status=status,

@@ -1,6 +1,7 @@
 import type { ComponentProps } from 'react'
 import { Link } from '@tanstack/react-router'
 import {
+  Building2Icon,
   FileTextIcon,
   LayoutDashboardIcon,
   LibraryIcon,
@@ -35,6 +36,11 @@ const navItems = [
     title: 'Reports',
     to: '/reports',
     icon: FileTextIcon,
+  },
+  {
+    title: 'Corp report',
+    to: '/reports/corp',
+    icon: Building2Icon,
   },
   {
     title: 'Templates',

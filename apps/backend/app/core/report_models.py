@@ -13,6 +13,7 @@ class Report(Base):
     template: Mapped[str] = mapped_column(String, nullable=False)
     template_version: Mapped[int] = mapped_column(Integer, nullable=False)
     params: Mapped[dict] = mapped_column(JSON, nullable=False)
+    data_requirements: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     fact_table: Mapped[dict] = mapped_column(JSON, nullable=False)
     narrative: Mapped[str] = mapped_column(Text, nullable=False)
     markdown: Mapped[str] = mapped_column(Text, nullable=False)

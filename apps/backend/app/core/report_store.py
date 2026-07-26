@@ -13,6 +13,7 @@ def save_report(report: GeneratedReport, session: Session) -> Report:
         template=report.template,
         template_version=report.template_version,
         params=report.params,
+        data_requirements=[r.model_dump() for r in report.data_requirements],
         fact_table=report.fact_table.model_dump(mode="json"),
         narrative=report.narrative,
         markdown=report.markdown,

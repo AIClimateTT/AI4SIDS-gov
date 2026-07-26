@@ -37,9 +37,12 @@ function OverviewPage() {
               <UploadIcon />
               Ingest data
             </Button>
+            <Button variant="outline" render={<Link to="/reports/corp" />}>
+              Generate corp report
+            </Button>
             <Button render={<Link to="/reports/new" />}>
               <FileTextIcon />
-              Generate report
+              Generate (admin)
             </Button>
           </>
         }

@@ -50,7 +50,7 @@ def test_get_templates_returns_both_real_templates():
     assert all(t["version"] == 1 for t in body)
 
 
-def test_get_templates_includes_params_with_required_flags():
+def test_get_templates_includes_full_template_fields():
     client = make_client()
 
     response = client.get("/templates")
@@ -60,3 +60,6 @@ def test_get_templates_includes_params_with_required_flags():
     param_names = {p["name"] for p in minister["params"]}
     assert param_names == {"date_from", "date_to"}
     assert all(p["required"] for p in minister["params"])
+    assert len(minister["data_requirements"]) > 0
+    assert minister["narration"]["system_prompt"]
+    assert minister["narration"]["output_sections"]

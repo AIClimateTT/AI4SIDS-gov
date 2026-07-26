@@ -103,7 +103,11 @@ def test_assemble_fact_table_calls_all_data_requirements_and_renumbers_citations
     template = make_minister_template().model_copy(update={"version": 4})
 
     fact_table = assemble_fact_table(
-        template, {"date_from": "2024-06-01", "date_to": "2024-06-30"}, session, "req-1"
+        template,
+        {"date_from": "2024-06-01", "date_to": "2024-06-30"},
+        session,
+        "req-1",
+        template.data_requirements,
     )
 
     assert fact_table.request_id == "req-1"
@@ -120,7 +124,13 @@ def test_assemble_fact_table_raises_for_unknown_module(tmp_path):
     )
 
     with pytest.raises(ValueError, match="not_real"):
-        assemble_fact_table(template, {"date_from": "2024-06-01", "date_to": "2024-06-30"}, session, "req-2")
+        assemble_fact_table(
+            template,
+            {"date_from": "2024-06-01", "date_to": "2024-06-30"},
+            session,
+            "req-2",
+            template.data_requirements,
+        )
 
 
 def test_assemble_fact_table_records_gap_for_empty_metric_result(tmp_path):
@@ -138,7 +148,11 @@ def test_assemble_fact_table_records_gap_for_empty_metric_result(tmp_path):
     )
 
     fact_table = assemble_fact_table(
-        template, {"date_from": "2024-06-01", "date_to": "2024-06-30"}, session, "req-3"
+        template,
+        {"date_from": "2024-06-01", "date_to": "2024-06-30"},
+        session,
+        "req-3",
+        template.data_requirements,
     )
 
     assert len(fact_table.facts) == 1

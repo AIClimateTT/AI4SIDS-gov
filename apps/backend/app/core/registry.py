@@ -35,3 +35,14 @@ def list_modules() -> list[DataModule]:
 
 def reset_registry() -> None:
     _modules.clear()
+
+
+def ensure_default_modules_registered() -> None:
+    if get_module("survey123") is None:
+        from app.modules.survey123.module import get_survey123_module
+
+        register_module(get_survey123_module())
+    if get_module("sitreps") is None:
+        from app.modules.sitreps.module import sitrep_module
+
+        register_module(sitrep_module)

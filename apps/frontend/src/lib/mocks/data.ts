@@ -29,6 +29,17 @@ export const mockTemplates: TemplateInfo[] = [
       { name: 'date_from', required: true },
       { name: 'date_to', required: true },
     ],
+    data_requirements: [
+      {
+        module: 'survey123',
+        metric: 'incidents_by_corporation',
+        params: { date_from: '{date_from}', date_to: '{date_to}' },
+      },
+    ],
+    narration: {
+      system_prompt: 'Draft a ministerial regional comparison briefing.',
+      output_sections: ['situation_overview', 'regional_comparison', 'data_gaps'],
+    },
   },
   {
     name: 'single_region_report',
@@ -41,6 +52,21 @@ export const mockTemplates: TemplateInfo[] = [
       { name: 'date_from', required: true },
       { name: 'date_to', required: true },
     ],
+    data_requirements: [
+      {
+        module: 'survey123',
+        metric: 'incident_count',
+        params: {
+          corporation: '{corporation}',
+          date_from: '{date_from}',
+          date_to: '{date_to}',
+        },
+      },
+    ],
+    narration: {
+      system_prompt: 'Draft a single-region sitrep.',
+      output_sections: ['situation_overview', 'present_activity', 'data_gaps'],
+    },
   },
 ]
 
@@ -128,6 +154,13 @@ export const mockReportDetails: Record<string, ReportDetail> = {
     template: 'minister_regional_comparison',
     template_version: 1,
     params: { date_from: '2025-05-01', date_to: '2025-05-18' },
+    data_requirements: [
+      {
+        module: 'survey123',
+        metric: 'incidents_by_corporation',
+        params: { date_from: '{date_from}', date_to: '{date_to}' },
+      },
+    ],
     status: 'ok',
     created_at: '2025-05-18T16:42:00Z',
     narrative:
@@ -141,10 +174,20 @@ Diego Martin recorded the highest validated incident count at **42** [C001].
     fact_table: {
       facts: [
         {
-          id: 'C001',
-          label: 'Diego Martin incidents',
+          metric: 'incidents_by_corporation',
           value: 42,
-          source: 'survey123.incidents_by_corporation',
+          unit: 'incidents',
+          scope: { corporation: 'Diego Martin' },
+          breakdown: null,
+          verification: 'validated',
+          citation: {
+            cid: 'C001',
+            module: 'survey123',
+            description: 'Diego Martin incident count',
+            query_ref: 'survey123.incidents_by_corporation',
+            record_ids: null,
+            as_of: '2025-05-18T16:42:00Z',
+          },
         },
       ],
     },
@@ -159,21 +202,44 @@ Diego Martin recorded the highest validated incident count at **42** [C001].
       date_from: '2025-05-10',
       date_to: '2025-05-18',
     },
+    data_requirements: [
+      {
+        module: 'survey123',
+        metric: 'incident_count',
+        params: {
+          corporation: '{corporation}',
+          date_from: '{date_from}',
+          date_to: '{date_to}',
+        },
+      },
+    ],
     status: 'needs_review',
     created_at: '2025-05-18T14:05:00Z',
     narrative:
       'Diego Martin single-region draft. Citation check failed on one figure.',
     markdown: `# Diego Martin Region Report
 
-Draft narrative with an unverified total of **55** incidents.
+Draft narrative with an unverified total of 55 incidents.
+
+Relief was distributed.
 `,
     fact_table: {
       facts: [
         {
-          id: 'C001',
-          label: 'Incident count',
+          metric: 'incident_count',
           value: 42,
-          source: 'survey123.incident_count',
+          unit: 'incidents',
+          scope: { corporation: 'Diego Martin' },
+          breakdown: null,
+          verification: 'validated',
+          citation: {
+            cid: 'C001',
+            module: 'survey123',
+            description: 'Diego Martin incident count',
+            query_ref: 'survey123.incident_count',
+            record_ids: null,
+            as_of: '2025-05-18T14:05:00Z',
+          },
         },
       ],
     },
@@ -201,6 +267,17 @@ Draft narrative with an unverified total of **55** incidents.
       date_from: '2025-05-01',
       date_to: '2025-05-18',
     },
+    data_requirements: [
+      {
+        module: 'survey123',
+        metric: 'incident_count',
+        params: {
+          corporation: '{corporation}',
+          date_from: '{date_from}',
+          date_to: '{date_to}',
+        },
+      },
+    ],
     status: 'ok',
     created_at: '2025-05-17T11:20:00Z',
     narrative: 'Tunapuna/Piarco region summary for early May.',
@@ -211,10 +288,20 @@ Draft narrative with an unverified total of **55** incidents.
     fact_table: {
       facts: [
         {
-          id: 'C001',
-          label: 'Incident count',
+          metric: 'incident_count',
           value: 28,
-          source: 'survey123.incident_count',
+          unit: 'incidents',
+          scope: { corporation: 'Tunapuna/Piarco' },
+          breakdown: { 'Eastern Main Road': 12 },
+          verification: 'validated',
+          citation: {
+            cid: 'C001',
+            module: 'survey123',
+            description: 'Tunapuna/Piarco incident count',
+            query_ref: 'survey123.incident_count',
+            record_ids: null,
+            as_of: '2025-05-17T11:20:00Z',
+          },
         },
       ],
     },

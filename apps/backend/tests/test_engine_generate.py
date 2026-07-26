@@ -90,7 +90,11 @@ def test_generate_report_recovers_on_retry(tmp_path):
     template = make_minister_template()
 
     fact_table = assemble_fact_table(
-        template, {"date_from": "2024-06-01", "date_to": "2024-06-30"}, session, "req-preview"
+        template,
+        {"date_from": "2024-06-01", "date_to": "2024-06-30"},
+        session,
+        "req-preview",
+        template.data_requirements,
     )
     good_fact = fact_table.facts[0]
     bad_narrative = "There were 999999 incidents recorded."

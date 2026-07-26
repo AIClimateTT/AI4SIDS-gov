@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import sessionmaker
 
 from app.core.citation_check import CitationViolation
-from app.core.contracts import Citation, Fact, FactTable
+from app.core.contracts import Citation, DataRequirement, Fact, FactTable
 from app.core.engine import GeneratedReport
 from app.core.report_store import get_report, save_report
 from app.db import Base, make_engine
@@ -48,6 +48,13 @@ def make_generated_report(status="ok", violations=None, template_version=1) -> G
         template="minister_regional_comparison",
         template_version=template_version,
         params={"date_from": "2024-06-01", "date_to": "2024-06-30"},
+        data_requirements=[
+            DataRequirement(
+                module="survey123",
+                metric="incident_count",
+                params={"date_from": "{date_from}", "date_to": "{date_to}"},
+            )
+        ],
         fact_table=fact_table,
         narrative="There were 19 incidents recorded [C001].",
         status=status,

@@ -9,19 +9,18 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TemplatesRouteImport } from './routes/templates'
 import { Route as ModulesRouteImport } from './routes/modules'
 import { Route as IngestRouteImport } from './routes/ingest'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TemplatesIndexRouteImport } from './routes/templates/index'
 import { Route as ReportsIndexRouteImport } from './routes/reports/index'
 import { Route as ReportsNewRouteImport } from './routes/reports/new'
+import { Route as ReportsCorpRouteImport } from './routes/reports/corp'
 import { Route as ReportsReportIdRouteImport } from './routes/reports/$reportId'
+import { Route as TemplatesNameIndexRouteImport } from './routes/templates/$name/index'
+import { Route as TemplatesNameNewRouteImport } from './routes/templates/$name/new'
+import { Route as TemplatesNameVersionsVersionRouteImport } from './routes/templates/$name/versions/$version'
 
-const TemplatesRoute = TemplatesRouteImport.update({
-  id: '/templates',
-  path: '/templates',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ModulesRoute = ModulesRouteImport.update({
   id: '/modules',
   path: '/modules',
@@ -37,6 +36,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TemplatesIndexRoute = TemplatesIndexRouteImport.update({
+  id: '/templates/',
+  path: '/templates/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReportsIndexRoute = ReportsIndexRouteImport.update({
   id: '/reports/',
   path: '/reports/',
@@ -47,39 +51,72 @@ const ReportsNewRoute = ReportsNewRouteImport.update({
   path: '/reports/new',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReportsCorpRoute = ReportsCorpRouteImport.update({
+  id: '/reports/corp',
+  path: '/reports/corp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReportsReportIdRoute = ReportsReportIdRouteImport.update({
   id: '/reports/$reportId',
   path: '/reports/$reportId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TemplatesNameIndexRoute = TemplatesNameIndexRouteImport.update({
+  id: '/templates/$name/',
+  path: '/templates/$name/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TemplatesNameNewRoute = TemplatesNameNewRouteImport.update({
+  id: '/templates/$name/new',
+  path: '/templates/$name/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TemplatesNameVersionsVersionRoute =
+  TemplatesNameVersionsVersionRouteImport.update({
+    id: '/templates/$name/versions/$version',
+    path: '/templates/$name/versions/$version',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ingest': typeof IngestRoute
   '/modules': typeof ModulesRoute
-  '/templates': typeof TemplatesRoute
   '/reports/$reportId': typeof ReportsReportIdRoute
+  '/reports/corp': typeof ReportsCorpRoute
   '/reports/new': typeof ReportsNewRoute
   '/reports/': typeof ReportsIndexRoute
+  '/templates/': typeof TemplatesIndexRoute
+  '/templates/$name/new': typeof TemplatesNameNewRoute
+  '/templates/$name/': typeof TemplatesNameIndexRoute
+  '/templates/$name/versions/$version': typeof TemplatesNameVersionsVersionRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ingest': typeof IngestRoute
   '/modules': typeof ModulesRoute
-  '/templates': typeof TemplatesRoute
   '/reports/$reportId': typeof ReportsReportIdRoute
+  '/reports/corp': typeof ReportsCorpRoute
   '/reports/new': typeof ReportsNewRoute
   '/reports': typeof ReportsIndexRoute
+  '/templates': typeof TemplatesIndexRoute
+  '/templates/$name/new': typeof TemplatesNameNewRoute
+  '/templates/$name': typeof TemplatesNameIndexRoute
+  '/templates/$name/versions/$version': typeof TemplatesNameVersionsVersionRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/ingest': typeof IngestRoute
   '/modules': typeof ModulesRoute
-  '/templates': typeof TemplatesRoute
   '/reports/$reportId': typeof ReportsReportIdRoute
+  '/reports/corp': typeof ReportsCorpRoute
   '/reports/new': typeof ReportsNewRoute
   '/reports/': typeof ReportsIndexRoute
+  '/templates/': typeof TemplatesIndexRoute
+  '/templates/$name/new': typeof TemplatesNameNewRoute
+  '/templates/$name/': typeof TemplatesNameIndexRoute
+  '/templates/$name/versions/$version': typeof TemplatesNameVersionsVersionRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -87,49 +124,58 @@ export interface FileRouteTypes {
     | '/'
     | '/ingest'
     | '/modules'
-    | '/templates'
     | '/reports/$reportId'
+    | '/reports/corp'
     | '/reports/new'
     | '/reports/'
+    | '/templates/'
+    | '/templates/$name/new'
+    | '/templates/$name/'
+    | '/templates/$name/versions/$version'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/ingest'
     | '/modules'
-    | '/templates'
     | '/reports/$reportId'
+    | '/reports/corp'
     | '/reports/new'
     | '/reports'
+    | '/templates'
+    | '/templates/$name/new'
+    | '/templates/$name'
+    | '/templates/$name/versions/$version'
   id:
     | '__root__'
     | '/'
     | '/ingest'
     | '/modules'
-    | '/templates'
     | '/reports/$reportId'
+    | '/reports/corp'
     | '/reports/new'
     | '/reports/'
+    | '/templates/'
+    | '/templates/$name/new'
+    | '/templates/$name/'
+    | '/templates/$name/versions/$version'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   IngestRoute: typeof IngestRoute
   ModulesRoute: typeof ModulesRoute
-  TemplatesRoute: typeof TemplatesRoute
   ReportsReportIdRoute: typeof ReportsReportIdRoute
+  ReportsCorpRoute: typeof ReportsCorpRoute
   ReportsNewRoute: typeof ReportsNewRoute
   ReportsIndexRoute: typeof ReportsIndexRoute
+  TemplatesIndexRoute: typeof TemplatesIndexRoute
+  TemplatesNameNewRoute: typeof TemplatesNameNewRoute
+  TemplatesNameIndexRoute: typeof TemplatesNameIndexRoute
+  TemplatesNameVersionsVersionRoute: typeof TemplatesNameVersionsVersionRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/templates': {
-      id: '/templates'
-      path: '/templates'
-      fullPath: '/templates'
-      preLoaderRoute: typeof TemplatesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/modules': {
       id: '/modules'
       path: '/modules'
@@ -151,6 +197,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/templates/': {
+      id: '/templates/'
+      path: '/templates'
+      fullPath: '/templates/'
+      preLoaderRoute: typeof TemplatesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reports/': {
       id: '/reports/'
       path: '/reports'
@@ -165,11 +218,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportsNewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reports/corp': {
+      id: '/reports/corp'
+      path: '/reports/corp'
+      fullPath: '/reports/corp'
+      preLoaderRoute: typeof ReportsCorpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reports/$reportId': {
       id: '/reports/$reportId'
       path: '/reports/$reportId'
       fullPath: '/reports/$reportId'
       preLoaderRoute: typeof ReportsReportIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/templates/$name/': {
+      id: '/templates/$name/'
+      path: '/templates/$name'
+      fullPath: '/templates/$name/'
+      preLoaderRoute: typeof TemplatesNameIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/templates/$name/new': {
+      id: '/templates/$name/new'
+      path: '/templates/$name/new'
+      fullPath: '/templates/$name/new'
+      preLoaderRoute: typeof TemplatesNameNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/templates/$name/versions/$version': {
+      id: '/templates/$name/versions/$version'
+      path: '/templates/$name/versions/$version'
+      fullPath: '/templates/$name/versions/$version'
+      preLoaderRoute: typeof TemplatesNameVersionsVersionRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -179,10 +260,14 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   IngestRoute: IngestRoute,
   ModulesRoute: ModulesRoute,
-  TemplatesRoute: TemplatesRoute,
   ReportsReportIdRoute: ReportsReportIdRoute,
+  ReportsCorpRoute: ReportsCorpRoute,
   ReportsNewRoute: ReportsNewRoute,
   ReportsIndexRoute: ReportsIndexRoute,
+  TemplatesIndexRoute: TemplatesIndexRoute,
+  TemplatesNameNewRoute: TemplatesNameNewRoute,
+  TemplatesNameIndexRoute: TemplatesNameIndexRoute,
+  TemplatesNameVersionsVersionRoute: TemplatesNameVersionsVersionRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

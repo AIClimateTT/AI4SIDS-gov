@@ -4,18 +4,27 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.core.contracts import DataRequirement
 from app.core.engine import generate_report
 from app.core.llm import get_default_llm_client
 from app.core.report_store import get_report, list_reports, save_report
-from app.core.template_store import get_latest_template_version
+from app.core.template_store import get_latest_template_version, get_template_version
 from app.db import get_session
 
 router = APIRouter()
 
 
+class DataRequirementInput(BaseModel):
+    module: str
+    metric: str
+    params: dict = {}
+
+
 class GenerateReportRequest(BaseModel):
     template: str
     params: dict
+    version: int | None = None
+    data_requirements: list[DataRequirementInput] | None = None
 
 
 class GenerateReportResponse(BaseModel):
@@ -28,14 +37,99 @@ class GenerateReportResponse(BaseModel):
 def create_report(
     request: GenerateReportRequest, session: Session = Depends(get_session)
 ) -> GenerateReportResponse:
-    template = get_latest_template_version(request.template, session)
+    if request.version is not None:
+        template = get_template_version(request.template, request.version, session)
+    else:
+        template = get_latest_template_version(request.template, session)
     if template is None:
         raise HTTPException(status_code=404, detail=f"unknown template: {request.template}")
 
+    override = None
+    if request.data_requirements is not None:
+        override = [
+            DataRequirement(module=d.module, metric=d.metric, params=d.params)
+            for d in request.data_requirements
+        ]
+
     try:
-        report = generate_report(template, request.params, session, get_default_llm_client())
+        # #region agent log
+        import json
+        import time
+
+        _debug_path = "/Users/devonmurray/just-projects/AI4SIDS-repos/gov/.cursor/debug-33839c.log"
+        try:
+            with open(_debug_path, "a", encoding="utf-8") as fh:
+                fh.write(
+                    json.dumps(
+                        {
+                            "sessionId": "33839c",
+                            "hypothesisId": "C",
+                            "location": "reports.py:create_report",
+                            "message": "create_report before generate",
+                            "data": {
+                                "template": request.template,
+                                "version": request.version,
+                                "param_keys": sorted(request.params.keys()),
+                                "has_override": request.data_requirements is not None,
+                            },
+                            "timestamp": int(time.time() * 1000),
+                        }
+                    )
+                    + "\n"
+                )
+        except Exception:
+            pass
+        # #endregion
+        report = generate_report(
+            template,
+            request.params,
+            session,
+            get_default_llm_client(),
+            data_requirements=override,
+        )
     except ValueError as exc:
+        # #region agent log
+        try:
+            with open(_debug_path, "a", encoding="utf-8") as fh:
+                fh.write(
+                    json.dumps(
+                        {
+                            "sessionId": "33839c",
+                            "hypothesisId": "C",
+                            "location": "reports.py:create_report",
+                            "message": "create_report ValueError",
+                            "data": {"error": str(exc)},
+                            "timestamp": int(time.time() * 1000),
+                        }
+                    )
+                    + "\n"
+                )
+        except Exception:
+            pass
+        # #endregion
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        # #region agent log
+        try:
+            with open(_debug_path, "a", encoding="utf-8") as fh:
+                fh.write(
+                    json.dumps(
+                        {
+                            "sessionId": "33839c",
+                            "hypothesisId": "C",
+                            "location": "reports.py:create_report",
+                            "message": "create_report unhandled exception",
+                            "data": {"error_type": type(exc).__name__, "error": str(exc)},
+                            "timestamp": int(time.time() * 1000),
+                            "runId": "pre-fix",
+                        }
+                    )
+                    + "\n"
+                )
+        except Exception:
+            pass
+        # #endregion
+        raise
 
     save_report(report, session)
 
@@ -96,6 +190,7 @@ class ReportDetail(BaseModel):
     template: str
     template_version: int
     params: dict
+    data_requirements: list
     fact_table: dict
     narrative: str
     markdown: str
@@ -115,6 +210,7 @@ def read_report(report_id: str, session: Session = Depends(get_session)) -> Repo
         template=db_report.template,
         template_version=db_report.template_version,
         params=db_report.params,
+        data_requirements=db_report.data_requirements or [],
         fact_table=db_report.fact_table,
         narrative=db_report.narrative,
         markdown=db_report.markdown,

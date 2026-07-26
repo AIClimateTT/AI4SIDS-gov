@@ -5,13 +5,48 @@ export type TemplateParamInfo = {
   required: boolean
 }
 
+export type DataRequirementInfo = {
+  module: string
+  metric: string
+  params: Record<string, string>
+}
+
+export type NarrationInfo = {
+  system_prompt: string
+  output_sections: string[]
+}
+
 export type TemplateInfo = {
   name: string
   version: number
   title: string
   description: string
   params: TemplateParamInfo[]
+  data_requirements: DataRequirementInfo[]
+  narration: NarrationInfo
 }
+
+export type TemplateVersionSummary = {
+  name: string
+  version: number
+  title: string
+  created_at: string
+}
+
+export type CreateTemplateVersionInput = {
+  name: string
+  title: string
+  description: string
+  params: TemplateParamInfo[]
+  data_requirements: DataRequirementInfo[]
+  narration: NarrationInfo
+}
+
+export const CITATION_RULES = `RULES (absolute — always apply):
+- Use ONLY numbers present in the fact table you are given as JSON. Never compute, sum, estimate, or round a number that is not already present.
+- Every sentence containing a figure must end with its citation marker, e.g. [C001]. Citation markers look like C001, C002, etc.
+- Distinguish validated vs pending figures exactly as labeled in the fact table's "verification" field.
+- If the fact table lists gaps, state them plainly in a Data Gaps section.`
 
 export type MetricSpec = {
   name: string
@@ -36,6 +71,35 @@ export type CitationViolation = {
   token?: string | null
 }
 
+export type FactCitation = {
+  cid: string
+  module: string
+  description: string
+  query_ref: string
+  record_ids?: string[] | null
+  as_of: string
+}
+
+export type Fact = {
+  metric: string
+  value: number | string
+  unit: string | null
+  scope: Record<string, string>
+  breakdown: Record<string, number | string> | null
+  verification: 'validated' | 'pending' | 'mixed' | 'n/a' | string
+  citation: FactCitation
+}
+
+export type FactTable = {
+  request_id?: string
+  template?: string
+  template_version?: number
+  params?: Record<string, string>
+  generated_at?: string
+  facts: Fact[]
+  gaps?: string[]
+}
+
 export type ReportListItem = {
   id: string
   template: string
@@ -50,7 +114,8 @@ export type ReportDetail = {
   template: string
   template_version: number
   params: Record<string, string>
-  fact_table: Record<string, unknown>
+  data_requirements: DataRequirementInfo[]
+  fact_table: FactTable
   narrative: string
   markdown: string
   status: ReportStatus
@@ -61,6 +126,8 @@ export type ReportDetail = {
 export type GenerateReportInput = {
   template: string
   params: Record<string, string>
+  version?: number
+  data_requirements?: DataRequirementInfo[]
 }
 
 export type GenerateReportResult = {

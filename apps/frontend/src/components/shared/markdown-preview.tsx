@@ -1,3 +1,6 @@
+import Markdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+
 import { cn } from '@/lib/utils'
 
 type MarkdownPreviewProps = {
@@ -5,16 +8,16 @@ type MarkdownPreviewProps = {
   className?: string
 }
 
-/** Plain markdown display for scaffolding — swap for a real renderer later. */
+/** Generic markdown renderer. For report citations, use CitationMarkdown. */
 export function MarkdownPreview({ markdown, className }: MarkdownPreviewProps) {
   return (
-    <pre
+    <div
       className={cn(
-        'overflow-x-auto whitespace-pre-wrap rounded-lg bg-muted/40 p-4 font-mono text-sm leading-relaxed',
+        'prose prose-sm max-w-none dark:prose-invert',
         className,
       )}
     >
-      {markdown}
-    </pre>
+      <Markdown remarkPlugins={[remarkGfm]}>{markdown}</Markdown>
+    </div>
   )
 }
