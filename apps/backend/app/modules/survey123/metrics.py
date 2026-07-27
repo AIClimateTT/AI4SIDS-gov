@@ -72,8 +72,13 @@ def column_exists(model, name: str) -> bool:
 
 
 def record_ref_of(row) -> str:
-    """Stable per-row identifier for citations, across both incident models."""
-    return getattr(row, "global_id", None) or row.record_ref
+    """Stable per-row identifier for citations, across both incident models.
+
+    The second getattr has a default because the two incident models expose
+    different identifiers (global_id vs record_ref), and a blank one must
+    degrade to an empty citation reference rather than take down a report.
+    """
+    return getattr(row, "global_id", None) or getattr(row, "record_ref", "")
 
 
 def apply_common_filters(stmt: Select, params: dict, model=Incident) -> Select:
