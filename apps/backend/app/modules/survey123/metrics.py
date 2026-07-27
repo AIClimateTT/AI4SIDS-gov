@@ -65,16 +65,27 @@ def build_citation(metric_name: str, index: int, params: dict, global_ids: list[
     )
 
 
-def apply_common_filters(stmt: Select, params: dict) -> Select:
-    if params.get("source") is not None:
-        stmt = stmt.where(Incident.source == params["source"])
+def column_exists(model, name: str) -> bool:
+    """True only for real mapped columns. Deliberately not hasattr(): a Python
+    property named like a column would pass hasattr and then blow up in SQL."""
+    return name in model.__table__.columns
+
+
+def record_ref_of(row) -> str:
+    """Stable per-row identifier for citations, across both incident models."""
+    return getattr(row, "global_id", None) or row.record_ref
+
+
+def apply_common_filters(stmt: Select, params: dict, model=Incident) -> Select:
+    if params.get("source") is not None and column_exists(model, "source"):
+        stmt = stmt.where(model.source == params["source"])
     if params.get("corporation") is not None:
-        stmt = stmt.where(Incident.corporation == params["corporation"])
+        stmt = stmt.where(model.corporation == params["corporation"])
     if params.get("community") is not None:
-        stmt = stmt.where(Incident.community == params["community"])
+        stmt = stmt.where(model.community == params["community"])
     date_from = parse_date_param(params.get("date_from"))
     if date_from is not None:
-        stmt = stmt.where(Incident.event_date >= date_from)
+        stmt = stmt.where(model.event_date >= date_from)
     date_to = parse_date_param(params.get("date_to"))
     if date_to is not None:
         # date_to arrives as a date-only ISO string (e.g. "2024-06-30"), which
@@ -82,27 +93,29 @@ def apply_common_filters(stmt: Select, params: dict) -> Select:
         # time of day, so "<= midnight" would silently exclude every incident
         # that occurred later that same day. Compare against the start of the
         # NEXT day instead, so date_to is inclusive of the whole day.
-        stmt = stmt.where(Incident.event_date < date_to + timedelta(days=1))
+        stmt = stmt.where(model.event_date < date_to + timedelta(days=1))
     return stmt
 
 
-def base_query(params: dict) -> Select:
-    stmt = select(Incident).where(Incident.is_duplicate.is_(False))
-    stmt = apply_common_filters(stmt, params)
-    if not params.get("include_pending", False):
-        stmt = stmt.where(Incident.validation_status == "validated")
+def base_query(params: dict, model=Incident) -> Select:
+    stmt = select(model)
+    if column_exists(model, "is_duplicate"):
+        stmt = stmt.where(model.is_duplicate.is_(False))
+    stmt = apply_common_filters(stmt, params, model)
+    if column_exists(model, "validation_status") and not params.get("include_pending", False):
+        stmt = stmt.where(model.validation_status == "validated")
     return stmt
 
 
-def incident_count(params: dict, session: Session) -> list[Fact]:
-    rows = session.execute(base_query(params)).scalars().all()
+def incident_count(params: dict, session: Session, model=Incident) -> list[Fact]:
+    rows = session.execute(base_query(params, model)).scalars().all()
 
     breakdown: dict[str, int] = {}
     for r in rows:
         key = r.incident_type or "(no incident type recorded)"
         breakdown[key] = breakdown.get(key, 0) + 1
 
-    global_ids = [r.global_id for r in rows]
+    global_ids = [record_ref_of(r) for r in rows]
     citation = build_citation(
         "incident_count",
         0,
@@ -118,21 +131,23 @@ def incident_count(params: dict, session: Session) -> list[Fact]:
             unit="incidents",
             scope=build_scope(params),
             breakdown=breakdown or None,
-            verification=determine_verification([r.validation_status for r in rows]),
+            verification=determine_verification(
+                [getattr(r, "validation_status", "validated") for r in rows]
+            ),
             citation=citation,
         )
     ]
 
 
-def incidents_by_corporation(params: dict, session: Session) -> list[Fact]:
-    rows = session.execute(base_query(params)).scalars().all()
+def incidents_by_corporation(params: dict, session: Session, model=Incident) -> list[Fact]:
+    rows = session.execute(base_query(params, model)).scalars().all()
 
     breakdown: dict[str, int] = {}
     for r in rows:
         key = r.corporation or "(no corporation recorded)"
         breakdown[key] = breakdown.get(key, 0) + 1
 
-    global_ids = [r.global_id for r in rows]
+    global_ids = [record_ref_of(r) for r in rows]
     citation = build_citation(
         "incidents_by_corporation",
         0,
@@ -148,7 +163,9 @@ def incidents_by_corporation(params: dict, session: Session) -> list[Fact]:
             unit="incidents",
             scope=build_scope(params),
             breakdown=breakdown or None,
-            verification=determine_verification([r.validation_status for r in rows]),
+            verification=determine_verification(
+                [getattr(r, "validation_status", "validated") for r in rows]
+            ),
             citation=citation,
         )
     ]
@@ -157,10 +174,10 @@ def incidents_by_corporation(params: dict, session: Session) -> list[Fact]:
 HOME_AFFECTING_INCIDENT_TYPES = {"flooding_", "fire", "blown_off_roof"}
 
 
-def homes_affected_count(params: dict, session: Session) -> list[Fact]:
+def homes_affected_count(params: dict, session: Session, model=Incident) -> list[Fact]:
     full_params = dict(params)
     full_params["include_pending"] = True
-    rows = session.execute(base_query(full_params)).scalars().all()
+    rows = session.execute(base_query(full_params, model)).scalars().all()
 
     affected = [
         r for r in rows if (r.building_damage or "").strip() or r.incident_type in HOME_AFFECTING_INCIDENT_TYPES
@@ -168,13 +185,18 @@ def homes_affected_count(params: dict, session: Session) -> list[Fact]:
 
     breakdown = {"validated": 0, "pending": 0}
     for r in affected:
-        if r.validation_status in breakdown:
-            breakdown[r.validation_status] += 1
+        status = getattr(r, "validation_status", "validated")
+        if status in breakdown:
+            breakdown[status] += 1
 
     include_pending = bool(params.get("include_pending", False))
-    contributing = affected if include_pending else [r for r in affected if r.validation_status == "validated"]
+    contributing = (
+        affected
+        if include_pending
+        else [r for r in affected if getattr(r, "validation_status", "validated") == "validated"]
+    )
 
-    global_ids = [r.global_id for r in contributing]
+    global_ids = [record_ref_of(r) for r in contributing]
     citation = build_citation(
         "homes_affected_count",
         0,
@@ -190,14 +212,16 @@ def homes_affected_count(params: dict, session: Session) -> list[Fact]:
             unit="incidents",
             scope=build_scope(params),
             breakdown=breakdown,
-            verification=determine_verification([r.validation_status for r in contributing]),
+            verification=determine_verification(
+                [getattr(r, "validation_status", "validated") for r in contributing]
+            ),
             citation=citation,
         )
     ]
 
 
-def casualty_summary(params: dict, session: Session) -> list[Fact]:
-    rows = session.execute(base_query(params)).scalars().all()
+def casualty_summary(params: dict, session: Session, model=Incident) -> list[Fact]:
+    rows = session.execute(base_query(params, model)).scalars().all()
 
     injury_rows = [r for r in rows if (r.injuries_count or 0) > 0]
     death_rows = [r for r in rows if (r.deaths_count or 0) > 0]
@@ -206,14 +230,14 @@ def casualty_summary(params: dict, session: Session) -> list[Fact]:
         "casualty_summary",
         0,
         params,
-        [r.global_id for r in injury_rows],
+        [record_ref_of(r) for r in injury_rows],
         f"Survey123 injuries, {build_window_label(params.get('date_from'), params.get('date_to'))}",
     )
     deaths_citation = build_citation(
         "casualty_summary",
         1,
         params,
-        [r.global_id for r in death_rows],
+        [record_ref_of(r) for r in death_rows],
         f"Survey123 deaths, {build_window_label(params.get('date_from'), params.get('date_to'))}",
     )
 
@@ -224,7 +248,9 @@ def casualty_summary(params: dict, session: Session) -> list[Fact]:
             unit="persons",
             scope=build_scope(params, category="injuries"),
             breakdown=None,
-            verification=determine_verification([r.validation_status for r in injury_rows]),
+            verification=determine_verification(
+                [getattr(r, "validation_status", "validated") for r in injury_rows]
+            ),
             citation=injuries_citation,
         ),
         Fact(
@@ -233,7 +259,9 @@ def casualty_summary(params: dict, session: Session) -> list[Fact]:
             unit="persons",
             scope=build_scope(params, category="deaths"),
             breakdown=None,
-            verification=determine_verification([r.validation_status for r in death_rows]),
+            verification=determine_verification(
+                [getattr(r, "validation_status", "validated") for r in death_rows]
+            ),
             citation=deaths_citation,
         ),
     ]
@@ -242,8 +270,8 @@ def casualty_summary(params: dict, session: Session) -> list[Fact]:
 FOLLOW_UP_FLAG_KEYS = ["relief_supplied", "forwarded_to_agency", "further_assessment_required", "other"]
 
 
-def street_level_tally(params: dict, session: Session) -> list[Fact]:
-    rows = session.execute(base_query(params)).scalars().all()
+def street_level_tally(params: dict, session: Session, model=Incident) -> list[Fact]:
+    rows = session.execute(base_query(params, model)).scalars().all()
 
     breakdown: dict[str, int] = {}
     for r in rows:
@@ -252,7 +280,7 @@ def street_level_tally(params: dict, session: Session) -> list[Fact]:
         key = f"{community} / {street}"
         breakdown[key] = breakdown.get(key, 0) + 1
 
-    global_ids = [r.global_id for r in rows]
+    global_ids = [record_ref_of(r) for r in rows]
     citation = build_citation(
         "street_level_tally",
         0,
@@ -268,14 +296,16 @@ def street_level_tally(params: dict, session: Session) -> list[Fact]:
             unit="incidents",
             scope=build_scope(params),
             breakdown=breakdown or None,
-            verification=determine_verification([r.validation_status for r in rows]),
+            verification=determine_verification(
+                [getattr(r, "validation_status", "validated") for r in rows]
+            ),
             citation=citation,
         )
     ]
 
 
-def relief_actions_summary(params: dict, session: Session) -> list[Fact]:
-    rows = session.execute(base_query(params)).scalars().all()
+def relief_actions_summary(params: dict, session: Session, model=Incident) -> list[Fact]:
+    rows = session.execute(base_query(params, model)).scalars().all()
 
     breakdown = {key: 0 for key in FOLLOW_UP_FLAG_KEYS}
     contributing_ids: set[str] = set()
@@ -287,10 +317,10 @@ def relief_actions_summary(params: dict, session: Session) -> list[Fact]:
                 breakdown[key] += 1
                 any_flag = True
         if any_flag:
-            contributing_ids.add(r.global_id)
+            contributing_ids.add(record_ref_of(r))
 
     global_ids = sorted(contributing_ids)
-    contributing_rows = [r for r in rows if r.global_id in contributing_ids]
+    contributing_rows = [r for r in rows if record_ref_of(r) in contributing_ids]
     citation = build_citation(
         "relief_actions_summary",
         0,
@@ -306,17 +336,19 @@ def relief_actions_summary(params: dict, session: Session) -> list[Fact]:
             unit="incidents",
             scope=build_scope(params),
             breakdown=breakdown,
-            verification=determine_verification([r.validation_status for r in contributing_rows]),
+            verification=determine_verification(
+                [getattr(r, "validation_status", "validated") for r in contributing_rows]
+            ),
             citation=citation,
         )
     ]
 
 
-def special_needs_count(params: dict, session: Session) -> list[Fact]:
-    rows = session.execute(base_query(params)).scalars().all()
+def special_needs_count(params: dict, session: Session, model=Incident) -> list[Fact]:
+    rows = session.execute(base_query(params, model)).scalars().all()
     contributing = [r for r in rows if (r.special_needs_occupants or 0) > 0]
 
-    global_ids = [r.global_id for r in contributing]
+    global_ids = [record_ref_of(r) for r in contributing]
     citation = build_citation(
         "special_needs_count",
         0,
@@ -332,18 +364,20 @@ def special_needs_count(params: dict, session: Session) -> list[Fact]:
             unit="persons",
             scope=build_scope(params),
             breakdown=None,
-            verification=determine_verification([r.validation_status for r in contributing]),
+            verification=determine_verification(
+                [getattr(r, "validation_status", "validated") for r in contributing]
+            ),
             citation=citation,
         )
     ]
 
 
-def estimated_damage_total(params: dict, session: Session) -> list[Fact]:
-    rows = session.execute(base_query(params)).scalars().all()
+def estimated_damage_total(params: dict, session: Session, model=Incident) -> list[Fact]:
+    rows = session.execute(base_query(params, model)).scalars().all()
     with_cost = [r for r in rows if r.estimated_damage_cost is not None]
 
     total = sum((r.estimated_damage_cost for r in with_cost), start=Decimal("0"))
-    global_ids = [r.global_id for r in with_cost]
+    global_ids = [record_ref_of(r) for r in with_cost]
     citation = build_citation(
         "estimated_damage_total",
         0,
@@ -359,18 +393,25 @@ def estimated_damage_total(params: dict, session: Session) -> list[Fact]:
             unit="TTD",
             scope=build_scope(params),
             breakdown={"records_reporting_cost": len(with_cost), "records_total": len(rows)},
-            verification=determine_verification([r.validation_status for r in with_cost]),
+            verification=determine_verification(
+                [getattr(r, "validation_status", "validated") for r in with_cost]
+            ),
             citation=citation,
         )
     ]
 
 
-def data_coverage(params: dict, session: Session) -> list[Fact]:
-    stmt = apply_common_filters(select(Incident), params)
+def data_coverage(params: dict, session: Session, model=Incident) -> list[Fact]:
+    if not column_exists(model, "validation_status"):
+        # Corp SITREP rows are human-verified by definition, so validation
+        # coverage is not a meaningful measure for them.
+        return []
+
+    stmt = apply_common_filters(select(model), params, model)
 
     rows = session.execute(stmt).scalars().all()
 
-    by_corp: dict[str, list[Incident]] = {}
+    by_corp: dict[str, list] = {}
     for r in rows:
         key = r.corporation or "(no corporation recorded)"
         by_corp.setdefault(key, []).append(r)
@@ -382,7 +423,7 @@ def data_coverage(params: dict, session: Session) -> list[Fact]:
         pct_duplicates = round(100.0 * sum(1 for r in corp_rows if r.is_duplicate) / n, 1)
         latest = max((r.creation_date for r in corp_rows if r.creation_date is not None), default=None)
         latest_label = latest.isoformat() if latest is not None else "unknown"
-        global_ids = [r.global_id for r in corp_rows]
+        global_ids = [record_ref_of(r) for r in corp_rows]
         citation = build_citation(
             "data_coverage",
             index,
