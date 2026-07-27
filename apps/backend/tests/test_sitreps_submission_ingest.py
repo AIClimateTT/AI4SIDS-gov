@@ -20,6 +20,19 @@ def make_session(tmp_path):
     return sessionmaker(bind=engine)()
 
 
+def make_session_no_autoflush(tmp_path):
+    # Production's SessionLocal (app/db.py) is autoflush=False. sessionmaker's
+    # own default is autoflush=True, which would silently let the in-batch
+    # supersession lookup "see" a row added earlier in the same loop even
+    # without the explicit batch-dict tracking in ingest_submission -- masking
+    # a bug that only bites under production settings. Tests for in-file
+    # duplicate Row IDs use this session so they'd actually fail without that
+    # tracking.
+    engine = make_engine(f"sqlite:///{tmp_path}/test.db")
+    Base.metadata.create_all(engine)
+    return sessionmaker(bind=engine, autoflush=False)()
+
+
 def write_csv(tmp_path, name, header, rows):
     path = Path(tmp_path) / name
     with open(path, "w", newline="", encoding="utf-8") as f:
@@ -191,3 +204,61 @@ def test_sequence_no_is_returned_for_report_numbering(tmp_path):
     )
 
     assert second.sequence_no == 2
+
+
+def test_duplicate_row_id_within_one_file_collapses_to_last_occurrence(tmp_path):
+    # Uses autoflush=False, matching production's SessionLocal: without the
+    # in-batch tracking in ingest_submission, the DB-side supersession lookup
+    # would not see the first occurrence (never flushed) and would insert both,
+    # violating the unique constraint at commit and aborting the whole submission.
+    session = make_session_no_autoflush(tmp_path)
+    event = create_event(
+        session, corporation=CORP, title="Storm", hazard_type="wind",
+        started_at=datetime(2023, 6, 27),
+    )
+    header = ["Row ID", "Incident Type", "Date of Event", "Incident Summary"]
+    path = write_csv(
+        tmp_path, "dupes.csv", header,
+        [
+            ["1", "fallen_tree", "2023-06-27", "First mention"],
+            ["1", "fallen_tree", "2023-06-27", "Corrected mention"],
+        ],
+    )
+
+    result = ingest_submission(
+        session, corporation=CORP, as_at=datetime(2023, 6, 27), event_id=event.id,
+        incidents_path=path,
+    )
+
+    assert result.incidents_read == 2
+    assert result.incidents_inserted == 1
+    assert result.incidents_updated == 1
+    assert session.query(SitrepIncident).count() == 1
+    row_one = session.query(SitrepIncident).filter(SitrepIncident.row_id == "1").one()
+    assert row_one.incident_summary == "Corrected mention"
+
+
+def test_duplicate_row_id_within_one_file_collapses_even_without_an_event(tmp_path):
+    # Same as above but event_id=None, proving the batch-dict collapse is not
+    # gated on event_id: event-less submissions still don't supersede rows from
+    # an earlier submission, but must still collapse duplicates inside themselves.
+    session = make_session_no_autoflush(tmp_path)
+    header = ["Row ID", "Incident Type", "Date of Event", "Incident Summary"]
+    path = write_csv(
+        tmp_path, "dupes_no_event.csv", header,
+        [
+            ["1", "fallen_tree", "2023-06-27", "First mention"],
+            ["1", "fallen_tree", "2023-06-27", "Corrected mention"],
+        ],
+    )
+
+    result = ingest_submission(
+        session, corporation=CORP, as_at=datetime(2023, 6, 27), incidents_path=path
+    )
+
+    assert result.incidents_read == 2
+    assert result.incidents_inserted == 1
+    assert result.incidents_updated == 1
+    assert session.query(SitrepIncident).count() == 1
+    row_one = session.query(SitrepIncident).filter(SitrepIncident.row_id == "1").one()
+    assert row_one.incident_summary == "Corrected mention"

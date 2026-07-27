@@ -94,30 +94,46 @@ def ingest_submission(
     updated = 0
     now = datetime.now(timezone.utc)
 
+    # Tracks every SitrepIncident this batch has already staged, keyed by row_id.
+    # The DB lookup below only sees rows that have actually been flushed, and
+    # production's SessionLocal is autoflush=False (app/db.py), so two rows with
+    # the same Row ID in one CSV would otherwise both miss the DB lookup and both
+    # get inserted -- surfacing only as an IntegrityError at the final commit,
+    # which would abort the whole submission. Checking this dict first makes
+    # supersession work regardless of session autoflush configuration.
+    #
+    # This dict is intentionally NOT gated on event_id. Cross-submission
+    # supersession is event-scoped (see the comment below), but a repeated
+    # Row ID *within a single file* is a restatement either way -- even for an
+    # event-less submission, which never supersedes rows from an earlier
+    # submission but must still collapse duplicates inside itself.
+    staged_by_row_id: dict[str, SitrepIncident] = {}
+
     for fields in parsed_incidents:
-        existing = None
+        row_id = fields["row_id"]
+        existing = staged_by_row_id.get(row_id)
+
         # Explicit lookup rather than relying on the unique index: event_id is
         # nullable, and SQL does not collide NULLs, so an event-less submission
         # is standalone by design rather than by accident of the constraint.
-        if event_id is not None:
+        if existing is None and event_id is not None:
             existing = session.scalars(
                 select(SitrepIncident).where(
                     SitrepIncident.corporation == corporation,
                     SitrepIncident.event_id == event_id,
-                    SitrepIncident.row_id == fields["row_id"],
+                    SitrepIncident.row_id == row_id,
                 )
             ).first()
 
         if existing is None:
-            session.add(
-                SitrepIncident(
-                    **fields,
-                    submission_id=submission.id,
-                    corporation=corporation,
-                    event_id=event_id,
-                    ingested_at=now,
-                )
+            existing = SitrepIncident(
+                **fields,
+                submission_id=submission.id,
+                corporation=corporation,
+                event_id=event_id,
+                ingested_at=now,
             )
+            session.add(existing)
             inserted += 1
         else:
             for key, value in fields.items():
@@ -125,6 +141,8 @@ def ingest_submission(
             existing.submission_id = submission.id
             existing.ingested_at = now
             updated += 1
+
+        staged_by_row_id[row_id] = existing
 
     for fields in parsed_logs:
         session.add(SituationLog(**fields, submission_id=submission.id))
