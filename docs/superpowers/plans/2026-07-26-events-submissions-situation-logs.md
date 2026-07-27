@@ -1551,22 +1551,50 @@ def ingest_submission(
     )
 ```
 
-- [ ] **Step 5: Delete the superseded test file**
+- [ ] **Step 5: Retire every caller of the removed `ingest_sitrep_csv`**
 
-```bash
-cd apps/backend && git rm tests/test_sitreps_ingest.py
+Deleting the function orphans four call sites. They must go in this task — a task that leaves the suite uncollectable is not done.
+
+**a. `apps/backend/app/api/ingest.py`** — delete the `from app.modules.sitreps.ingest import ingest_sitrep_csv` import, the `corporation` form parameter, and the `if module_name == "sitreps":` ingest branch. Replace with an explicit rejection placed immediately after the `get_module` lookup, before the file is read. FastAPI does not translate `NotImplementedError` into a status code, so returning 400 here is what keeps this a clean error rather than an unhandled 500:
+
+```python
+    if module_name == "sitreps":
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "sitreps data arrives as a submission; "
+                "POST /submissions with a corporation, an as-at time and up to two CSVs"
+            ),
+        )
 ```
 
-- [ ] **Step 6: Run test to verify it passes**
+**b. `apps/backend/cli.py`** — delete the `from app.modules.sitreps.ingest import ingest_sitrep_csv` import and the whole `@ingest_app.command("sitreps")` / `ingest_sitreps` function. Task 8 adds the replacement `submissions` command.
+
+**c. `apps/backend/tests/test_cli_sitreps.py`** — `git rm` it. It tests only the CLI command just removed; Task 8 adds its replacement.
+
+**d. `apps/backend/tests/test_sitreps_module.py`** — delete the two tests that seed data through `ingest_sitrep_csv` (`test_sitrep_module_run_metric_*` and `test_survey123_module_run_metric_only_counts_survey123_rows_when_sitreps_also_present`) along with the now-unused import and fixture constants. Keep the tests that need no data: module name, `list_metrics`, and the `NotImplementedError` on `ingest`.
+
+> Why this coverage gap is acceptable and temporary: sitrep rows now land in `sitrep_incidents`, but the metric functions still read the `Incident` model until Task 7. So the cross-source isolation those two tests proved genuinely cannot hold between here and Task 7. Task 7's `tests/test_field_observations_split.py::test_sitrep_module_never_sees_field_observations` restores exactly that coverage against the new schema. Do not attempt to keep them passing in between.
+
+- [ ] **Step 6: Delete the superseded test file**
+
+```bash
+cd apps/backend && git rm tests/test_sitreps_ingest.py tests/test_cli_sitreps.py
+```
+
+- [ ] **Step 7: Run the new tests, then the full suite**
 
 Run: `cd apps/backend && .venv/bin/python -m pytest tests/test_sitreps_submission_ingest.py -v`
 Expected: PASS (8 tests)
 
-- [ ] **Step 7: Commit**
+Run: `cd apps/backend && .venv/bin/python -m pytest -q`
+Expected: no collection errors. The passing count drops by the removed tests and rises by the 8 new ones — state the arithmetic explicitly in the report so nothing is lost silently. The 2 `tests/test_llm.py` failures remain.
+
+- [ ] **Step 8: Commit**
 
 ```bash
 cd apps/backend
-git add app/core/contracts.py app/modules/sitreps/ingest.py tests/test_sitreps_submission_ingest.py
+git add -A app/core/contracts.py app/modules/sitreps/ingest.py app/api/ingest.py cli.py tests/
 git commit -m "sitreps: replace CSV ingest with atomic submission ingest and row-level errors"
 ```
 
@@ -2315,31 +2343,9 @@ from app.api.submissions import router as submissions_router
     app.include_router(submissions_router)
 ```
 
-- [ ] **Step 5: Remove the retired sitreps branch from /ingest**
+- [ ] **Step 5: Cover the retired /ingest sitreps path**
 
-In `apps/backend/app/api/ingest.py`, delete the `if module_name == "sitreps":` branch, the `corporation` form parameter, and the `ingest_sitrep_csv` import. Then return an explicit 400 for sitreps rather than letting `SitrepModule.ingest`'s `NotImplementedError` escape as an unhandled 500 — FastAPI does not translate `NotImplementedError` into a status code:
-
-```python
-    if module_name == "sitreps":
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "sitreps data arrives as a submission; "
-                "POST /submissions with a corporation, an as-at time and up to two CSVs"
-            ),
-        )
-
-    contents = await file.read()
-    ...
-    try:
-        result = module.ingest(tmp_path)
-    finally:
-        tmp_path.unlink(missing_ok=True)
-```
-
-Place the sitreps check immediately after the `get_module` lookup, before the file is read and spooled.
-
-Update `tests/test_api_ingest.py`: drop the sitreps-corporation case and assert `POST /ingest/sitreps` returns 400 with a body pointing at `/submissions`. Follow the file's existing `_clean_registry` autouse-fixture convention — do not introduce `setup_module`.
+Task 5 already removed the sitreps branch from `apps/backend/app/api/ingest.py` and replaced it with an explicit 400. Verify that is still in place, then update `tests/test_api_ingest.py`: drop the sitreps-corporation case and assert `POST /ingest/sitreps` returns 400 with a body pointing at `/submissions`. Follow the file's existing `_clean_registry` autouse-fixture convention — do not introduce `setup_module`.
 
 - [ ] **Step 6: Add the CLI command**
 
@@ -2379,7 +2385,7 @@ def create_submission_command(
     typer.echo(result.model_dump_json(indent=2))
 ```
 
-Update `tests/test_cli_sitreps.py` to invoke `submissions` with the new fixture files and assert on `incidents_inserted` and `logs_inserted`.
+Task 5 deleted `tests/test_cli_sitreps.py` along with the command it tested. Create `tests/test_cli_submissions.py` in its place, invoking `submissions` with the new fixture files and asserting on `incidents_inserted` and `logs_inserted`.
 
 - [ ] **Step 7: Run the full suite**
 
