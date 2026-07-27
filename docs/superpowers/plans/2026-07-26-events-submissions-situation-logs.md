@@ -2028,21 +2028,40 @@ Create `apps/backend/tests/test_api_submissions.py`:
 
 ```python
 import io
+from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app import create_app
+from app.core.registry import reset_registry
 from app.db import Base, engine
 
 CORP = "diego_martin_regional_corporati"
+DEV_DB_PATH = Path(__file__).parent.parent / "dev.db"
 
 
-def setup_module():
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+# Mirrors the convention already used by tests/test_api_ingest.py and
+# tests/test_api_overview.py — a per-test clean DB and registry, so API tests
+# do not leak state into each other regardless of ordering.
+@pytest.fixture(autouse=True)
+def _clean_registry():
+    reset_registry()
+    engine.dispose()
+    if DEV_DB_PATH.exists():
+        DEV_DB_PATH.unlink()
+    yield
+    reset_registry()
+    engine.dispose()
+    if DEV_DB_PATH.exists():
+        DEV_DB_PATH.unlink()
 
 
 def client() -> TestClient:
+    import app.modules.sitreps.models  # noqa: F401
+    import app.modules.survey123.models  # noqa: F401
+
+    Base.metadata.create_all(engine)
     return TestClient(create_app())
 
 
@@ -2288,16 +2307,29 @@ from app.api.submissions import router as submissions_router
 
 - [ ] **Step 5: Remove the retired sitreps branch from /ingest**
 
-In `apps/backend/app/api/ingest.py`, delete the `if module_name == "sitreps":` branch, the `corporation` form parameter, and the `ingest_sitrep_csv` import, so the endpoint only handles Survey123-style module ingest:
+In `apps/backend/app/api/ingest.py`, delete the `if module_name == "sitreps":` branch, the `corporation` form parameter, and the `ingest_sitrep_csv` import. Then return an explicit 400 for sitreps rather than letting `SitrepModule.ingest`'s `NotImplementedError` escape as an unhandled 500 — FastAPI does not translate `NotImplementedError` into a status code:
 
 ```python
+    if module_name == "sitreps":
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "sitreps data arrives as a submission; "
+                "POST /submissions with a corporation, an as-at time and up to two CSVs"
+            ),
+        )
+
+    contents = await file.read()
+    ...
     try:
         result = module.ingest(tmp_path)
     finally:
         tmp_path.unlink(missing_ok=True)
 ```
 
-Update `tests/test_api_ingest.py` to drop any sitreps-corporation case; a `POST /ingest/sitreps` now returns 501 from `SitrepModule.ingest`'s `NotImplementedError`, so assert that instead.
+Place the sitreps check immediately after the `get_module` lookup, before the file is read and spooled.
+
+Update `tests/test_api_ingest.py`: drop the sitreps-corporation case and assert `POST /ingest/sitreps` returns 400 with a body pointing at `/submissions`. Follow the file's existing `_clean_registry` autouse-fixture convention — do not introduce `setup_module`.
 
 - [ ] **Step 6: Add the CLI command**
 
