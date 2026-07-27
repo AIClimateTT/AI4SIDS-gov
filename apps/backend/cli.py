@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Optional
 
 import typer
 from sqlalchemy.orm import Session
@@ -13,7 +14,6 @@ from app.core.template_store import (
     list_latest_templates,
 )
 from app.db import SessionLocal
-from app.modules.sitreps.module import sitrep_module
 from app.modules.survey123.module import get_survey123_module, survey123_module
 from app.templates.loader import load_template
 
@@ -39,6 +39,37 @@ def ingest_survey123(file_path: Path) -> None:
     typer.echo(f"duplicates_flagged={result.duplicates_flagged}")
     typer.echo(f"unmapped_values={result.unmapped_values}")
     typer.echo(f"pii_columns_dropped={result.pii_columns_dropped}")
+
+
+@app.command("submissions")
+def create_submission_command(
+    corporation: str,
+    as_at: str,
+    incidents: Optional[Path] = None,
+    logs: Optional[Path] = None,
+    event_id: Optional[int] = None,
+    alert_level: str = "none",
+) -> None:
+    from datetime import datetime
+
+    from app.db import SessionLocal
+    from app.modules.sitreps.ingest import ingest_submission
+
+    session = SessionLocal()
+    try:
+        result = ingest_submission(
+            session,
+            corporation=corporation,
+            as_at=datetime.fromisoformat(as_at),
+            event_id=event_id,
+            alert_level=alert_level,
+            incidents_path=incidents,
+            logs_path=logs,
+        )
+    finally:
+        session.close()
+
+    typer.echo(result.model_dump_json(indent=2))
 
 
 @templates_app.command("import")
