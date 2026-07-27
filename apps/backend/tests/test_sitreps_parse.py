@@ -185,3 +185,42 @@ def test_unknown_status_is_a_row_error():
     assert fields is None
     assert error.row_number == 6
     assert "maybe" in error.reason
+
+
+def test_nan_quantity_is_a_row_error_not_a_silent_nan():
+    # A NaN in SituationLog.quantity would poison a later cross-corporation sum
+    # with no trace of which row caused it.
+    row = dict(read_log_rows()[1])
+    row["Quantity"] = "nan"
+
+    fields, error = parse_log_row(row, 7)
+
+    assert fields is None
+    assert error == RowError(
+        row_number=7, reason="Quantity is not a finite number: 'nan'"
+    )
+
+
+def test_inf_quantity_is_a_row_error_not_a_silent_inf():
+    row = dict(read_log_rows()[1])
+    row["Quantity"] = "inf"
+
+    fields, error = parse_log_row(row, 8)
+
+    assert fields is None
+    assert error == RowError(
+        row_number=8, reason="Quantity is not a finite number: 'inf'"
+    )
+
+
+def test_overflowing_quantity_is_a_row_error_not_a_silent_inf():
+    # float("1e400") does not raise; it silently overflows to inf.
+    row = dict(read_log_rows()[1])
+    row["Quantity"] = "1e400"
+
+    fields, error = parse_log_row(row, 9)
+
+    assert fields is None
+    assert error == RowError(
+        row_number=9, reason="Quantity is not a finite number: '1e400'"
+    )

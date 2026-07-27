@@ -1,3 +1,4 @@
+import math
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -104,6 +105,11 @@ def parse_log_row(
             return None, RowError(
                 row_number=row_number,
                 reason=f"Quantity is not a number: {raw_quantity!r}",
+            )
+        if not math.isfinite(quantity):
+            return None, RowError(
+                row_number=row_number,
+                reason=f"Quantity is not a finite number: {raw_quantity!r}",
             )
 
     status = _clean(row.get("Status"))
