@@ -7,13 +7,16 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db import Base
 
 
-class Incident(Base):
-    __tablename__ = "incidents"
+class FieldObservation(Base):
+    """Raw, unverified Survey123 field data. The table is the source, so there
+    is no `source` discriminator column to filter on."""
+
+    __tablename__ = "field_observations"
+    __module_name__ = "survey123"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     global_id: Mapped[str] = mapped_column(String, unique=True, index=True)
     object_id: Mapped[int] = mapped_column(Integer)
-    source: Mapped[str] = mapped_column(String, nullable=False, default="survey123")
 
     corporation: Mapped[str | None] = mapped_column(String, nullable=True)
     raw_corporation: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -74,3 +77,7 @@ class Incident(Base):
 
     source_file: Mapped[str] = mapped_column(String, nullable=False)
     ingested_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+    @property
+    def record_ref(self) -> str:
+        return self.global_id

@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.contracts import IngestResult
-from app.modules.survey123.models import Incident
+from app.modules.survey123.models import FieldObservation
 from app.modules.survey123.normalize import (
     normalize_corporation,
     normalize_incident_type,
@@ -182,10 +182,10 @@ def ingest_csv(file_path: Path, session: Session, salt: str) -> IngestResult:
         elif fields["dedup_hash"] is not None and fields["event_date"] is not None:
             existing_match = (
                 session.execute(
-                    select(Incident).where(
-                        Incident.dedup_hash == fields["dedup_hash"],
-                        Incident.event_date == fields["event_date"],
-                        Incident.global_id != fields["global_id"],
+                    select(FieldObservation).where(
+                        FieldObservation.dedup_hash == fields["dedup_hash"],
+                        FieldObservation.event_date == fields["event_date"],
+                        FieldObservation.global_id != fields["global_id"],
                     )
                 )
                 .scalars()
@@ -199,13 +199,13 @@ def ingest_csv(file_path: Path, session: Session, salt: str) -> IngestResult:
             duplicates_flagged += 1
 
         existing = (
-            session.execute(select(Incident).where(Incident.global_id == fields["global_id"]))
+            session.execute(select(FieldObservation).where(FieldObservation.global_id == fields["global_id"]))
             .scalars()
             .first()
         )
 
         if existing is None:
-            incident = Incident(
+            incident = FieldObservation(
                 **fields,
                 is_duplicate=is_duplicate,
                 duplicate_reason=duplicate_reason,

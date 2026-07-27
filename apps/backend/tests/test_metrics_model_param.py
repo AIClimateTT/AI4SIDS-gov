@@ -6,7 +6,7 @@ from app.modules.survey123.metrics import (
     column_exists,
     record_ref_of,
 )
-from app.modules.survey123.models import Incident
+from app.modules.survey123.models import FieldObservation
 from app.modules.sitreps.models import SitrepIncident
 
 
@@ -18,16 +18,16 @@ def test_every_metric_accepts_a_model_parameter():
         )
 
 
-def test_model_defaults_to_incident_so_existing_callers_are_unaffected():
+def test_model_defaults_to_field_observation_so_existing_callers_are_unaffected():
     for name, fn in METRIC_FUNCTIONS.items():
         default = inspect.signature(fn).parameters["model"].default
-        assert default is Incident, f"{name} has the wrong default model"
+        assert default is FieldObservation, f"{name} has the wrong default model"
 
 
 def test_column_exists_reports_real_columns_only():
-    assert column_exists(Incident, "validation_status") is True
-    assert column_exists(Incident, "is_duplicate") is True
-    assert column_exists(Incident, "not_a_column") is False
+    assert column_exists(FieldObservation, "validation_status") is True
+    assert column_exists(FieldObservation, "is_duplicate") is True
+    assert column_exists(FieldObservation, "not_a_column") is False
 
 
 def test_column_exists_rejects_a_property_that_hasattr_would_wrongly_accept():
@@ -39,16 +39,16 @@ def test_column_exists_rejects_a_property_that_hasattr_would_wrongly_accept():
 
 
 def test_base_query_selects_from_the_given_model():
-    stmt = base_query({}, Incident)
+    stmt = base_query({}, FieldObservation)
 
-    assert "incidents" in str(stmt)
+    assert "field_observations" in str(stmt)
 
 
 def test_record_ref_of_falls_back_to_empty_string_for_blank_global_id():
     # A blank GlobalID cell in a Survey123 export must degrade to an empty
-    # citation reference, not crash report generation (Incident has no
+    # citation reference, not crash report generation (FieldObservation has no
     # record_ref attribute at all).
-    row = Incident(global_id="")
+    row = FieldObservation(global_id="")
 
     assert record_ref_of(row) == ""
 

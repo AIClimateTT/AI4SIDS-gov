@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.db import Base, make_engine
 from app.modules.survey123.ingest import PII_COLUMNS, ingest_csv
-from app.modules.survey123.models import Incident
+from app.modules.survey123.models import FieldObservation
 
 FIXTURE_PATH = Path(__file__).parent.parent / "fixtures" / "sample_small.csv"
 
@@ -61,12 +61,12 @@ def test_ingest_fixture_yields_expected_row_count_and_corporation_breakdown(tmp_
     assert result.rows_updated == 0
 
     def count_corp(value):
-        return len(session.execute(select(Incident).where(Incident.corporation == value)).scalars().all())
+        return len(session.execute(select(FieldObservation).where(FieldObservation.corporation == value)).scalars().all())
 
     assert count_corp("sangre_grande_regional_corporat") == 15
     assert count_corp("san_fernando_city_corporation") == 10
     assert count_corp("unmapped") == 1
-    assert len(session.execute(select(Incident).where(Incident.corporation.is_(None))).scalars().all()) == 4
+    assert len(session.execute(select(FieldObservation).where(FieldObservation.corporation.is_(None))).scalars().all()) == 4
 
 
 def test_ingest_fixture_incident_type_breakdown(tmp_path):
@@ -74,7 +74,7 @@ def test_ingest_fixture_incident_type_breakdown(tmp_path):
     ingest_csv(FIXTURE_PATH, session, salt="test-salt")
 
     def count_type(value):
-        return len(session.execute(select(Incident).where(Incident.incident_type == value)).scalars().all())
+        return len(session.execute(select(FieldObservation).where(FieldObservation.incident_type == value)).scalars().all())
 
     assert count_type("flooding_") == 9
     assert count_type("fire") == 6
@@ -91,8 +91,8 @@ def test_ingest_fixture_validation_status_breakdown(tmp_path):
     session = make_session(tmp_path)
     ingest_csv(FIXTURE_PATH, session, salt="test-salt")
 
-    validated = session.execute(select(Incident).where(Incident.validation_status == "validated")).scalars().all()
-    pending = session.execute(select(Incident).where(Incident.validation_status == "pending")).scalars().all()
+    validated = session.execute(select(FieldObservation).where(FieldObservation.validation_status == "validated")).scalars().all()
+    pending = session.execute(select(FieldObservation).where(FieldObservation.validation_status == "pending")).scalars().all()
 
     assert len(validated) == 21
     assert len(pending) == 9
@@ -106,14 +106,14 @@ def test_ingest_fixture_flags_duplicate_marker_and_repeated_id_date(tmp_path):
     assert result.duplicates_flagged == 4
 
     marker_rows = session.execute(
-        select(Incident).where(Incident.global_id.in_(["GUID-025", "GUID-026"]))
+        select(FieldObservation).where(FieldObservation.global_id.in_(["GUID-025", "GUID-026"]))
     ).scalars().all()
     for r in marker_rows:
         assert r.is_duplicate is True
         assert r.duplicate_reason == "marker"
 
     repeated_rows = session.execute(
-        select(Incident).where(Incident.global_id.in_(["GUID-027", "GUID-028"]))
+        select(FieldObservation).where(FieldObservation.global_id.in_(["GUID-027", "GUID-028"]))
     ).scalars().all()
     for r in repeated_rows:
         assert r.is_duplicate is True
@@ -136,9 +136,9 @@ def test_ingest_fixture_no_pii_value_persisted_anywhere(tmp_path):
     session = make_session(tmp_path)
     ingest_csv(FIXTURE_PATH, session, salt="test-salt")
 
-    all_incidents = session.execute(select(Incident)).scalars().all()
+    all_incidents = session.execute(select(FieldObservation)).scalars().all()
     serialized = " ".join(
-        str(getattr(incident, col.name)) for incident in all_incidents for col in Incident.__table__.columns
+        str(getattr(incident, col.name)) for incident in all_incidents for col in FieldObservation.__table__.columns
     )
     for pii_value in ["Fake Person 1", "8685550001", "19800101001", "Real Person 27"]:
         assert pii_value not in serialized
@@ -184,6 +184,6 @@ def test_cross_ingest_duplicate_detected_against_already_persisted_rows(tmp_path
     assert result.rows_inserted == 1
     assert result.duplicates_flagged == 1
 
-    new_row = session.execute(select(Incident).where(Incident.global_id == "GUID-099")).scalar_one()
+    new_row = session.execute(select(FieldObservation).where(FieldObservation.global_id == "GUID-099")).scalar_one()
     assert new_row.is_duplicate is True
     assert new_row.duplicate_reason == "repeated_id_date"

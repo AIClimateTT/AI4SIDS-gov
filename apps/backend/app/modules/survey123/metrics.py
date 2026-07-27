@@ -6,7 +6,7 @@ from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
 from app.core.contracts import Citation, Fact, MetricSpec
-from app.modules.survey123.models import Incident
+from app.modules.survey123.models import FieldObservation
 
 
 def parse_date_param(value: str | datetime | None) -> datetime | None:
@@ -51,8 +51,24 @@ def determine_verification(statuses: list[str]) -> Literal["validated", "pending
     return "mixed"
 
 
-def build_citation(metric_name: str, index: int, params: dict, global_ids: list[str], description: str) -> Citation:
-    module = params.get("source", "survey123")
+def module_name_of(model) -> str:
+    """Which data module a row belongs to, now that the table IS the source.
+
+    Module identity used to ride along in params as "source"; with the split
+    there is no source column to filter on, so it is a property of the model.
+    """
+    return getattr(model, "__module_name__", "survey123")
+
+
+def build_citation(
+    metric_name: str,
+    index: int,
+    params: dict,
+    global_ids: list[str],
+    description: str,
+    model=None,
+) -> Citation:
+    module = params.get("source") or module_name_of(model)
     ordered = sorted(global_ids)
     record_ids = ordered[:200] if len(ordered) <= 200 else None
     return Citation(
@@ -81,7 +97,7 @@ def record_ref_of(row) -> str:
     return getattr(row, "global_id", None) or getattr(row, "record_ref", "")
 
 
-def apply_common_filters(stmt: Select, params: dict, model=Incident) -> Select:
+def apply_common_filters(stmt: Select, params: dict, model=FieldObservation) -> Select:
     if params.get("source") is not None and column_exists(model, "source"):
         stmt = stmt.where(model.source == params["source"])
     if params.get("corporation") is not None:
@@ -102,7 +118,7 @@ def apply_common_filters(stmt: Select, params: dict, model=Incident) -> Select:
     return stmt
 
 
-def base_query(params: dict, model=Incident) -> Select:
+def base_query(params: dict, model=FieldObservation) -> Select:
     stmt = select(model)
     if column_exists(model, "is_duplicate"):
         stmt = stmt.where(model.is_duplicate.is_(False))
@@ -112,7 +128,7 @@ def base_query(params: dict, model=Incident) -> Select:
     return stmt
 
 
-def incident_count(params: dict, session: Session, model=Incident) -> list[Fact]:
+def incident_count(params: dict, session: Session, model=FieldObservation) -> list[Fact]:
     rows = session.execute(base_query(params, model)).scalars().all()
 
     breakdown: dict[str, int] = {}
@@ -127,6 +143,7 @@ def incident_count(params: dict, session: Session, model=Incident) -> list[Fact]
         params,
         global_ids,
         f"Survey123 incident count, {build_window_label(params.get('date_from'), params.get('date_to'))}",
+        model,
     )
 
     return [
@@ -144,7 +161,7 @@ def incident_count(params: dict, session: Session, model=Incident) -> list[Fact]
     ]
 
 
-def incidents_by_corporation(params: dict, session: Session, model=Incident) -> list[Fact]:
+def incidents_by_corporation(params: dict, session: Session, model=FieldObservation) -> list[Fact]:
     rows = session.execute(base_query(params, model)).scalars().all()
 
     breakdown: dict[str, int] = {}
@@ -159,6 +176,7 @@ def incidents_by_corporation(params: dict, session: Session, model=Incident) -> 
         params,
         global_ids,
         f"Survey123 incidents by corporation, {build_window_label(params.get('date_from'), params.get('date_to'))}",
+        model,
     )
 
     return [
@@ -179,7 +197,7 @@ def incidents_by_corporation(params: dict, session: Session, model=Incident) -> 
 HOME_AFFECTING_INCIDENT_TYPES = {"flooding_", "fire", "blown_off_roof"}
 
 
-def homes_affected_count(params: dict, session: Session, model=Incident) -> list[Fact]:
+def homes_affected_count(params: dict, session: Session, model=FieldObservation) -> list[Fact]:
     full_params = dict(params)
     full_params["include_pending"] = True
     rows = session.execute(base_query(full_params, model)).scalars().all()
@@ -208,6 +226,7 @@ def homes_affected_count(params: dict, session: Session, model=Incident) -> list
         params,
         global_ids,
         f"Survey123 homes affected, {build_window_label(params.get('date_from'), params.get('date_to'))}",
+        model,
     )
 
     return [
@@ -225,7 +244,7 @@ def homes_affected_count(params: dict, session: Session, model=Incident) -> list
     ]
 
 
-def casualty_summary(params: dict, session: Session, model=Incident) -> list[Fact]:
+def casualty_summary(params: dict, session: Session, model=FieldObservation) -> list[Fact]:
     rows = session.execute(base_query(params, model)).scalars().all()
 
     injury_rows = [r for r in rows if (r.injuries_count or 0) > 0]
@@ -237,6 +256,7 @@ def casualty_summary(params: dict, session: Session, model=Incident) -> list[Fac
         params,
         [record_ref_of(r) for r in injury_rows],
         f"Survey123 injuries, {build_window_label(params.get('date_from'), params.get('date_to'))}",
+        model,
     )
     deaths_citation = build_citation(
         "casualty_summary",
@@ -244,6 +264,7 @@ def casualty_summary(params: dict, session: Session, model=Incident) -> list[Fac
         params,
         [record_ref_of(r) for r in death_rows],
         f"Survey123 deaths, {build_window_label(params.get('date_from'), params.get('date_to'))}",
+        model,
     )
 
     return [
@@ -275,7 +296,7 @@ def casualty_summary(params: dict, session: Session, model=Incident) -> list[Fac
 FOLLOW_UP_FLAG_KEYS = ["relief_supplied", "forwarded_to_agency", "further_assessment_required", "other"]
 
 
-def street_level_tally(params: dict, session: Session, model=Incident) -> list[Fact]:
+def street_level_tally(params: dict, session: Session, model=FieldObservation) -> list[Fact]:
     rows = session.execute(base_query(params, model)).scalars().all()
 
     breakdown: dict[str, int] = {}
@@ -292,6 +313,7 @@ def street_level_tally(params: dict, session: Session, model=Incident) -> list[F
         params,
         global_ids,
         f"Survey123 street-level tally, {build_window_label(params.get('date_from'), params.get('date_to'))}",
+        model,
     )
 
     return [
@@ -309,7 +331,7 @@ def street_level_tally(params: dict, session: Session, model=Incident) -> list[F
     ]
 
 
-def relief_actions_summary(params: dict, session: Session, model=Incident) -> list[Fact]:
+def relief_actions_summary(params: dict, session: Session, model=FieldObservation) -> list[Fact]:
     rows = session.execute(base_query(params, model)).scalars().all()
 
     breakdown = {key: 0 for key in FOLLOW_UP_FLAG_KEYS}
@@ -332,6 +354,7 @@ def relief_actions_summary(params: dict, session: Session, model=Incident) -> li
         params,
         global_ids,
         f"Survey123 relief actions, {build_window_label(params.get('date_from'), params.get('date_to'))}",
+        model,
     )
 
     return [
@@ -349,7 +372,7 @@ def relief_actions_summary(params: dict, session: Session, model=Incident) -> li
     ]
 
 
-def special_needs_count(params: dict, session: Session, model=Incident) -> list[Fact]:
+def special_needs_count(params: dict, session: Session, model=FieldObservation) -> list[Fact]:
     rows = session.execute(base_query(params, model)).scalars().all()
     contributing = [r for r in rows if (r.special_needs_occupants or 0) > 0]
 
@@ -360,6 +383,7 @@ def special_needs_count(params: dict, session: Session, model=Incident) -> list[
         params,
         global_ids,
         f"Survey123 special needs occupants, {build_window_label(params.get('date_from'), params.get('date_to'))}",
+        model,
     )
 
     return [
@@ -377,7 +401,7 @@ def special_needs_count(params: dict, session: Session, model=Incident) -> list[
     ]
 
 
-def estimated_damage_total(params: dict, session: Session, model=Incident) -> list[Fact]:
+def estimated_damage_total(params: dict, session: Session, model=FieldObservation) -> list[Fact]:
     rows = session.execute(base_query(params, model)).scalars().all()
     with_cost = [r for r in rows if r.estimated_damage_cost is not None]
 
@@ -389,6 +413,7 @@ def estimated_damage_total(params: dict, session: Session, model=Incident) -> li
         params,
         global_ids,
         f"Survey123 estimated damage cost, {build_window_label(params.get('date_from'), params.get('date_to'))}",
+        model,
     )
 
     return [
@@ -406,7 +431,7 @@ def estimated_damage_total(params: dict, session: Session, model=Incident) -> li
     ]
 
 
-def data_coverage(params: dict, session: Session, model=Incident) -> list[Fact]:
+def data_coverage(params: dict, session: Session, model=FieldObservation) -> list[Fact]:
     if not column_exists(model, "validation_status"):
         # Corp SITREP rows are human-verified by definition, so validation
         # coverage is not a meaningful measure for them.
@@ -435,6 +460,7 @@ def data_coverage(params: dict, session: Session, model=Incident) -> list[Fact]:
             params,
             global_ids,
             f"Survey123 data coverage for {corp_label}, latest record as of {latest_label}",
+            model,
         )
         facts.append(
             Fact(

@@ -13,7 +13,7 @@ from app.modules.survey123.metrics import (
     determine_verification,
     parse_date_param,
 )
-from app.modules.survey123.models import Incident
+from app.modules.survey123.models import FieldObservation
 
 
 def test_parse_date_param_none_is_none():
@@ -116,7 +116,7 @@ def make_session(tmp_path):
     return Session()
 
 
-def make_incident(**overrides) -> Incident:
+def make_incident(**overrides) -> FieldObservation:
     defaults = dict(
         global_id="GUID-DEFAULT",
         object_id=1,
@@ -160,12 +160,11 @@ def make_incident(**overrides) -> Incident:
         officer_name=None,
         officer_position=None,
         dedup_hash=None,
-        source="survey123",
         source_file="test.csv",
         ingested_at=datetime(2024, 6, 1),
     )
     defaults.update(overrides)
-    return Incident(**defaults)
+    return FieldObservation(**defaults)
 
 
 def test_base_query_excludes_duplicates(tmp_path):
@@ -238,21 +237,12 @@ def test_base_query_date_to_is_inclusive_of_the_whole_day(tmp_path):
     assert [r.global_id for r in rows] == ["G1"]
 
 
-def test_apply_common_filters_filters_by_source(tmp_path):
+def test_base_query_returns_every_field_observation_by_default(tmp_path):
+    # Replaces the two source-filter tests: field_observations holds Survey123
+    # rows and nothing else, so there is no source column left to filter on.
     session = make_session(tmp_path)
-    session.add(make_incident(global_id="G1", source="survey123"))
-    session.add(make_incident(global_id="G2", source="sitreps"))
-    session.commit()
-
-    rows = session.execute(base_query({"source": "sitreps"})).scalars().all()
-
-    assert [r.global_id for r in rows] == ["G2"]
-
-
-def test_base_query_without_source_param_includes_all_sources(tmp_path):
-    session = make_session(tmp_path)
-    session.add(make_incident(global_id="G1", source="survey123"))
-    session.add(make_incident(global_id="G2", source="sitreps"))
+    session.add(make_incident(global_id="G1"))
+    session.add(make_incident(global_id="G2"))
     session.commit()
 
     rows = session.execute(base_query({})).scalars().all()

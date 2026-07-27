@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import sessionmaker
 
 from app.db import Base, make_engine
-from app.modules.survey123.models import Incident
+from app.modules.survey123.models import FieldObservation
 
 BANNED_COLUMN_NAMES = {
     "name_of_person",
@@ -25,10 +25,10 @@ BANNED_COLUMN_NAMES = {
 
 
 def test_incident_model_has_no_pii_columns():
-    columns = set(Incident.__table__.columns.keys())
+    columns = set(FieldObservation.__table__.columns.keys())
     overlap = columns & BANNED_COLUMN_NAMES
 
-    assert not overlap, f"PII-shaped columns found on Incident model: {overlap}"
+    assert not overlap, f"PII-shaped columns found on FieldObservation model: {overlap}"
 
 
 def test_incident_round_trips_through_sqlite(tmp_path):
@@ -37,7 +37,7 @@ def test_incident_round_trips_through_sqlite(tmp_path):
     Session = sessionmaker(bind=engine)
     session = Session()
 
-    incident = Incident(
+    incident = FieldObservation(
         global_id="GUID-TEST",
         object_id=1,
         corporation="sangre_grande_regional_corporat",
@@ -91,7 +91,7 @@ def test_incident_round_trips_through_sqlite(tmp_path):
     session.add(incident)
     session.commit()
 
-    fetched = session.execute(select(Incident).where(Incident.global_id == "GUID-TEST")).scalar_one()
+    fetched = session.execute(select(FieldObservation).where(FieldObservation.global_id == "GUID-TEST")).scalar_one()
 
     assert fetched.corporation == "sangre_grande_regional_corporat"
     assert fetched.follow_up_flags == {
