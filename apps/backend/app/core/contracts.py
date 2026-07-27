@@ -79,3 +79,22 @@ class Template(BaseModel):
     data_requirements: list[DataRequirement]
     narration: NarrationConfig
     render: RenderConfig
+
+
+class RowErrorInfo(BaseModel):
+    file: Literal["incidents", "logs"]
+    row_number: int
+    reason: str
+
+
+class SubmissionIngestResult(BaseModel):
+    submission_id: int
+    sequence_no: int
+    incidents_read: int
+    incidents_inserted: int
+    incidents_updated: int
+    logs_read: int
+    logs_inserted: int
+    row_errors: list[RowErrorInfo]
+    unmapped_values: dict[str, list[str]]
+    pii_columns_dropped: list[str]
