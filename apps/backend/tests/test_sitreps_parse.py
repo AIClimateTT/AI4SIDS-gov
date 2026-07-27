@@ -6,9 +6,11 @@ from app.modules.sitreps.parse import (
     INCIDENT_PII_COLUMNS,
     RowError,
     parse_incident_row,
+    parse_log_row,
 )
 
 FIXTURE = Path(__file__).parent.parent / "fixtures" / "sample_submission_incidents.csv"
+LOGS_FIXTURE = Path(__file__).parent.parent / "fixtures" / "sample_submission_logs.csv"
 
 
 def read_fixture_rows() -> list[dict[str, str]]:
@@ -112,3 +114,74 @@ def test_unmapped_incident_type_falls_through_to_raw():
 
     assert error is None
     assert fields["raw_incident_type"] == "Roofing Damages"
+
+
+def read_log_rows() -> list[dict[str, str]]:
+    with open(LOGS_FIXTURE, newline="", encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+
+def test_parses_a_log_row_with_no_quantity():
+    fields, error = parse_log_row(read_log_rows()[0], 1)
+
+    assert error is None
+    assert fields["category"] == "activity"
+    assert fields["statement"] == "Tree cutting team on stand by"
+    assert fields["item"] is None
+    assert fields["quantity"] is None
+    assert fields["status"] == "on_standby"
+
+
+def test_parses_a_log_row_with_a_quantity():
+    fields, error = parse_log_row(read_log_rows()[1], 2)
+
+    assert error is None
+    assert fields["item"] == "sandbags"
+    assert fields["quantity"] == 200
+    assert fields["unit"] == "bags"
+
+
+def test_missing_statement_is_a_row_error():
+    row = dict(read_log_rows()[0])
+    row["Statement"] = ""
+
+    fields, error = parse_log_row(row, 3)
+
+    assert fields is None
+    assert error == RowError(row_number=3, reason="Statement is required")
+
+
+def test_unknown_category_is_a_row_error():
+    row = dict(read_log_rows()[0])
+    row["Category"] = "logistics"
+
+    fields, error = parse_log_row(row, 4)
+
+    assert fields is None
+    assert error.row_number == 4
+    assert "logistics" in error.reason
+
+
+def test_unparseable_quantity_is_a_row_error_not_a_silent_none():
+    # A quantity that silently became None would drop a citable figure from the
+    # report with no trace. That is the exact failure this system exists to stop.
+    row = dict(read_log_rows()[1])
+    row["Quantity"] = "about 200"
+
+    fields, error = parse_log_row(row, 5)
+
+    assert fields is None
+    assert error == RowError(
+        row_number=5, reason="Quantity is not a number: 'about 200'"
+    )
+
+
+def test_unknown_status_is_a_row_error():
+    row = dict(read_log_rows()[0])
+    row["Status"] = "maybe"
+
+    fields, error = parse_log_row(row, 6)
+
+    assert fields is None
+    assert error.row_number == 6
+    assert "maybe" in error.reason
