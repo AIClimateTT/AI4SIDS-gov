@@ -1413,12 +1413,13 @@ from sqlalchemy.orm import Session
 
 from app.core.contracts import RowErrorInfo, SubmissionIngestResult
 from app.modules.sitreps.models import SitrepIncident, SituationLog
+from app.modules.sitreps.models import Submission
 from app.modules.sitreps.parse import (
     INCIDENT_PII_COLUMNS,
     parse_incident_row,
     parse_log_row,
 )
-from app.modules.sitreps.store import create_submission
+from app.modules.sitreps.store import next_sequence_no
 
 
 def _read_rows(path: Path) -> list[dict[str, str]]:
@@ -1440,7 +1441,8 @@ def ingest_submission(
 ) -> SubmissionIngestResult:
     """Create one submission and load its incident and log rows.
 
-    Both files are parsed in full before anything is written, so a submission
+    Both files are parsed in full before anything is written, and the submission
+    plus all of its child rows commit in a single transaction, so a submission
     never lands half-populated. Individual bad rows are collected and reported;
     they do not abort the batch.
     """
@@ -1475,16 +1477,24 @@ def ingest_submission(
         parsed_logs.append(fields)
 
     source_file = str(incidents_path or logs_path) if (incidents_path or logs_path) else None
-    submission = create_submission(
-        session,
+
+    # Build the Submission inline and flush (not store.create_submission, which
+    # commits): the submission and its child rows must land in ONE transaction,
+    # or a failure mid-write leaves an orphaned submission with no rows behind it.
+    # flush() assigns submission.id without ending the transaction.
+    submission = Submission(
         corporation=corporation,
-        as_at=as_at,
         event_id=event_id,
+        as_at=as_at,
         alert_level=alert_level,
         present_activity=present_activity,
         situation_overview=situation_overview,
+        sequence_no=next_sequence_no(session, corporation, event_id),
         source_file=source_file,
+        ingested_at=datetime.now(timezone.utc),
     )
+    session.add(submission)
+    session.flush()
 
     inserted = 0
     updated = 0
