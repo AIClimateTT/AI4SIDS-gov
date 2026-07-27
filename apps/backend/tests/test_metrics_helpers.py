@@ -1,5 +1,6 @@
 from datetime import datetime
 
+import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import sessionmaker
 
@@ -92,7 +93,7 @@ def test_determine_verification_empty_is_na():
 def test_build_citation_keeps_record_ids_at_or_below_200():
     global_ids = [f"GUID-{i:04d}" for i in range(200)]
 
-    citation = build_citation("incident_count", 0, {}, global_ids, "test description")
+    citation = build_citation("incident_count", 0, {}, global_ids, "test description", FieldObservation)
 
     assert citation.record_ids is not None
     assert len(citation.record_ids) == 200
@@ -104,7 +105,7 @@ def test_build_citation_keeps_record_ids_at_or_below_200():
 def test_build_citation_caps_record_ids_above_200():
     global_ids = [f"GUID-{i:04d}" for i in range(250)]
 
-    citation = build_citation("incident_count", 0, {}, global_ids, "test description")
+    citation = build_citation("incident_count", 0, {}, global_ids, "test description", FieldObservation)
 
     assert citation.record_ids is None
 
@@ -250,15 +251,27 @@ def test_base_query_returns_every_field_observation_by_default(tmp_path):
     assert sorted(r.global_id for r in rows) == ["G1", "G2"]
 
 
-def test_build_citation_defaults_module_to_survey123_when_no_source_param():
-    citation = build_citation("incident_count", 0, {}, ["GUID-1"], "test description")
+def test_build_citation_takes_module_and_cid_from_the_model():
+    citation = build_citation("incident_count", 0, {}, ["GUID-1"], "test description", FieldObservation)
 
     assert citation.module == "survey123"
     assert citation.cid == "survey123-incident_count-0"
 
 
-def test_build_citation_uses_source_param_for_module_and_cid():
-    citation = build_citation("incident_count", 0, {"source": "sitreps"}, ["GUID-1"], "test description")
+def test_build_citation_ignores_a_caller_supplied_source_param():
+    # params is author-controlled (DataRequirement.params), so a "source" key
+    # there must not be able to relabel where a citation came from.
+    citation = build_citation(
+        "incident_count", 0, {"source": "sitreps"}, ["GUID-1"], "test description", FieldObservation
+    )
 
-    assert citation.module == "sitreps"
-    assert citation.cid == "sitreps-incident_count-0"
+    assert citation.module == "survey123"
+    assert citation.cid == "survey123-incident_count-0"
+
+
+def test_build_citation_rejects_a_model_that_does_not_declare_its_module():
+    class UnwiredModel:
+        pass
+
+    with pytest.raises(ValueError, match="__module_name__"):
+        build_citation("incident_count", 0, {}, ["GUID-1"], "test description", UnwiredModel)

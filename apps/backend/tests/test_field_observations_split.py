@@ -83,6 +83,48 @@ def test_each_module_tags_its_citations_with_its_own_name(tmp_path):
     assert survey123[0].citation.cid == "survey123-incident_count-0"
 
 
+def test_a_caller_supplied_source_param_cannot_forge_citation_provenance(tmp_path):
+    # DataRequirement.params is a free-form author-controlled dict, reachable
+    # through POST /templates and the data_requirements override on
+    # POST /reports, and nothing cross-checks citation.module against
+    # requirement.module. So a "source" key in params must be inert: the rows
+    # come from field_observations and the citation must say so, whatever the
+    # caller asked for.
+    session = make_session(tmp_path)
+    session.add(
+        FieldObservation(
+            global_id="gid-1",
+            object_id=1,
+            corporation=CORP,
+            incident_type="fire",
+            event_date=datetime(2023, 6, 27),
+            validation_status="validated",
+            follow_up_flags={},
+            source_file="x.csv",
+            ingested_at=datetime(2023, 6, 27),
+        )
+    )
+    session.commit()
+    reset_registry()
+    ensure_default_modules_registered()
+
+    forged = get_module("survey123").run_metric(
+        "incident_count", {"corporation": CORP, "source": "sitreps"}, session
+    )
+
+    assert forged[0].value == 1
+    assert forged[0].citation.module == "survey123"
+    assert forged[0].citation.cid == "survey123-incident_count-0"
+
+    # ... and the same in the other direction: a sitreps query cannot claim to
+    # be survey123 data either.
+    forged_back = get_module("sitreps").run_metric(
+        "incident_count", {"corporation": CORP, "source": "survey123"}, session
+    )
+
+    assert forged_back[0].citation.module == "sitreps"
+
+
 def test_sitreps_data_coverage_returns_no_facts(tmp_path):
     # SitrepIncident has no validation_status column, so data_coverage takes its
     # early return instead of querying a column that does not exist. The seeded

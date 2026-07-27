@@ -56,8 +56,17 @@ def module_name_of(model) -> str:
 
     Module identity used to ride along in params as "source"; with the split
     there is no source column to filter on, so it is a property of the model.
+    Deliberately raises rather than defaulting: a model wired in without a
+    __module_name__ must fail loudly at that point, not quietly mislabel its
+    rows as survey123 in a ministerial report.
     """
-    return getattr(model, "__module_name__", "survey123")
+    module = getattr(model, "__module_name__", None)
+    if module is None:
+        raise ValueError(
+            f"{getattr(model, '__name__', model)!r} has no __module_name__; a metric model "
+            "must declare which data module owns its rows"
+        )
+    return module
 
 
 def build_citation(
@@ -66,9 +75,14 @@ def build_citation(
     params: dict,
     global_ids: list[str],
     description: str,
-    model=None,
+    model,
 ) -> Citation:
-    module = params.get("source") or module_name_of(model)
+    # Provenance comes from the model and nothing else. It must never be
+    # derivable from params: DataRequirement.params is a free-form dict an
+    # author controls via POST /templates and the data_requirements override on
+    # POST /reports, so honouring a "source" key there would let a caller forge
+    # the module label on a citation in the rendered report.
+    module = module_name_of(model)
     ordered = sorted(global_ids)
     record_ids = ordered[:200] if len(ordered) <= 200 else None
     return Citation(
@@ -98,8 +112,8 @@ def record_ref_of(row) -> str:
 
 
 def apply_common_filters(stmt: Select, params: dict, model=FieldObservation) -> Select:
-    if params.get("source") is not None and column_exists(model, "source"):
-        stmt = stmt.where(model.source == params["source"])
+    # No "source" filter: after the split each table IS one source, so the key
+    # can never narrow a result set and must not look as though it could.
     if params.get("corporation") is not None:
         stmt = stmt.where(model.corporation == params["corporation"])
     if params.get("community") is not None:
