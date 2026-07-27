@@ -1762,8 +1762,16 @@ def data_coverage(params: dict, session: Session, model=Incident) -> list[Fact]:
         # Corp SITREP rows are human-verified by definition, so validation
         # coverage is not a meaningful measure for them.
         return []
-    ...  # existing body unchanged apart from base_query(params, model)
+    ...
 ```
+
+**`data_coverage` must NOT be switched to `base_query`.** It deliberately calls
+`apply_common_filters(select(model), params, model)` so that it counts duplicate
+and pending rows — counting them is the entire point of a coverage metric, and
+its own `MetricSpec` says so ("Spans all rows including pending and flagged
+duplicates by design"). Routing it through `base_query` would silently change
+its answer, because `base_query` filters both out. Thread `model` through its
+existing `apply_common_filters` call and leave the rest of its body alone.
 
 - [ ] **Step 4: Run the new test and the full metric suite**
 
