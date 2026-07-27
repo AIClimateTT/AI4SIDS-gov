@@ -47,6 +47,10 @@ These were settled in brainstorming and are not open for reinterpretation during
 | 9 | **"Shared with DMU" is a status marker, not an approval gate.** | Gating the minister report on report approval is incoherent when the minister report reads data, not reports. Non-reporting corps are named explicitly, as the real document already does. |
 | 10 | **Schema splits the two sources with a shared metric core.** | The sources are never merged and carry different authority; encoding that as a string column on a shared table keeps the old premise. |
 
+### No authentication exists
+
+There is no login, no user model, and no per-corp access control in this system, and this work does not add one. "Corp-owned" and "a corp only sees its own events" describe *data ownership*, enforced by the `corporation` column and by scoping queries to a selected corporation — not by authorization. The corporation is chosen from a manual dropdown of the fourteen, as it is today. Every surface below assumes an operator who selects who they are. Locking a corporation to a signed-in officer is a later, separate piece of work and must not be improvised inside these plans.
+
 ### Load-bearing invariant
 
 **The minister report reads corp *data*. It never reads corp report text, narrative, or revisions.** This is what makes flagged-not-blocked editing safe, and it gets an explicit test.
@@ -105,7 +109,7 @@ Today's `incidents` table renamed and stripped to Survey123's own shape: keeps `
 
 - **Sitrep incidents upsert on `(corporation, event_id, row_id)`.** A corp re-sending its cumulative table for report #4 supersedes rows 1–25 rather than double-counting them. The row records the submission that last reported it.
 - **Situation logs never upsert.** They are state, not occurrences. Metrics read the **latest submission per corporation** in the window.
-- **A submission with no event is standalone** and supersedes nothing.
+- **A submission with no event is standalone** and supersedes nothing. Note this falls out of SQL's NULL semantics for free: a unique index on `(corporation, event_id, row_id)` does not collide when `event_id` is NULL, so event-less submissions are naturally independent. Implement the supersession as an explicit lookup-then-upsert rather than relying on the index alone, so the behaviour is the same on SQLite and Postgres and is not an accident of the constraint.
 
 ---
 
