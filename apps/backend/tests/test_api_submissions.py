@@ -128,3 +128,80 @@ def test_post_submission_rejects_an_unknown_corporation():
 
     assert response.status_code == 400
     assert "corporation" in response.json()["detail"]
+
+
+def test_post_submission_rejects_an_unknown_alert_level():
+    c = client()
+
+    response = c.post(
+        "/submissions",
+        data={
+            "corporation": CORP,
+            "as_at": "2023-07-01T09:00:00",
+            "alert_level": "chartreuse",
+        },
+    )
+
+    assert response.status_code == 400
+    assert "alert_level" in response.json()["detail"]
+
+
+def test_post_event_rejects_an_unknown_hazard_type():
+    c = client()
+
+    response = c.post(
+        "/events",
+        json={
+            "corporation": CORP,
+            "title": "Something",
+            "hazard_type": "meteor",
+            "started_at": "2023-06-27T00:00:00",
+        },
+    )
+
+    assert response.status_code == 400
+    assert "hazard_type" in response.json()["detail"]
+
+
+def test_post_submission_rejects_an_event_owned_by_another_corporation():
+    # Data scoping, not authorization: there is no auth in this system. A corp
+    # must simply not be able to attach its submission to another corp's event,
+    # which would corrupt that event's incident set and report numbering.
+    c = client()
+    created = c.post(
+        "/events",
+        json={
+            "corporation": "siparia_regional_corporation",
+            "title": "Theirs",
+            "hazard_type": "flood",
+            "started_at": "2023-06-27T00:00:00",
+        },
+    )
+    other_event_id = created.json()["id"]
+
+    response = c.post(
+        "/submissions",
+        data={
+            "corporation": CORP,
+            "as_at": "2023-07-01T09:00:00",
+            "event_id": other_event_id,
+        },
+    )
+
+    assert response.status_code == 404
+    assert str(other_event_id) in response.json()["detail"]
+
+
+def test_post_submission_rejects_a_nonexistent_event():
+    c = client()
+
+    response = c.post(
+        "/submissions",
+        data={
+            "corporation": CORP,
+            "as_at": "2023-07-01T09:00:00",
+            "event_id": 99999,
+        },
+    )
+
+    assert response.status_code == 404
