@@ -27,7 +27,7 @@ import {
 } from '@/lib/templates'
 import { CITATION_RULES } from '@/types/dmcu'
 
-export const Route = createFileRoute('/templates/$name/new')({
+export const Route = createFileRoute('/dmu/admin/templates/$name/new')({
   component: NewTemplateVersionPage,
 })
 
@@ -61,7 +61,7 @@ function NewTemplateVersionPage() {
 
   const createVersion = useCreateTemplateVersion((created) => {
     void navigate({
-      to: '/templates/$name/versions/$version',
+      to: '/dmu/admin/templates/$name/versions/$version',
       params: { name: created.name, version: String(created.version) },
     })
   })
@@ -114,7 +114,7 @@ function NewTemplateVersionPage() {
         actions={
           <Button
             variant="outline"
-            render={<Link to="/templates/$name" params={{ name }} />}
+            render={<Link to="/dmu/admin/templates/$name" params={{ name }} />}
           >
             Cancel
           </Button>

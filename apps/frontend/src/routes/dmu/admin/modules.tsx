@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/table'
 import { moduleQueries } from '@/lib/queries/modules'
 
-export const Route = createFileRoute('/modules')({ component: ModulesPage })
+export const Route = createFileRoute('/dmu/admin/modules')({ component: ModulesPage })
 
 function ModulesPage() {
   const { data, isPending, isError, error } = useQuery(moduleQueries.list())

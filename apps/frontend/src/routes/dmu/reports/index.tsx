@@ -16,7 +16,7 @@ import { DataTable } from '@/components/data-table'
 import { reportQueries } from '@/lib/queries/reports'
 import type { ReportListItem } from '@/types/dmcu'
 
-export const Route = createFileRoute('/reports/')({ component: ReportsPage })
+export const Route = createFileRoute('/dmu/reports/')({ component: ReportsPage })
 
 const columns: ColumnDef<ReportListItem>[] = [
   {
@@ -78,7 +78,7 @@ function ReportsPage() {
         title="Reports"
         description="Browse generated briefings and open citation-checked markdown."
         actions={
-          <Button render={<Link to="/reports/new" />}>
+          <Button render={<Link to="/dmu/reports/new" />}>
             <PlusIcon />
             Generate
           </Button>
@@ -131,7 +131,7 @@ function ReportsPage() {
                 placeholder: 'Search reports…',
               },
               actions: (
-                <Button size="sm" render={<Link to="/reports/new" />}>
+                <Button size="sm" render={<Link to="/dmu/reports/new" />}>
                   Generate
                 </Button>
               ),
@@ -147,7 +147,7 @@ function ReportsPage() {
                 size="sm"
                 render={
                   <Link
-                    to="/reports/$reportId"
+                    to="/dmu/reports/$reportId"
                     params={{ reportId: row.id }}
                   />
                 }

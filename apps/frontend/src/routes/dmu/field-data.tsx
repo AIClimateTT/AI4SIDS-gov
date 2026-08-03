@@ -3,7 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { FormPlaceholder, PageHeader } from '@/components/shared'
 import { ContentCard } from '@/components/shared/content-card'
 
-export const Route = createFileRoute('/ingest')({ component: IngestPage })
+export const Route = createFileRoute('/dmu/field-data')({ component: IngestPage })
 
 function IngestPage() {
   return (

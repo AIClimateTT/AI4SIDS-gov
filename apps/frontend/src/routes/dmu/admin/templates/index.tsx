@@ -11,7 +11,7 @@ import { ContentCard } from '@/components/shared/content-card'
 import { Badge } from '@/components/ui/badge'
 import { templateQueries } from '@/lib/queries/templates'
 
-export const Route = createFileRoute('/templates/')({
+export const Route = createFileRoute('/dmu/admin/templates/')({
   component: TemplatesPage,
 })
 
@@ -53,14 +53,14 @@ function TemplatesPage() {
                       variant="outline"
                       render={
                         <Link
-                          to="/templates/$name"
+                          to="/dmu/admin/templates/$name"
                           params={{ name: template.name }}
                         />
                       }
                     >
                       Version history
                     </Button>
-                    <Button size="sm" render={<Link to="/reports/new" />}>
+                    <Button size="sm" render={<Link to="/dmu/reports/new" />}>
                       Generate
                     </Button>
                   </div>

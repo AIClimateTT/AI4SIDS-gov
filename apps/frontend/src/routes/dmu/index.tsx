@@ -33,16 +33,13 @@ function OverviewPage() {
         description="Status of ingested incident data and recent cited briefings."
         actions={
           <>
-            <Button variant="outline" render={<Link to="/ingest" />}>
+            <Button variant="outline" render={<Link to="/dmu/field-data" />}>
               <UploadIcon />
-              Ingest data
+              Field data
             </Button>
-            <Button variant="outline" render={<Link to="/reports/corp" />}>
-              Generate corp report
-            </Button>
-            <Button render={<Link to="/reports/new" />}>
+            <Button render={<Link to="/dmu/reports/new" />}>
               <FileTextIcon />
-              Generate (admin)
+              Generate report
             </Button>
           </>
         }
@@ -86,7 +83,7 @@ function OverviewPage() {
             title="Recent reports"
             description="Latest generated briefings"
             action={
-              <Button variant="outline" size="sm" render={<Link to="/reports" />}>
+              <Button variant="outline" size="sm" render={<Link to="/dmu/reports" />}>
                 View all
               </Button>
             }
@@ -133,7 +130,7 @@ function OverviewPage() {
                           size="sm"
                           render={
                             <Link
-                              to="/reports/$reportId"
+                              to="/dmu/reports/$reportId"
                               params={{ reportId: report.id }}
                             />
                           }

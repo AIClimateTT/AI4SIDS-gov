@@ -10,7 +10,7 @@ import {
 } from '@/components/shared'
 import { templateQueries } from '@/lib/queries/templates'
 
-export const Route = createFileRoute('/templates/$name/versions/$version')({
+export const Route = createFileRoute('/dmu/admin/templates/$name/versions/$version')({
   component: TemplateVersionPage,
 })
 
@@ -31,14 +31,14 @@ function TemplateVersionPage() {
             <Button
               variant="outline"
               render={
-                <Link to="/templates/$name" params={{ name }} />
+                <Link to="/dmu/admin/templates/$name" params={{ name }} />
               }
             >
               Version history
             </Button>
             <Button
               render={
-                <Link to="/templates/$name/new" params={{ name }} />
+                <Link to="/dmu/admin/templates/$name/new" params={{ name }} />
               }
             >
               Create new version

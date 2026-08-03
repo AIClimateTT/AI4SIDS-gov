@@ -24,7 +24,7 @@ import {
   selectedMetricKeys,
 } from '@/lib/templates'
 
-export const Route = createFileRoute('/reports/new')({
+export const Route = createFileRoute('/dmu/reports/new')({
   component: AdminGeneratePage,
 })
 
@@ -38,7 +38,7 @@ function AdminGeneratePage() {
   const templatesQuery = useQuery(templateQueries.list())
   const modulesQuery = useQuery(moduleQueries.list())
   const createReport = useCreateReport((id) => {
-    void navigate({ to: '/reports/$reportId', params: { reportId: id } })
+    void navigate({ to: '/dmu/reports/$reportId', params: { reportId: id } })
   })
 
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>([])
@@ -136,14 +136,11 @@ function AdminGeneratePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Generate report (admin)"
+        title="Generate report"
         description="Full template picker with dynamic params and optional metric overrides."
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" render={<Link to="/reports/corp" />}>
-              Corp generate
-            </Button>
-            <Button variant="outline" render={<Link to="/reports" />}>
+            <Button variant="outline" render={<Link to="/dmu/reports" />}>
               Back to reports
             </Button>
           </div>

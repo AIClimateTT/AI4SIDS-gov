@@ -8,7 +8,7 @@ import { templateQueries } from '@/lib/queries/templates'
 import { Button } from '@/components/ui/button'
 import { useQuery } from '@tanstack/react-query'
 
-export const Route = createFileRoute('/templates/$name/')({
+export const Route = createFileRoute('/dmu/admin/templates/$name/')({
   component: TemplateHistoryPage,
 })
 
@@ -25,12 +25,12 @@ function TemplateHistoryPage() {
         description="Immutable template versions. Edit by creating a new version."
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" render={<Link to="/templates" />}>
+            <Button variant="outline" render={<Link to="/dmu/admin/templates" />}>
               All templates
             </Button>
             <Button
               render={
-                <Link to="/templates/$name/new" params={{ name }} />
+                <Link to="/dmu/admin/templates/$name/new" params={{ name }} />
               }
             >
               Create new version
@@ -53,7 +53,7 @@ function TemplateHistoryPage() {
           {data.map((version) => (
             <Link
               key={version.version}
-              to="/templates/$name/versions/$version"
+              to="/dmu/admin/templates/$name/versions/$version"
               params={{ name, version: String(version.version) }}
               className="block rounded-lg border bg-card px-4 py-3 transition-colors hover:bg-muted/40"
             >

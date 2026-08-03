@@ -17,7 +17,7 @@ import {
 import { reportQueries } from '@/lib/queries/reports'
 import { formatConstant } from '@/lib/format-constant'
 
-export const Route = createFileRoute('/reports/$reportId')({
+export const Route = createFileRoute('/dmu/reports/$reportId')({
   component: ReportDetailPage,
 })
 
@@ -33,7 +33,7 @@ function ReportDetailPage() {
         title={data ? `Report ${data.id}` : 'Report'}
         description="Citation-checked briefing with linked fact table."
         actions={
-          <Button variant="outline" render={<Link to="/reports" />}>
+          <Button variant="outline" render={<Link to="/dmu/reports" />}>
             Back to reports
           </Button>
         }
