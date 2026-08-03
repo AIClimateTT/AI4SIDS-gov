@@ -19,6 +19,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ContentCard } from '@/components/shared/content-card'
+import { RoleMismatchNotice } from '@/components/identity/role-mismatch-notice'
 import { overviewQueries } from '@/lib/queries/overview'
 
 export const Route = createFileRoute('/dmu/')({ component: OverviewPage })
@@ -44,6 +45,8 @@ function OverviewPage() {
           </>
         }
       />
+
+      <RoleMismatchNotice expected="dmu" />
 
       {isPending ? <LoadingBlock rows={4} /> : null}
 
