@@ -77,6 +77,7 @@ class SitrepIncident(Base):
 
     __tablename__ = "sitrep_incidents"
     __module_name__ = "sitreps"
+    __source_label__ = "SITREP"
     __table_args__ = (
         UniqueConstraint(
             "corporation", "event_id", "row_id", name="uq_sitrep_incident_corp_event_row"

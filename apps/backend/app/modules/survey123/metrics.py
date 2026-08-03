@@ -69,6 +69,24 @@ def module_name_of(model) -> str:
     return module
 
 
+def source_label_of(model) -> str:
+    """Human-readable source name for the citation appendix.
+
+    Separate from __module_name__ because the appendix is read by a minister,
+    not a machine: "SITREP" and "Survey123" carry the authority distinction that
+    "sitreps" and "survey123" do not. Raises for the same reason module_name_of
+    does — a corporation's signed-off figure described as Survey123 field data
+    inverts the entire source-authority model.
+    """
+    label = getattr(model, "__source_label__", None)
+    if label is None:
+        raise ValueError(
+            f"{getattr(model, '__name__', model)!r} has no __source_label__; a metric "
+            "model must declare how its source is named in a citation"
+        )
+    return label
+
+
 def build_citation(
     metric_name: str,
     index: int,
@@ -156,7 +174,7 @@ def incident_count(params: dict, session: Session, model=FieldObservation) -> li
         0,
         params,
         global_ids,
-        f"Survey123 incident count, {build_window_label(params.get('date_from'), params.get('date_to'))}",
+        f"{source_label_of(model)} incident count, {build_window_label(params.get('date_from'), params.get('date_to'))}",
         model,
     )
 
@@ -189,7 +207,7 @@ def incidents_by_corporation(params: dict, session: Session, model=FieldObservat
         0,
         params,
         global_ids,
-        f"Survey123 incidents by corporation, {build_window_label(params.get('date_from'), params.get('date_to'))}",
+        f"{source_label_of(model)} incidents by corporation, {build_window_label(params.get('date_from'), params.get('date_to'))}",
         model,
     )
 
@@ -239,7 +257,7 @@ def homes_affected_count(params: dict, session: Session, model=FieldObservation)
         0,
         params,
         global_ids,
-        f"Survey123 homes affected, {build_window_label(params.get('date_from'), params.get('date_to'))}",
+        f"{source_label_of(model)} homes affected, {build_window_label(params.get('date_from'), params.get('date_to'))}",
         model,
     )
 
@@ -269,7 +287,7 @@ def casualty_summary(params: dict, session: Session, model=FieldObservation) -> 
         0,
         params,
         [record_ref_of(r) for r in injury_rows],
-        f"Survey123 injuries, {build_window_label(params.get('date_from'), params.get('date_to'))}",
+        f"{source_label_of(model)} injuries, {build_window_label(params.get('date_from'), params.get('date_to'))}",
         model,
     )
     deaths_citation = build_citation(
@@ -277,7 +295,7 @@ def casualty_summary(params: dict, session: Session, model=FieldObservation) -> 
         1,
         params,
         [record_ref_of(r) for r in death_rows],
-        f"Survey123 deaths, {build_window_label(params.get('date_from'), params.get('date_to'))}",
+        f"{source_label_of(model)} deaths, {build_window_label(params.get('date_from'), params.get('date_to'))}",
         model,
     )
 
@@ -326,7 +344,7 @@ def street_level_tally(params: dict, session: Session, model=FieldObservation) -
         0,
         params,
         global_ids,
-        f"Survey123 street-level tally, {build_window_label(params.get('date_from'), params.get('date_to'))}",
+        f"{source_label_of(model)} street-level tally, {build_window_label(params.get('date_from'), params.get('date_to'))}",
         model,
     )
 
@@ -367,7 +385,7 @@ def relief_actions_summary(params: dict, session: Session, model=FieldObservatio
         0,
         params,
         global_ids,
-        f"Survey123 relief actions, {build_window_label(params.get('date_from'), params.get('date_to'))}",
+        f"{source_label_of(model)} relief actions, {build_window_label(params.get('date_from'), params.get('date_to'))}",
         model,
     )
 
@@ -396,7 +414,7 @@ def special_needs_count(params: dict, session: Session, model=FieldObservation) 
         0,
         params,
         global_ids,
-        f"Survey123 special needs occupants, {build_window_label(params.get('date_from'), params.get('date_to'))}",
+        f"{source_label_of(model)} special needs occupants, {build_window_label(params.get('date_from'), params.get('date_to'))}",
         model,
     )
 
@@ -426,7 +444,7 @@ def estimated_damage_total(params: dict, session: Session, model=FieldObservatio
         0,
         params,
         global_ids,
-        f"Survey123 estimated damage cost, {build_window_label(params.get('date_from'), params.get('date_to'))}",
+        f"{source_label_of(model)} estimated damage cost, {build_window_label(params.get('date_from'), params.get('date_to'))}",
         model,
     )
 
@@ -473,7 +491,7 @@ def data_coverage(params: dict, session: Session, model=FieldObservation) -> lis
             index,
             params,
             global_ids,
-            f"Survey123 data coverage for {corp_label}, latest record as of {latest_label}",
+            f"{source_label_of(model)} data coverage for {corp_label}, latest record as of {latest_label}",
             model,
         )
         facts.append(

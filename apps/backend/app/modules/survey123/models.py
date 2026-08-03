@@ -13,6 +13,7 @@ class FieldObservation(Base):
 
     __tablename__ = "field_observations"
     __module_name__ = "survey123"
+    __source_label__ = "Survey123"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     global_id: Mapped[str] = mapped_column(String, unique=True, index=True)

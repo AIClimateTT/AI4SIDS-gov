@@ -1,5 +1,7 @@
 import inspect
 
+import pytest
+
 from app.modules.survey123.metrics import (
     METRIC_FUNCTIONS,
     base_query,
@@ -57,3 +59,23 @@ def test_record_ref_of_uses_record_ref_for_models_without_global_id():
     row = SitrepIncident(corporation="TTEC", event_id=None, row_id="7")
 
     assert record_ref_of(row) == "TTEC:-:7"
+
+
+def test_citation_description_names_the_model_s_own_source():
+    """A corporation's signed-off figure described as "Survey123" would invert
+    the source-authority model in the appendix a minister actually reads."""
+    from app.modules.sitreps.models import SitrepIncident
+    from app.modules.survey123.metrics import source_label_of
+
+    assert source_label_of(FieldObservation) == 'Survey123'
+    assert source_label_of(SitrepIncident) == 'SITREP'
+
+
+def test_source_label_of_raises_for_an_unwired_model():
+    from app.modules.survey123.metrics import source_label_of
+
+    class Unwired:
+        pass
+
+    with pytest.raises(ValueError, match='__source_label__'):
+        source_label_of(Unwired)
