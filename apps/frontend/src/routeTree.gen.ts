@@ -9,11 +9,14 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WhoAreYouRouteImport } from './routes/who-are-you'
 import { Route as ModulesRouteImport } from './routes/modules'
 import { Route as IngestRouteImport } from './routes/ingest'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TemplatesIndexRouteImport } from './routes/templates/index'
 import { Route as ReportsIndexRouteImport } from './routes/reports/index'
+import { Route as DmuIndexRouteImport } from './routes/dmu/index'
+import { Route as CorpIndexRouteImport } from './routes/corp/index'
 import { Route as ReportsNewRouteImport } from './routes/reports/new'
 import { Route as ReportsCorpRouteImport } from './routes/reports/corp'
 import { Route as ReportsReportIdRouteImport } from './routes/reports/$reportId'
@@ -21,6 +24,11 @@ import { Route as TemplatesNameIndexRouteImport } from './routes/templates/$name
 import { Route as TemplatesNameNewRouteImport } from './routes/templates/$name/new'
 import { Route as TemplatesNameVersionsVersionRouteImport } from './routes/templates/$name/versions/$version'
 
+const WhoAreYouRoute = WhoAreYouRouteImport.update({
+  id: '/who-are-you',
+  path: '/who-are-you',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ModulesRoute = ModulesRouteImport.update({
   id: '/modules',
   path: '/modules',
@@ -44,6 +52,16 @@ const TemplatesIndexRoute = TemplatesIndexRouteImport.update({
 const ReportsIndexRoute = ReportsIndexRouteImport.update({
   id: '/reports/',
   path: '/reports/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DmuIndexRoute = DmuIndexRouteImport.update({
+  id: '/dmu/',
+  path: '/dmu/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CorpIndexRoute = CorpIndexRouteImport.update({
+  id: '/corp/',
+  path: '/corp/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReportsNewRoute = ReportsNewRouteImport.update({
@@ -82,9 +100,12 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ingest': typeof IngestRoute
   '/modules': typeof ModulesRoute
+  '/who-are-you': typeof WhoAreYouRoute
   '/reports/$reportId': typeof ReportsReportIdRoute
   '/reports/corp': typeof ReportsCorpRoute
   '/reports/new': typeof ReportsNewRoute
+  '/corp/': typeof CorpIndexRoute
+  '/dmu/': typeof DmuIndexRoute
   '/reports/': typeof ReportsIndexRoute
   '/templates/': typeof TemplatesIndexRoute
   '/templates/$name/new': typeof TemplatesNameNewRoute
@@ -95,9 +116,12 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ingest': typeof IngestRoute
   '/modules': typeof ModulesRoute
+  '/who-are-you': typeof WhoAreYouRoute
   '/reports/$reportId': typeof ReportsReportIdRoute
   '/reports/corp': typeof ReportsCorpRoute
   '/reports/new': typeof ReportsNewRoute
+  '/corp': typeof CorpIndexRoute
+  '/dmu': typeof DmuIndexRoute
   '/reports': typeof ReportsIndexRoute
   '/templates': typeof TemplatesIndexRoute
   '/templates/$name/new': typeof TemplatesNameNewRoute
@@ -109,9 +133,12 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/ingest': typeof IngestRoute
   '/modules': typeof ModulesRoute
+  '/who-are-you': typeof WhoAreYouRoute
   '/reports/$reportId': typeof ReportsReportIdRoute
   '/reports/corp': typeof ReportsCorpRoute
   '/reports/new': typeof ReportsNewRoute
+  '/corp/': typeof CorpIndexRoute
+  '/dmu/': typeof DmuIndexRoute
   '/reports/': typeof ReportsIndexRoute
   '/templates/': typeof TemplatesIndexRoute
   '/templates/$name/new': typeof TemplatesNameNewRoute
@@ -124,9 +151,12 @@ export interface FileRouteTypes {
     | '/'
     | '/ingest'
     | '/modules'
+    | '/who-are-you'
     | '/reports/$reportId'
     | '/reports/corp'
     | '/reports/new'
+    | '/corp/'
+    | '/dmu/'
     | '/reports/'
     | '/templates/'
     | '/templates/$name/new'
@@ -137,9 +167,12 @@ export interface FileRouteTypes {
     | '/'
     | '/ingest'
     | '/modules'
+    | '/who-are-you'
     | '/reports/$reportId'
     | '/reports/corp'
     | '/reports/new'
+    | '/corp'
+    | '/dmu'
     | '/reports'
     | '/templates'
     | '/templates/$name/new'
@@ -150,9 +183,12 @@ export interface FileRouteTypes {
     | '/'
     | '/ingest'
     | '/modules'
+    | '/who-are-you'
     | '/reports/$reportId'
     | '/reports/corp'
     | '/reports/new'
+    | '/corp/'
+    | '/dmu/'
     | '/reports/'
     | '/templates/'
     | '/templates/$name/new'
@@ -164,9 +200,12 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   IngestRoute: typeof IngestRoute
   ModulesRoute: typeof ModulesRoute
+  WhoAreYouRoute: typeof WhoAreYouRoute
   ReportsReportIdRoute: typeof ReportsReportIdRoute
   ReportsCorpRoute: typeof ReportsCorpRoute
   ReportsNewRoute: typeof ReportsNewRoute
+  CorpIndexRoute: typeof CorpIndexRoute
+  DmuIndexRoute: typeof DmuIndexRoute
   ReportsIndexRoute: typeof ReportsIndexRoute
   TemplatesIndexRoute: typeof TemplatesIndexRoute
   TemplatesNameNewRoute: typeof TemplatesNameNewRoute
@@ -176,6 +215,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/who-are-you': {
+      id: '/who-are-you'
+      path: '/who-are-you'
+      fullPath: '/who-are-you'
+      preLoaderRoute: typeof WhoAreYouRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/modules': {
       id: '/modules'
       path: '/modules'
@@ -209,6 +255,20 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/reports/'
       preLoaderRoute: typeof ReportsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dmu/': {
+      id: '/dmu/'
+      path: '/dmu'
+      fullPath: '/dmu/'
+      preLoaderRoute: typeof DmuIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/corp/': {
+      id: '/corp/'
+      path: '/corp'
+      fullPath: '/corp/'
+      preLoaderRoute: typeof CorpIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reports/new': {
@@ -260,9 +320,12 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   IngestRoute: IngestRoute,
   ModulesRoute: ModulesRoute,
+  WhoAreYouRoute: WhoAreYouRoute,
   ReportsReportIdRoute: ReportsReportIdRoute,
   ReportsCorpRoute: ReportsCorpRoute,
   ReportsNewRoute: ReportsNewRoute,
+  CorpIndexRoute: CorpIndexRoute,
+  DmuIndexRoute: DmuIndexRoute,
   ReportsIndexRoute: ReportsIndexRoute,
   TemplatesIndexRoute: TemplatesIndexRoute,
   TemplatesNameNewRoute: TemplatesNameNewRoute,
