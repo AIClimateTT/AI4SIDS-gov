@@ -158,3 +158,11 @@ def test_assemble_fact_table_records_gap_for_empty_metric_result(tmp_path):
     assert len(fact_table.facts) == 1
     assert fact_table.facts[0].value == 0
     assert fact_table.gaps == []
+
+
+def test_citation_rules_require_digits_not_words():
+    # A ministerial report wrote "Fifteen incidents ... Thirteen homes", none of
+    # which the digit-scanning checker ever examined.
+    from app.core.engine import CITATION_RULES
+
+    assert "digits" in CITATION_RULES.lower()

@@ -71,7 +71,9 @@ class OllamaLLMClient:
     def __init__(self, base_url: str, model: str, chat: "ChatOllama | None" = None):
         self._base_url = base_url
         self._model = model
-        self._chat = chat or ChatOllama(base_url=base_url, model=model)
+        self._chat = chat or ChatOllama(
+            base_url=base_url, model=model, num_ctx=settings.ollama_num_ctx
+        )
 
     def generate(self, system_prompt: str, user_content: str) -> str:
         # #region agent log
