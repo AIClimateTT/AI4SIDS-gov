@@ -8,6 +8,23 @@ from app.core.contracts import FactTable
 ISO_DATE_RE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
 SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
 
+_MONTH = (
+    r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?"
+    r"|Aug(?:ust)?|Sep(?:t|tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)"
+)
+_DAY = r"\d{1,2}(?:st|nd|rd|th)?"
+_YEAR = r"\d{4}"
+
+# Prose dates carry digits that are not figures. Every alternative REQUIRES a
+# 4-digit year: a bare "June 15" is deliberately left alone, because stripping
+# it would swallow the 15 in "In June 15 homes were affected".
+PROSE_DATE_RE = re.compile(
+    rf"\b(?:{_DAY}\s+{_MONTH},?\s+{_YEAR}"
+    rf"|{_MONTH}\s+{_DAY},?\s+{_YEAR}"
+    rf"|{_MONTH}\s+{_YEAR})\b",
+    re.IGNORECASE,
+)
+
 
 class CitationViolation(BaseModel):
     kind: Literal["invented_number", "missing_citation"]
@@ -42,7 +59,9 @@ def _parse_number_token(token: str) -> float:
 
 
 def _strip_dates(text: str) -> str:
-    return ISO_DATE_RE.sub("", text)
+    # Longest form first: prose dates before ISO, so "June 1, 2023" is removed
+    # whole rather than leaving an orphaned "1".
+    return ISO_DATE_RE.sub("", PROSE_DATE_RE.sub("", text))
 
 
 def _split_sentences(text: str) -> list[str]:
@@ -57,7 +76,10 @@ def _matches_any(value: float, candidates: set[float], epsilon: float = 1e-6) ->
 
 
 CITATION_MARKER_RE = re.compile(r"\[([A-Za-z0-9_-]+)\]")
-NUMBER_TOKEN_RE = re.compile(r"\d[\d,]*(?:\.\d+)?%?")
+# \b so a digit run glued to a word is not a figure: "Survey123" must not
+# yield "123", and a bare "C001" marker must not yield "001". Real figures
+# ("15", "115,800", "66.7%") always follow a boundary.
+NUMBER_TOKEN_RE = re.compile(r"\b\d[\d,]*(?:\.\d+)?%?")
 
 
 def check_citations(narrative: str, fact_table: FactTable) -> CitationCheckResult:

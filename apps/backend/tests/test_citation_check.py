@@ -214,3 +214,97 @@ def test_empty_fact_table_flags_any_stated_number():
     assert result.passed is False
     kinds = {v.kind for v in result.violations}
     assert kinds == {"missing_citation", "invented_number"}
+
+
+CID = "survey123-incident_count-0"
+
+
+def test_module_name_containing_digits_is_not_a_figure():
+    # "Survey123" yielded "123" five times in a real ministerial report.
+    result = check_citations(
+        f"Survey123 field observations corroborate the total [{CID}].", make_fact_table()
+    )
+
+    assert result.violations == []
+
+
+def test_dotted_module_reference_is_not_a_figure():
+    result = check_citations(
+        f"No data returned for survey123.data_coverage [{CID}].", make_fact_table()
+    )
+
+    assert [v for v in result.violations if v.kind == "invented_number"] == []
+
+
+def test_prose_date_with_day_month_year_is_not_a_figure():
+    result = check_citations(
+        f"This report covers June 1, 2023, to December 31, 2024 [{CID}].", make_fact_table()
+    )
+
+    assert result.violations == []
+
+
+def test_prose_date_with_an_ordinal_day_is_not_a_figure():
+    result = check_citations(
+        f"As of August 3rd, 2026, 15 incidents were recorded [{CID}].", make_fact_table()
+    )
+
+    assert result.violations == []
+
+
+def test_day_first_prose_date_is_not_a_figure():
+    result = check_citations(
+        f"Filed 31 December 2024 by the corporation [{CID}].", make_fact_table()
+    )
+
+    assert result.violations == []
+
+
+def test_month_and_year_alone_is_not_a_figure():
+    result = check_citations(
+        f"Situation Report - Diego Martin Regional Corporation - June 2023 [{CID}].",
+        make_fact_table(),
+    )
+
+    assert result.violations == []
+
+
+def test_iso_date_is_still_not_a_figure():
+    result = check_citations(
+        f"Window 2023-06-01 to 2023-06-30 covered 15 incidents [{CID}].", make_fact_table()
+    )
+
+    assert result.violations == []
+
+
+def test_an_invented_number_in_a_cited_sentence_is_still_flagged():
+    # The test that proves the precision fix did not simply disable the check.
+    result = check_citations(
+        f"A total of 99 incidents were recorded [{CID}].", make_fact_table()
+    )
+
+    assert [v.token for v in result.violations if v.kind == "invented_number"] == ["99"]
+
+
+def test_a_bare_year_with_no_month_is_still_checked():
+    # 2023 alone is indistinguishable from a figure, so it must not be excused.
+    result = check_citations(
+        f"The corporation recorded 2023 affected households [{CID}].", make_fact_table()
+    )
+
+    assert [v.token for v in result.violations if v.kind == "invented_number"] == ["2023"]
+
+
+def test_a_figure_without_a_citation_is_still_flagged():
+    result = check_citations("A total of 15 incidents were recorded.", make_fact_table())
+
+    assert [v.kind for v in result.violations] == ["missing_citation"]
+
+
+def test_violation_sentence_keeps_the_original_text():
+    # Date stripping happens on a throwaway copy; a reviewer must see what was written.
+    result = check_citations(
+        f"On June 1, 2023 there were 99 incidents [{CID}].", make_fact_table()
+    )
+
+    assert "June 1, 2023" in result.violations[0].sentence
