@@ -21,6 +21,9 @@ export function markViolationSentences(
   violations: CitationViolation[],
 ): string {
   const sentences = violations
+    // empty_narrative's sentence is an excerpt of the whole narrative, not a
+    // flagged span — marking it would highlight the entire report.
+    .filter((v) => v.kind !== 'empty_narrative')
     .map((v) => v.sentence?.trim())
     .filter((s): s is string => !!s && s.length > 0)
     .sort((a, b) => b.length - a.length)

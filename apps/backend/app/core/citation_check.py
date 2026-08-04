@@ -27,7 +27,7 @@ PROSE_DATE_RE = re.compile(
 
 
 class CitationViolation(BaseModel):
-    kind: Literal["invented_number", "missing_citation"]
+    kind: Literal["invented_number", "missing_citation", "empty_narrative"]
     detail: str
     sentence: str
     token: str | None = None
@@ -86,10 +86,15 @@ def check_citations(narrative: str, fact_table: FactTable) -> CitationCheckResul
     fact_numbers = _collect_fact_numbers(fact_table)
     valid_cids = _valid_cids(fact_table)
     violations: list[CitationViolation] = []
+    cited_any = False
 
     for sentence in _split_sentences(narrative):
         cited_ids = set(CITATION_MARKER_RE.findall(sentence))
         has_valid_citation = bool(cited_ids & valid_cids)
+        # Recorded before the no-tokens `continue` below, so a sentence that
+        # cites a fact but states no figure still counts as having reported.
+        if has_valid_citation:
+            cited_any = True
 
         text_for_numbers = CITATION_MARKER_RE.sub("", sentence)
         text_for_numbers = _strip_dates(text_for_numbers)
@@ -119,5 +124,19 @@ def check_citations(narrative: str, fact_table: FactTable) -> CitationCheckResul
                         token=token,
                     )
                 )
+
+    if fact_table.facts and not cited_any:
+        # No citation anywhere while facts exist means the model produced no
+        # report. Without this, an empty narrative has no numbers, therefore no
+        # violations, therefore status "ok" — a clean-looking report with no
+        # prose, which invites no second look.
+        violations.append(
+            CitationViolation(
+                kind="empty_narrative",
+                detail="Narrative cites no facts; the model produced no report",
+                sentence=narrative.strip()[:200],
+                token=None,
+            )
+        )
 
     return CitationCheckResult(passed=not violations, violations=violations)

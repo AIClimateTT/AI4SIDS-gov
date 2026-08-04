@@ -88,8 +88,9 @@ def test_missing_citation_is_flagged():
     result = check_citations(narrative, fact_table)
 
     assert result.passed is False
-    assert len(result.violations) == 1
-    assert result.violations[0].kind == "missing_citation"
+    # Also trips empty_narrative — the narrative cites nothing at all — so
+    # assert on the kind under test rather than the total count.
+    assert "missing_citation" in [v.kind for v in result.violations]
 
 
 def test_comma_formatted_number_matches():
@@ -111,8 +112,13 @@ def test_percentage_matches_breakdown_value():
 
 
 def test_iso_dates_are_ignored_without_citation():
+    # Carries a citation so the subject under test stays ISO-date handling; a
+    # narrative citing nothing now trips empty_narrative separately.
     fact_table = make_fact_table()
-    narrative = "This report covers the period from 2024-06-01 to 2024-06-30."
+    narrative = (
+        "This report covers the period from 2024-06-01 to 2024-06-30 "
+        "[survey123-incident_count-0]."
+    )
 
     result = check_citations(narrative, fact_table)
 
@@ -188,22 +194,28 @@ def test_two_numbers_one_sentence_mixed_validity():
     assert result.violations[0].token == "42"
 
 
-def test_empty_narrative_passes_trivially():
-    fact_table = make_fact_table()
-
-    result = check_citations("", fact_table)
-
-    assert result.passed is True
-    assert result.violations == []
-
-
-def test_prose_without_numbers_needs_no_citation():
+def test_prose_without_numbers_still_needs_to_cite_something():
+    # Previously this passed: prose carrying no figures needed no citation. It
+    # now fails, deliberately. A narrative that cites nothing while the fact
+    # table holds facts has not reported them — and this one actively
+    # contradicts a table containing 19 incidents. A corporation with genuinely
+    # nothing to report is still expressible, by citing the zero-valued fact:
+    # "No incidents were recorded [C001]".
     fact_table = make_fact_table()
 
     result = check_citations("No incidents were recorded this period.", fact_table)
 
+    assert [v.kind for v in result.violations] == ["empty_narrative"]
+
+
+def test_prose_without_numbers_passes_when_it_cites_a_fact():
+    fact_table = make_fact_table()
+
+    result = check_citations(
+        f"No further incidents were recorded this period [{CID}].", fact_table
+    )
+
     assert result.passed is True
-    assert result.violations == []
 
 
 def test_empty_fact_table_flags_any_stated_number():
@@ -296,9 +308,11 @@ def test_a_bare_year_with_no_month_is_still_checked():
 
 
 def test_a_figure_without_a_citation_is_still_flagged():
+    # Also trips empty_narrative, correctly: this narrative cites nothing at
+    # all. Assert on presence rather than the exact list.
     result = check_citations("A total of 15 incidents were recorded.", make_fact_table())
 
-    assert [v.kind for v in result.violations] == ["missing_citation"]
+    assert "missing_citation" in [v.kind for v in result.violations]
 
 
 def test_violation_sentence_keeps_the_original_text():
@@ -308,3 +322,47 @@ def test_violation_sentence_keeps_the_original_text():
     )
 
     assert "June 1, 2023" in result.violations[0].sentence
+
+
+def test_a_narrative_that_cites_nothing_is_a_violation():
+    # A real ministerial report returned exactly this and was saved status "ok".
+    result = check_citations("**", make_fact_table())
+
+    assert result.passed is False
+    assert [v.kind for v in result.violations] == ["empty_narrative"]
+
+
+def test_an_empty_narrative_is_a_violation():
+    result = check_citations("", make_fact_table())
+
+    assert [v.kind for v in result.violations] == ["empty_narrative"]
+
+
+def test_prose_that_cites_nothing_is_a_violation():
+    # "Cited nothing" rather than "wrote nothing": prose naming no fact is
+    # equally a failure to report.
+    result = check_citations("The situation remains under review.", make_fact_table())
+
+    assert [v.kind for v in result.violations] == ["empty_narrative"]
+
+
+def test_a_narrative_citing_a_fact_is_not_empty():
+    result = check_citations(f"There were 15 incidents [{CID}].", make_fact_table())
+
+    assert result.passed is True
+
+
+def test_an_empty_narrative_with_no_facts_is_not_a_violation():
+    # Nothing was requested, so nothing going unreported is correct.
+    empty = make_fact_table()
+    empty.facts.clear()
+
+    result = check_citations("", empty)
+
+    assert result.violations == []
+
+
+def test_empty_narrative_violation_carries_a_readable_excerpt():
+    result = check_citations("x" * 500, make_fact_table())
+
+    assert len(result.violations[0].sentence) == 200
