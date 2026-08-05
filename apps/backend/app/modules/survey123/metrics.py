@@ -35,8 +35,19 @@ def build_scope(params: dict, **extra: str) -> dict[str, str]:
     return scope
 
 
+# The parameters the query layer actually consumes. build_query_ref renders
+# only these, because query_ref is the string an auditor uses to reproduce a
+# figure — printing a key that was silently ignored describes a query that
+# never ran. Keep in step with apply_common_filters and base_query.
+QUERY_PARAMS = ("corporation", "community", "date_from", "date_to", "include_pending")
+
+
 def build_query_ref(metric_name: str, params: dict) -> str:
-    parts = [f"{k}={v}" for k, v in sorted(params.items()) if v is not None and v is not False]
+    parts = [
+        f"{k}={v}"
+        for k, v in sorted(params.items())
+        if k in QUERY_PARAMS and v is not None and v is not False
+    ]
     return f"{metric_name}(" + ", ".join(parts) + ")"
 
 

@@ -275,3 +275,62 @@ def test_build_citation_rejects_a_model_that_does_not_declare_its_module():
 
     with pytest.raises(ValueError, match="__module_name__"):
         build_citation("incident_count", 0, {}, ["GUID-1"], "test description", UnwiredModel)
+
+
+def test_query_ref_omits_params_the_query_never_applied():
+    # A template carrying a legacy "source" key silently widened its result
+    # set while query_ref still advertised the filter. query_ref is the string
+    # an auditor uses to reproduce a number.
+    from app.modules.survey123.metrics import build_query_ref
+
+    ref = build_query_ref(
+        "estimated_damage_total",
+        {
+            "corporation": "diego_martin_regional_corporati",
+            "source": "sitreps",
+            "incident_type": "flood",
+        },
+    )
+
+    assert "source" not in ref
+    assert "incident_type" not in ref
+    assert "corporation=diego_martin_regional_corporati" in ref
+
+
+def test_query_ref_still_names_every_applied_filter():
+    from app.modules.survey123.metrics import build_query_ref
+
+    ref = build_query_ref(
+        "incident_count",
+        {
+            "corporation": "siparia_regional_corporation",
+            "community": "Penal",
+            "date_from": "2023-06-01",
+            "date_to": "2023-06-30",
+            "include_pending": True,
+        },
+    )
+
+    for expected in (
+        "corporation=siparia_regional_corporation",
+        "community=Penal",
+        "date_from=2023-06-01",
+        "date_to=2023-06-30",
+        "include_pending=True",
+    ):
+        assert expected in ref
+
+
+def test_query_params_covers_every_key_the_query_layer_reads():
+    # Guards the two from drifting: a filter added to apply_common_filters or
+    # base_query without being listed here would vanish from query_ref.
+    import inspect
+
+    from app.modules.survey123 import metrics
+
+    source = inspect.getsource(metrics.apply_common_filters) + inspect.getsource(
+        metrics.base_query
+    )
+
+    for name in metrics.QUERY_PARAMS:
+        assert f'"{name}"' in source, f"{name} is in QUERY_PARAMS but no query reads it"
