@@ -113,7 +113,11 @@ def build_citation(
     # the module label on a citation in the rendered report.
     module = module_name_of(model)
     ordered = sorted(global_ids)
-    record_ids = ordered[:200] if len(ordered) <= 200 else None
+    # No cap: `ordered[:200] if len(ordered) <= 200 else None` was a no-op
+    # below 200 and, above it, discarded every record id rather than
+    # truncating — silently erasing provenance for large result sets, the
+    # opposite of what a citation exists to provide.
+    record_ids = ordered
     return Citation(
         cid=f"{module}-{metric_name}-{index}",
         module=module,

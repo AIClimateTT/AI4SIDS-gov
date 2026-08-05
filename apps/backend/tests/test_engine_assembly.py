@@ -162,7 +162,18 @@ def test_assemble_fact_table_records_gap_for_empty_metric_result(tmp_path):
 
 def test_citation_rules_require_digits_not_words():
     # A ministerial report wrote "Fifteen incidents ... Thirteen homes", none of
-    # which the digit-scanning checker ever examined.
-    from app.core.engine import CITATION_RULES
+    # which the digit-scanning checker ever examined. Assert the rule actually
+    # reaches a composed prompt, not just that the constant contains the word.
+    from app.core.contracts import NarrationConfig, RenderConfig, Template
+    from app.core.engine import compose_system_prompt
 
-    assert "digits" in CITATION_RULES.lower()
+    template = Template(
+        name="t", title="T", description="d", params=[], data_requirements=[],
+        narration=NarrationConfig(system_prompt="Write the report.", output_sections=[]),
+        render=RenderConfig(),
+    )
+
+    composed = compose_system_prompt(template).lower()
+
+    assert "digits" in composed and "never words" in composed
+    assert "write the report." in composed

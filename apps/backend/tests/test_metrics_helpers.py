@@ -102,12 +102,16 @@ def test_build_citation_keeps_record_ids_at_or_below_200():
     assert citation.description == "test description"
 
 
-def test_build_citation_caps_record_ids_above_200():
+def test_build_citation_keeps_all_record_ids_above_200():
+    # No cap: the old `ordered[:200] if len(ordered) <= 200 else None` was a
+    # no-op below 200 and discarded every id above it — silently erasing
+    # provenance for large result sets, the opposite of what a citation is for.
     global_ids = [f"GUID-{i:04d}" for i in range(250)]
 
     citation = build_citation("incident_count", 0, {}, global_ids, "test description", FieldObservation)
 
-    assert citation.record_ids is None
+    assert citation.record_ids is not None
+    assert len(citation.record_ids) == 250
 
 
 def make_session(tmp_path):
