@@ -56,6 +56,16 @@ class Submission(Base):
     """One corp upload: who, as-at when, under what alert state."""
 
     __tablename__ = "submissions"
+    __table_args__ = (
+        # NULL event_id does not collide in SQL's unique-constraint semantics
+        # (each NULL is distinct), which is correct here: event-less
+        # submissions all carry sequence_no 1 by design and are told apart by
+        # (corporation, as_at) instead.
+        UniqueConstraint(
+            "corporation", "event_id", "sequence_no",
+            name="uq_submission_corp_event_sequence",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     corporation: Mapped[str] = mapped_column(String, nullable=False, index=True)

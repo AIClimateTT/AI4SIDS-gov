@@ -104,3 +104,27 @@ def test_latest_submission_returns_none_when_corp_has_not_reported(tmp_path):
     session = make_session(tmp_path)
 
     assert latest_submission(session, CORP) is None
+
+
+def test_two_submissions_cannot_share_a_sequence_number(tmp_path):
+    import pytest
+    from sqlalchemy.exc import IntegrityError
+
+    from app.modules.sitreps.models import Submission
+
+    session = make_session(tmp_path)
+    event = create_event(
+        session, corporation=CORP, title="Storm", hazard_type="wind",
+        started_at=datetime(2023, 6, 27),
+    )
+    create_submission(session, corporation=CORP, as_at=datetime(2023, 6, 27), event_id=event.id)
+
+    session.add(
+        Submission(
+            corporation=CORP, event_id=event.id, as_at=datetime(2023, 6, 28),
+            alert_level="none", sequence_no=1, ingested_at=datetime(2023, 6, 28),
+        )
+    )
+
+    with pytest.raises(IntegrityError):
+        session.commit()
