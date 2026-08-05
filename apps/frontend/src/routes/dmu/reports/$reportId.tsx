@@ -101,9 +101,12 @@ function ReportDetailPage() {
               />
             </ContentCard>
 
+            {/* States what the checker guarantees rather than an absolute: it
+                flags any figure that is not in the fact it cites, and a report
+                marked needs_review is one where that check found something. */}
             <ContentCard
               title="Fact table"
-              description="Every cited number in the briefing maps to a row below."
+              description="The checker flags any figure in the briefing that is not in the fact it cites. Check the report status above before relying on it."
             >
               <ReportFactTable factTable={data.fact_table} />
             </ContentCard>
