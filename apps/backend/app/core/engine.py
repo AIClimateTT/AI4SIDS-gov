@@ -74,6 +74,15 @@ def assemble_fact_table(
         facts = module.run_metric(requirement.metric, resolved, session)
         if not facts:
             gaps.append(f"No data returned for {requirement.module}.{requirement.metric} with params {resolved}")
+        # A metric knows things about its own rows that the caller cannot see
+        # — chiefly rows its selection predicate silently drops. Hoisted here
+        # because FactTable.gaps is what the narration prompt points the model
+        # at, and what the renderer prints as "Data Gaps". Deduped, order
+        # preserved: two metrics over the same rows report the same caveat.
+        for fact in facts:
+            for gap in fact.gaps:
+                if gap not in gaps:
+                    gaps.append(gap)
         all_facts.extend(facts)
 
     renumbered: list[Fact] = []
@@ -114,8 +123,16 @@ def _fact_table_for_llm(fact_table: FactTable) -> FactTable:
     # failure mode this codebase already fixed once. Storage and the
     # citation appendix use the full fact_table; only the LLM-facing copy
     # is pared down, and no cap is reintroduced anywhere else.
+    # Per-fact gaps go too: assemble_fact_table has already hoisted them into
+    # fact_table.gaps, which is where the prompt tells the model to look.
+    # Leaving both would show the model the same caveat twice.
     pared_facts = [
-        fact.model_copy(update={"citation": fact.citation.model_copy(update={"record_ids": None})})
+        fact.model_copy(
+            update={
+                "citation": fact.citation.model_copy(update={"record_ids": None}),
+                "gaps": [],
+            }
+        )
         for fact in fact_table.facts
     ]
     return fact_table.model_copy(update={"facts": pared_facts})

@@ -21,6 +21,11 @@ class Fact(BaseModel):
     breakdown: dict[str, int | float] | None
     verification: Literal["validated", "pending", "mixed", "n/a"]
     citation: Citation
+    gaps: list[str] = []
+    """Caveats a metric discovered about its own rows (e.g. rows whose incident
+    type the normaliser could not place, which the selection predicate then
+    silently drops). assemble_fact_table hoists these into FactTable.gaps,
+    which is where the narration prompt tells the model to look."""
 
 
 class FactTable(BaseModel):

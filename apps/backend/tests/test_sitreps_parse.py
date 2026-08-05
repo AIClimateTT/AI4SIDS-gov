@@ -114,7 +114,80 @@ def test_unmapped_incident_type_falls_through_to_raw():
     fields, error = parse_incident_row(row, 1)
 
     assert error is None
+    assert fields["incident_type"] == "unmapped"
     assert fields["raw_incident_type"] == "Roofing Damages"
+
+
+def test_a_hand_typed_flooding_is_understood_as_a_home_affecting_type():
+    # The reproduction: 20 corp rows typed "Flooding" were routed through
+    # survey123's export vocabulary, became incident_type "unmapped", and
+    # HOME_AFFECTING_INCIDENT_TYPES stopped matching —
+    #   incident_count: 20 {'unmapped': 20}
+    #   homes_affected_count: 0
+    # "20 flooding incidents, 0 homes affected."
+    from app.modules.survey123.metrics import HOME_AFFECTING_INCIDENT_TYPES
+
+    row = dict(read_fixture_rows()[0])
+    row["Incident Type"] = "Flooding"
+
+    fields, error = parse_incident_row(row, 1)
+
+    assert error is None
+    assert fields["incident_type"] == "flooding_"
+    assert fields["incident_type"] in HOME_AFFECTING_INCIDENT_TYPES
+    # A recognised synonym is not an unmapped value: ingest must not report it
+    # back to the corp as a cell it could not read.
+    assert fields["raw_incident_type"] is None
+
+
+def test_every_corp_incident_type_synonym_maps_to_the_metric_vocabulary():
+    from app.modules.survey123.normalize import CANONICAL_INCIDENT_TYPES
+
+    expected = {
+        "Flooding": "flooding_",
+        "flood": "flooding_",
+        "Roof Damage": "blown_off_roof",
+        "Blown Off Roof": "blown_off_roof",
+        "Fallen Tree": "fallen_tree",
+        "Land Slide": "landslide",
+    }
+
+    for typed, canonical in expected.items():
+        row = dict(read_fixture_rows()[0])
+        row["Incident Type"] = typed
+        fields, error = parse_incident_row(row, 1)
+
+        assert error is None, typed
+        assert fields["incident_type"] == canonical, typed
+        assert canonical in CANONICAL_INCIDENT_TYPES, typed
+
+
+def test_corp_incident_type_synonyms_tolerate_case_and_whitespace():
+    for typed in ("  FLOODING  ", "flOOd", "blown   off\troof", "  Land  Slide "):
+        row = dict(read_fixture_rows()[0])
+        row["Incident Type"] = typed
+        fields, error = parse_incident_row(row, 1)
+
+        assert error is None, typed
+        assert fields["incident_type"] != "unmapped", typed
+
+
+def test_a_canonical_export_value_still_normalises_unchanged():
+    row = dict(read_fixture_rows()[0])
+    row["Incident Type"] = "flooding_"
+
+    fields, error = parse_incident_row(row, 1)
+
+    assert error is None
+    assert fields["incident_type"] == "flooding_"
+
+
+def test_the_survey123_normaliser_is_left_alone():
+    # The Survey123 export path depends on its exact vocabulary; the synonyms
+    # are a corp-entry concern only.
+    from app.modules.survey123.normalize import normalize_incident_type
+
+    assert normalize_incident_type("Flooding") == ("unmapped", "Flooding")
 
 
 def read_log_rows() -> list[dict[str, str]]:

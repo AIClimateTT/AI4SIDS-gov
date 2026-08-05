@@ -88,6 +88,9 @@ export type Fact = {
   breakdown: Record<string, number | string> | null
   verification: 'validated' | 'pending' | 'mixed' | 'n/a' | string
   citation: FactCitation
+  /** Caveats the metric raised about its own rows. Also hoisted into
+   * FactTable.gaps, which is what the report's Data Gaps section renders. */
+  gaps?: string[]
 }
 
 export type FactTable = {

@@ -193,12 +193,55 @@ def base_query(params: dict, model=FieldObservation) -> Select:
     return stmt
 
 
+UNRECOGNISED_INCIDENT_TYPE_LABEL = "(unrecognised incident type)"
+
+
+def incident_type_label(row) -> str:
+    """How an incident type is named in a breakdown a minister reads.
+
+    "unmapped" is an internal sentinel, not a category of disaster. Where the
+    normaliser could not place the value, show what was actually written.
+    """
+    value = getattr(row, "incident_type", None)
+    if value is None:
+        return "(no incident type recorded)"
+    if value != "unmapped":
+        return value
+    raw = getattr(row, "raw_incident_type", None)
+    return raw or UNRECOGNISED_INCIDENT_TYPE_LABEL
+
+
+def unmapped_incident_type_gaps(metric_name: str, rows, consequence: str) -> list[str]:
+    """A caveat for rows whose incident type the normaliser could not place.
+
+    Metrics that select on incident type silently drop these — the defect this
+    exists to surface is "20 flooding incidents, 0 homes affected", where every
+    row was typed in a way the vocabulary did not recognise. The count must
+    reach the report rather than the log.
+    """
+    unmapped = [r for r in rows if getattr(r, "incident_type", None) == "unmapped"]
+    if not unmapped:
+        return []
+    written = sorted(
+        {
+            (getattr(r, "raw_incident_type", None) or "").strip()
+            for r in unmapped
+            if (getattr(r, "raw_incident_type", None) or "").strip()
+        }
+    )
+    written_label = f" ({', '.join(repr(v) for v in written)})" if written else ""
+    return [
+        f"{metric_name}: {len(unmapped)} rows in scope carry an incident type that was "
+        f"not recognised{written_label}. {consequence}"
+    ]
+
+
 def incident_count(params: dict, session: Session, model=FieldObservation) -> list[Fact]:
     rows = session.execute(base_query(params, model)).scalars().all()
 
     breakdown: dict[str, int] = {}
     for r in rows:
-        key = r.incident_type or "(no incident type recorded)"
+        key = incident_type_label(r)
         breakdown[key] = breakdown.get(key, 0) + 1
 
     global_ids = [record_ref_of(r) for r in rows]
@@ -222,6 +265,12 @@ def incident_count(params: dict, session: Session, model=FieldObservation) -> li
                 [getattr(r, "validation_status", "validated") for r in rows]
             ),
             citation=citation,
+            gaps=unmapped_incident_type_gaps(
+                "incident_count",
+                rows,
+                "They are counted in the total but shown under the value as written, "
+                "and metrics that select on incident type do not match them.",
+            ),
         )
     ]
 
@@ -305,6 +354,13 @@ def homes_affected_count(params: dict, session: Session, model=FieldObservation)
                 [getattr(r, "validation_status", "validated") for r in contributing]
             ),
             citation=citation,
+            gaps=unmapped_incident_type_gaps(
+                "homes_affected_count",
+                rows,
+                "This metric selects on incident type, so those rows can only "
+                "qualify through recorded building damage; the figure is a floor, "
+                "not a total.",
+            ),
         )
     ]
 

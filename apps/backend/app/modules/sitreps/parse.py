@@ -9,6 +9,46 @@ from app.modules.survey123.normalize import normalize_incident_type
 
 INCIDENT_PII_COLUMNS = ["Name of Person", "Contact Information"]
 
+# What a corp officer types, mapped to the vocabulary the metrics select on.
+#
+# survey123's CANONICAL_INCIDENT_TYPES is a list of Survey123 export artifacts
+# ("flooding_", "blown_off_roof"), and corp CSVs used to be routed straight
+# through its normaliser: an officer typing "Flooding" got incident_type
+# "unmapped", HOME_AFFECTING_INCIDENT_TYPES stopped matching, and the report
+# read "20 flooding incidents, 0 homes affected". Every other unreadable corp
+# cell is a RowError; incident type was the only one that degraded silently,
+# and it is the only one feeding a metric's selection predicate.
+#
+# This map is deliberately local to the corp entry path. survey123's normaliser
+# must keep its exact vocabulary — the export path depends on it.
+CORP_INCIDENT_TYPE_SYNONYMS = {
+    "flooding": "flooding_",
+    "flood": "flooding_",
+    "roof damage": "blown_off_roof",
+    "blown off roof": "blown_off_roof",
+    "fallen tree": "fallen_tree",
+    "land slide": "landslide",
+}
+
+_WHITESPACE_RUN = re.compile(r"\s+")
+
+
+def normalize_corp_incident_type(raw: str | None) -> tuple[str | None, str | None]:
+    """Normalise a hand-typed incident type, then fall back to the canonical set.
+
+    Returns (normalised, raw_if_unrecognised), matching normalize_incident_type
+    so callers treat a recognised synonym exactly like a canonical value — in
+    particular, a recognised synonym reports no unmapped value on ingest.
+    """
+    cleaned = (raw or "").strip()
+    if not cleaned:
+        return None, None
+    key = _WHITESPACE_RUN.sub(" ", cleaned).lower()
+    mapped = CORP_INCIDENT_TYPE_SYNONYMS.get(key)
+    if mapped is not None:
+        return mapped, None
+    return normalize_incident_type(cleaned)
+
 
 @dataclass(frozen=True)
 class RowError:
@@ -125,7 +165,7 @@ def parse_incident_row(
             reason=f"Date of Event is not an ISO date: {raw_date!r}",
         )
 
-    incident_type, raw_incident_type = normalize_incident_type(row.get("Incident Type"))
+    incident_type, raw_incident_type = normalize_corp_incident_type(row.get("Incident Type"))
 
     numeric_cells = {
         "Injuries Count": "injuries_count",

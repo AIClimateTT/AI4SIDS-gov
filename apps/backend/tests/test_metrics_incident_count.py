@@ -35,7 +35,9 @@ def test_incident_count_default_validated_only(tmp_path):
         "fallen_tree": 2,
         "over grown tree": 2,
         "fire": 1,
-        "unmapped": 1,
+        # Not "unmapped": the breakdown a minister reads names the value as it
+        # was actually written, not the internal sentinel.
+        "Volcanic_Eruption_Typo": 1,
     }
     assert fact.verification == "validated"
     assert fact.citation.cid == "survey123-incident_count-0"
@@ -59,7 +61,7 @@ def test_incident_count_include_pending_widens_result(tmp_path):
         "fallen_tree": 2,
         "earthquake": 2,
         "over grown tree": 2,
-        "unmapped": 1,
+        "Volcanic_Eruption_Typo": 1,
     }
     assert fact.verification == "mixed"
 
@@ -71,7 +73,7 @@ def test_incident_count_filters_by_corporation(tmp_path):
 
     fact = facts[0]
     assert fact.value == 10
-    assert fact.breakdown == {"flooding_": 7, "other": 2, "unmapped": 1}
+    assert fact.breakdown == {"flooding_": 7, "other": 2, "Volcanic_Eruption_Typo": 1}
     assert fact.scope["corporation"] == "sangre_grande_regional_corporat"
 
 
