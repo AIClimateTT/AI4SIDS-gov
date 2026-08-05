@@ -74,6 +74,16 @@ def test_events_are_scoped_by_corporation():
 
 def test_post_submission_with_both_files():
     c = client()
+    created = c.post(
+        "/events",
+        json={
+            "corporation": CORP,
+            "title": "Adverse Weather June 2023",
+            "hazard_type": "wind",
+            "started_at": "2023-06-27T00:00:00",
+        },
+    )
+    event_id = created.json()["id"]
     incidents = "Row ID,Incident Type,Date of Event\n1,fallen_tree,2023-06-27\n"
     logs = "Category,Statement,Item,Quantity,Unit,Status\nresource,200 sandbags available,sandbags,200,bags,available\n"
 
@@ -85,6 +95,7 @@ def test_post_submission_with_both_files():
             "alert_level": "discontinued",
             "present_activity": "Adverse Weather Alert",
             "situation_overview": "Heavy rainfall affected the Borough.",
+            "event_id": event_id,
         },
         files={
             "incidents_file": ("incidents.csv", io.BytesIO(incidents.encode()), "text/csv"),
@@ -102,11 +113,21 @@ def test_post_submission_with_both_files():
 
 def test_post_submission_reports_row_errors_without_failing():
     c = client()
+    created = c.post(
+        "/events",
+        json={
+            "corporation": CORP,
+            "title": "Adverse Weather June 2023",
+            "hazard_type": "wind",
+            "started_at": "2023-06-27T00:00:00",
+        },
+    )
+    event_id = created.json()["id"]
     incidents = "Row ID,Incident Type,Date of Event\n,landslide,2023-06-27\n2,fire,2023-06-28\n"
 
     response = c.post(
         "/submissions",
-        data={"corporation": CORP, "as_at": "2023-07-01T09:00:00"},
+        data={"corporation": CORP, "as_at": "2023-07-01T09:00:00", "event_id": event_id},
         files={"incidents_file": ("incidents.csv", io.BytesIO(incidents.encode()), "text/csv")},
     )
 
@@ -205,3 +226,58 @@ def test_post_submission_rejects_a_nonexistent_event():
     )
 
     assert response.status_code == 404
+
+
+def test_a_submission_with_incidents_and_no_event_is_rejected():
+    # Without an event, supersession is skipped, so re-filing a cumulative
+    # table triples the incident count and record_ref collides across rows.
+    c = client()
+    incidents = "Row ID,Incident Type,Date of Event\n1,fallen_tree,2023-06-27\n"
+
+    response = c.post(
+        "/submissions",
+        data={"corporation": CORP, "as_at": "2023-06-30T16:00:00"},
+        files={"incidents_file": ("i.csv", io.BytesIO(incidents.encode()), "text/csv")},
+    )
+
+    assert response.status_code == 400
+    assert "event" in response.json()["detail"].lower()
+
+
+def test_a_logs_only_submission_needs_no_event():
+    # Logs are point-in-time state: they never supersede and never collide.
+    c = client()
+    logs = "Category,Statement,Item,Quantity,Unit,Status\nresource,200 sandbags,sandbags,200,bags,available\n"
+
+    response = c.post(
+        "/submissions",
+        data={"corporation": CORP, "as_at": "2023-06-30T16:00:00"},
+        files={"logs_file": ("l.csv", io.BytesIO(logs.encode()), "text/csv")},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["logs_inserted"] == 1
+
+
+def test_a_submission_with_incidents_and_an_event_is_accepted():
+    c = client()
+    created = c.post(
+        "/events",
+        json={
+            "corporation": CORP,
+            "title": "Adverse Weather June 2023",
+            "hazard_type": "wind",
+            "started_at": "2023-06-27T00:00:00",
+        },
+    )
+    event_id = created.json()["id"]
+    incidents = "Row ID,Incident Type,Date of Event\n1,fallen_tree,2023-06-27\n"
+
+    response = c.post(
+        "/submissions",
+        data={"corporation": CORP, "as_at": "2023-06-30T16:00:00", "event_id": event_id},
+        files={"incidents_file": ("i.csv", io.BytesIO(incidents.encode()), "text/csv")},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["incidents_inserted"] == 1

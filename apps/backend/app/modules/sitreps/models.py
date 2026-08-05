@@ -119,7 +119,11 @@ class SitrepIncident(Base):
 
     @property
     def record_ref(self) -> str:
-        return f"{self.corporation}:{self.event_id or '-'}:{self.row_id}"
+        # submission_id included so one reference names exactly one row. Without
+        # it, every event-less row rendered event_id as "-" and rows from
+        # different submissions shared an identifier, making a cited figure
+        # untraceable.
+        return f"{self.corporation}:{self.event_id or '-'}:{self.submission_id}:{self.row_id}"
 
 
 class SituationLog(Base):

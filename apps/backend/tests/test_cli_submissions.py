@@ -1,11 +1,13 @@
 import json
+from datetime import datetime
 from pathlib import Path
 
 from typer.testing import CliRunner
 
 import app.modules.sitreps.models  # noqa: F401 -- registers sitreps tables on Base.metadata
 from app.core.registry import reset_registry
-from app.db import Base, engine as db_engine
+from app.db import Base, SessionLocal, engine as db_engine
+from app.modules.sitreps.store import create_event
 from cli import app
 
 runner = CliRunner()
@@ -28,6 +30,19 @@ def test_submissions_command_ingests_incidents_and_logs():
 
     Base.metadata.create_all(db_engine)
 
+    session = SessionLocal()
+    try:
+        event = create_event(
+            session,
+            corporation=CORP,
+            title="Adverse Weather June 2023",
+            hazard_type="wind",
+            started_at=datetime(2023, 6, 27),
+        )
+        event_id = event.id
+    finally:
+        session.close()
+
     try:
         result = runner.invoke(
             app,
@@ -39,6 +54,8 @@ def test_submissions_command_ingests_incidents_and_logs():
                 str(INCIDENTS_PATH),
                 "--logs",
                 str(LOGS_PATH),
+                "--event-id",
+                str(event_id),
             ],
         )
 

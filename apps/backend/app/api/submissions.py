@@ -95,6 +95,15 @@ async def post_submission(
     _require_corporation(corporation)
     if alert_level not in ALERT_LEVELS:
         raise HTTPException(status_code=400, detail=f"unknown alert_level: {alert_level}")
+    if incidents_file is not None and event_id is None:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "a submission carrying incidents must name an event; "
+                "create one with POST /events first. Situation logs may be "
+                "filed without an event."
+            ),
+        )
     if event_id is not None:
         event = get_event(session, event_id)
         if event is None or event.corporation != corporation:

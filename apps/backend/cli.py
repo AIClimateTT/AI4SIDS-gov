@@ -55,6 +55,13 @@ def create_submission_command(
     from app.db import SessionLocal
     from app.modules.sitreps.ingest import ingest_submission
 
+    if incidents is not None and event_id is None:
+        typer.echo(
+            "a submission carrying incidents must name an event; pass --event-id",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
     session = SessionLocal()
     try:
         result = ingest_submission(

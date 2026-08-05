@@ -90,7 +90,7 @@ def test_sitrep_incident_record_ref_is_stable(tmp_path):
     session.add(incident)
     session.commit()
 
-    assert incident.record_ref == "diego_martin_regional_corporati:-:1"
+    assert incident.record_ref == "diego_martin_regional_corporati:-:1:1"
 
 
 def test_situation_log_quantity_is_optional(tmp_path):
@@ -140,3 +140,29 @@ def test_enum_tuples_match_the_spec():
         "relief_distributed",
         "other",
     )
+
+
+def test_record_ref_distinguishes_rows_from_different_submissions(tmp_path):
+    # Previously "corp:-:1" for every event-less row, so one identifier named
+    # many rows and no auditor could trace a figure back to one of them.
+    from datetime import datetime
+
+    from app.modules.sitreps.models import SitrepIncident
+
+    session = make_session(tmp_path)
+    first = SitrepIncident(
+        submission_id=1,
+        corporation="diego_martin_regional_corporati",
+        event_id=None,
+        row_id="1",
+        ingested_at=datetime(2023, 6, 27),
+    )
+    second = SitrepIncident(
+        submission_id=2,
+        corporation="diego_martin_regional_corporati",
+        event_id=None,
+        row_id="1",
+        ingested_at=datetime(2023, 6, 28),
+    )
+
+    assert first.record_ref != second.record_ref

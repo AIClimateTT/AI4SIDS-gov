@@ -56,9 +56,9 @@ def test_record_ref_of_falls_back_to_empty_string_for_blank_global_id():
 
 
 def test_record_ref_of_uses_record_ref_for_models_without_global_id():
-    row = SitrepIncident(corporation="TTEC", event_id=None, row_id="7")
+    row = SitrepIncident(submission_id=3, corporation="TTEC", event_id=None, row_id="7")
 
-    assert record_ref_of(row) == "TTEC:-:7"
+    assert record_ref_of(row) == "TTEC:-:3:7"
 
 
 def test_citation_description_names_the_model_s_own_source():
