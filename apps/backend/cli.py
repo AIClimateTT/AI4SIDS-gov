@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.engine import generate_report
 from app.core.llm import get_default_llm_client
-from app.core.registry import get_module, register_module
+from app.core.registry import ensure_default_modules_registered
 from app.core.template_store import (
     create_template_version,
     get_latest_template_version,
@@ -14,7 +14,8 @@ from app.core.template_store import (
     list_latest_templates,
 )
 from app.db import SessionLocal
-from app.modules.survey123.module import get_survey123_module, survey123_module
+from app.modules.survey123.module import survey123_module
+from app.modules.survey123.normalize import CANONICAL_CORPORATIONS
 from app.templates.loader import load_template
 
 app = typer.Typer()
@@ -22,11 +23,6 @@ ingest_app = typer.Typer()
 templates_app = typer.Typer()
 app.add_typer(ingest_app, name="ingest")
 app.add_typer(templates_app, name="templates")
-
-
-def _ensure_survey123_registered() -> None:
-    if get_module("survey123") is None:
-        register_module(get_survey123_module())
 
 
 @ingest_app.command("survey123")
@@ -54,7 +50,6 @@ def create_submission_command(
 
     from app.db import SessionLocal
     from app.modules.sitreps.ingest import ingest_submission
-    from app.modules.survey123.normalize import CANONICAL_CORPORATIONS
 
     if corporation not in CANONICAL_CORPORATIONS:
         typer.echo(f"unknown corporation: {corporation}", err=True)
@@ -132,7 +127,18 @@ def generate(
     corporation: str = typer.Option(None, "--corporation"),
     community: str = typer.Option(None, "--community"),
 ) -> None:
-    _ensure_survey123_registered()
+    # Every registered module, not just survey123: a template naming a sitreps
+    # metric raised "unknown data module: sitreps" from the CLI while the same
+    # template generated fine through the API.
+    ensure_default_modules_registered()
+
+    # A corporation that is not one of the fourteen matches no row, and every
+    # metric reports a confident zero for it. Rejected before any query runs,
+    # exactly as POST /reports does.
+    if corporation is not None and corporation not in CANONICAL_CORPORATIONS:
+        typer.echo(f"unknown corporation: {corporation}", err=True)
+        raise typer.Exit(code=1)
+
     session = SessionLocal()
     try:
         template = get_latest_template_version(template_name, session)

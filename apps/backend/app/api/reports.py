@@ -5,11 +5,12 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.contracts import DataRequirement
-from app.core.engine import generate_report
+from app.core.engine import PLACEHOLDER_RE, generate_report
 from app.core.llm import get_default_llm_client
 from app.core.report_store import get_report, list_reports, save_report
 from app.core.template_store import get_latest_template_version, get_template_version
 from app.db import get_session
+from app.modules.survey123.normalize import CANONICAL_CORPORATIONS
 
 router = APIRouter()
 
@@ -33,10 +34,40 @@ class GenerateReportResponse(BaseModel):
     markdown: str
 
 
+def validate_corporations(request: GenerateReportRequest) -> None:
+    """Reject a corporation that is not one of the fourteen, before any query.
+
+    A typo matches no row, so every metric returns a confident zero and the
+    report reads as an authoritative "nothing happened" for a region that may
+    have filed plenty. Checked on the template params and on any literal value
+    in a data_requirements override, which is caller-controlled — a placeholder
+    like "{corporation}" resolves from the params already checked.
+    """
+    values = [request.params.get("corporation")]
+    for requirement in request.data_requirements or []:
+        values.append(requirement.params.get("corporation"))
+
+    for value in values:
+        if value is None or value == "":
+            continue
+        if isinstance(value, str) and PLACEHOLDER_RE.match(value):
+            continue
+        if value not in CANONICAL_CORPORATIONS:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"unknown corporation: {value!r}; expected one of the fourteen "
+                    "regional corporations"
+                ),
+            )
+
+
 @router.post("/reports", response_model=GenerateReportResponse)
 def create_report(
     request: GenerateReportRequest, session: Session = Depends(get_session)
 ) -> GenerateReportResponse:
+    validate_corporations(request)
+
     if request.version is not None:
         template = get_template_version(request.template, request.version, session)
     else:

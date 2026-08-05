@@ -163,6 +163,83 @@ def test_post_reports_blank_date_param_does_not_400(monkeypatch):
     assert response.status_code == 200, response.text
 
 
+def test_post_reports_unknown_corporation_returns_400(monkeypatch):
+    # A corporation that is not one of the fourteen matches no row, so every
+    # metric returns zero and the report reads as an authoritative "nothing
+    # happened" for a region that may have filed plenty.
+    client = make_client(monkeypatch)
+    _ingest_fixture()
+
+    response = client.post(
+        "/reports",
+        json={
+            "template": "single_region_report",
+            "params": {
+                "corporation": "Diego Martin",
+                "date_from": "2024-06-01",
+                "date_to": "2024-06-30",
+            },
+        },
+    )
+
+    assert response.status_code == 400
+    assert "unknown corporation" in response.json()["detail"]
+
+
+def test_post_reports_rejects_an_unknown_corporation_in_a_requirement_override(
+    monkeypatch,
+):
+    # data_requirements is caller-controlled, so a literal corporation can
+    # reach a query without ever appearing in params.
+    client = make_client(monkeypatch)
+    _ingest_fixture()
+
+    response = client.post(
+        "/reports",
+        json={
+            "template": "minister_regional_comparison",
+            "params": {"date_from": "2024-06-01", "date_to": "2024-06-30"},
+            "data_requirements": [
+                {
+                    "module": "survey123",
+                    "metric": "incident_count",
+                    "params": {"corporation": "Sangre Grande"},
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 400
+
+
+def test_post_reports_still_accepts_a_placeholder_corporation_in_a_requirement(
+    monkeypatch,
+):
+    client = make_client(monkeypatch)
+    _ingest_fixture()
+
+    response = client.post(
+        "/reports",
+        json={
+            "template": "single_region_report",
+            "params": {
+                "corporation": "sangre_grande_regional_corporat",
+                "date_from": "2024-06-01",
+                "date_to": "2024-06-30",
+            },
+            "data_requirements": [
+                {
+                    "module": "survey123",
+                    "metric": "incident_count",
+                    "params": {"corporation": "{corporation}"},
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200, response.text
+
+
 def test_get_reports_list_returns_paginated_items(monkeypatch):
     client = make_client(monkeypatch)
     _ingest_fixture()
@@ -179,7 +256,7 @@ def test_get_reports_list_returns_paginated_items(monkeypatch):
         json={
             "template": "single_region_report",
             "params": {
-                "corporation": "Diego Martin",
+                "corporation": "diego_martin_regional_corporati",
                 "date_from": "2024-06-01",
                 "date_to": "2024-06-30",
             },
@@ -214,7 +291,7 @@ def test_get_reports_list_filters_by_q_and_status(monkeypatch):
         json={
             "template": "single_region_report",
             "params": {
-                "corporation": "Diego Martin",
+                "corporation": "diego_martin_regional_corporati",
                 "date_from": "2024-06-01",
                 "date_to": "2024-06-30",
             },
