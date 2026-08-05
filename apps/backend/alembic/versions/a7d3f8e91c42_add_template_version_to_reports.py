@@ -19,7 +19,17 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.add_column('reports', sa.Column('template_version', sa.Integer(), nullable=False, server_default='1'))
-    op.alter_column('reports', 'template_version', server_default=None)
+    # batch_alter_table because SQLite has no ALTER COLUMN at all — a bare
+    # op.alter_column emits "ALTER TABLE ... ALTER COLUMN ... SET DEFAULT",
+    # which is a syntax error there. Batch mode rebuilds the table on SQLite
+    # and emits a plain ALTER on Postgres.
+    with op.batch_alter_table('reports') as batch:
+        batch.alter_column(
+            'template_version',
+            existing_type=sa.Integer(),
+            existing_nullable=False,
+            server_default=None,
+        )
 
 
 def downgrade() -> None:
