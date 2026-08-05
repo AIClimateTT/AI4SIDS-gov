@@ -65,3 +65,12 @@ def test_submissions_command_ingests_incidents_and_logs():
         assert body["logs_inserted"] == 5
     finally:
         _reset_state()
+
+
+def test_cli_rejects_an_unknown_corporation():
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["submissions", "not_a_corporation", "2023-06-30T16:00:00"])
+
+    assert result.exit_code != 0
+    assert "corporation" in result.output.lower()

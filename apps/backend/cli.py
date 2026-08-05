@@ -54,6 +54,11 @@ def create_submission_command(
 
     from app.db import SessionLocal
     from app.modules.sitreps.ingest import ingest_submission
+    from app.modules.survey123.normalize import CANONICAL_CORPORATIONS
+
+    if corporation not in CANONICAL_CORPORATIONS:
+        typer.echo(f"unknown corporation: {corporation}", err=True)
+        raise typer.Exit(code=1)
 
     if incidents is not None and event_id is None:
         typer.echo(
