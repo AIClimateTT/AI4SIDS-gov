@@ -2,6 +2,7 @@ import type { MouseEvent } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 
 import { cn } from '@/lib/utils'
 import type { CitationViolation } from '@/types/dmcu'
@@ -9,6 +10,25 @@ import {
   prepareReportMarkdown,
   scrollToCitation,
 } from '@/components/reports/citation-utils'
+
+/**
+ * rehype-raw parses the raw HTML in the report markdown, which is model-authored
+ * prose plus the <mark> spans markViolationSentences injects. Parsing it without
+ * sanitising means anything the model emits — a <script>, an onerror handler, a
+ * javascript: href — renders as live HTML in the DMU's browser.
+ *
+ * The default schema drops all of that. It also drops <mark> and every
+ * className, which is exactly how violation highlighting is rendered, so
+ * <mark> and a class on <mark> alone are allowed back.
+ */
+const reportSanitizeSchema = {
+  ...defaultSchema,
+  tagNames: [...(defaultSchema.tagNames ?? []), 'mark'],
+  attributes: {
+    ...defaultSchema.attributes,
+    mark: [...(defaultSchema.attributes?.mark ?? []), 'className'],
+  },
+}
 
 type CitationMarkdownProps = {
   markdown: string
@@ -41,7 +61,7 @@ export function CitationMarkdown({
     >
       <Markdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeRaw]}
+        rehypePlugins={[rehypeRaw, [rehypeSanitize, reportSanitizeSchema]]}
         components={{
           a: ({ href, children, ...props }) => {
             const cid = isCitationHash(href)
