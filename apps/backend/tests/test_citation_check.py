@@ -366,3 +366,32 @@ def test_empty_narrative_violation_carries_a_readable_excerpt():
     result = check_citations("x" * 500, make_fact_table())
 
     assert len(result.violations[0].sentence) == 200
+
+
+def test_a_four_digit_figure_after_a_month_name_is_still_checked():
+    # PROSE_DATE_RE's MONTH+YEAR alternative erased these entirely: the
+    # sentence ended up with no tokens, so the invented-number AND the
+    # missing-citation checks were both skipped.
+    result = check_citations(
+        f"There were 19 incidents [{CID}]. In May 2500 households were affected.",
+        make_fact_table(),
+    )
+
+    assert result.passed is False
+
+
+def test_a_large_invented_figure_after_an_abbreviated_month_is_still_checked():
+    result = check_citations(
+        f"There were 19 incidents [{CID}]. Sept 1200 people were displaced.",
+        make_fact_table(),
+    )
+
+    assert result.passed is False
+
+
+def test_real_month_and_year_is_still_not_a_figure():
+    result = check_citations(
+        f"Situation Report for June 2023 covering 19 incidents [{CID}].", make_fact_table()
+    )
+
+    assert result.violations == []

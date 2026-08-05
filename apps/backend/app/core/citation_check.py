@@ -13,7 +13,11 @@ _MONTH = (
     r"|Aug(?:ust)?|Sep(?:t|tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)"
 )
 _DAY = r"\d{1,2}(?:st|nd|rd|th)?"
-_YEAR = r"\d{4}"
+# Bounded to plausible years. An unbounded \d{4} swallowed any 4-digit figure
+# following a month name — "In May 2500 households were affected" was erased
+# before the number scan, so both the invented-number and missing-citation
+# checks were skipped and an uncited invented figure shipped as "ok".
+_YEAR = r"(?:19|20)\d{2}"
 
 # Prose dates carry digits that are not figures. Every alternative REQUIRES a
 # 4-digit year: a bare "June 15" is deliberately left alone, because stripping
