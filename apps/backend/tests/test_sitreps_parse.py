@@ -224,3 +224,86 @@ def test_overflowing_quantity_is_a_row_error_not_a_silent_inf():
     assert error == RowError(
         row_number=9, reason="Quantity is not a finite number: '1e400'"
     )
+
+
+def _incident_row(**overrides) -> dict:
+    row = {
+        "Row ID": "1",
+        "Incident Type": "fire",
+        "Date of Event": "2023-06-27",
+        "Injuries Occurred": "False",
+        "Deaths Occurred": "False",
+        "Relief Supplied": "False",
+        "Forwarded To Agency": "False",
+        "Further Assessment Required": "False",
+        "Other Follow Up": "False",
+    }
+    row.update(overrides)
+    return row
+
+
+def test_currency_formatted_damage_cost_parses():
+    # What a person actually types into a spreadsheet.
+    fields, error = parse_incident_row(_incident_row(**{"Estimated Damage Cost": "$12,500"}), 1)
+
+    assert error is None
+    assert int(fields["estimated_damage_cost"]) == 12500
+
+
+def test_unparseable_damage_cost_is_a_row_error_not_a_silent_none():
+    # Previously stored None, so the report said TTD 0 with no trace.
+    fields, error = parse_incident_row(_incident_row(**{"Estimated Damage Cost": "about ten grand"}), 4)
+
+    assert fields is None
+    assert error == RowError(
+        row_number=4, reason="Estimated Damage Cost is not a number: 'about ten grand'"
+    )
+
+
+def test_yes_and_y_are_accepted_as_true():
+    # Previously coerced to False, silently zeroing relief counts.
+    fields, error = parse_incident_row(
+        _incident_row(**{"Injuries Occurred": "Yes", "Relief Supplied": "Y"}), 1
+    )
+
+    assert error is None
+    assert fields["injuries_occurred"] is True
+    assert fields["follow_up_flags"]["relief_supplied"] is True
+
+
+def test_no_and_zero_are_accepted_as_false():
+    fields, error = parse_incident_row(
+        _incident_row(**{"Injuries Occurred": "No", "Deaths Occurred": "0"}), 1
+    )
+
+    assert error is None
+    assert fields["injuries_occurred"] is False
+    assert fields["deaths_occurred"] is False
+
+
+def test_an_unrecognised_boolean_is_a_row_error():
+    fields, error = parse_incident_row(_incident_row(**{"Injuries Occurred": "maybe"}), 6)
+
+    assert fields is None
+    assert error.row_number == 6
+    assert "Injuries Occurred" in error.reason
+
+
+def test_a_non_numeric_count_is_a_row_error():
+    fields, error = parse_incident_row(_incident_row(**{"Injuries Count": "two"}), 7)
+
+    assert fields is None
+    assert error == RowError(row_number=7, reason="Injuries Count is not a whole number: 'two'")
+
+
+def test_empty_cells_are_not_errors():
+    # Blank must stay permissive — a corp leaves cells empty constantly.
+    fields, error = parse_incident_row(
+        _incident_row(**{"Estimated Damage Cost": "", "Injuries Count": "", "Injuries Occurred": ""}),
+        1,
+    )
+
+    assert error is None
+    assert fields["estimated_damage_cost"] is None
+    assert fields["injuries_count"] is None
+    assert fields["injuries_occurred"] is False
