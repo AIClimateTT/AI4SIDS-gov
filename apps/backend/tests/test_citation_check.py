@@ -257,8 +257,10 @@ def test_prose_date_with_day_month_year_is_not_a_figure():
 
 
 def test_prose_date_with_an_ordinal_day_is_not_a_figure():
+    # 19, not 15: the figure has to belong to the fact it cites now, and the
+    # subject under test here is date stripping, not attribution.
     result = check_citations(
-        f"As of August 3rd, 2026, 15 incidents were recorded [{CID}].", make_fact_table()
+        f"As of August 3rd, 2026, 19 incidents were recorded [{CID}].", make_fact_table()
     )
 
     assert result.violations == []
@@ -283,7 +285,7 @@ def test_month_and_year_alone_is_not_a_figure():
 
 def test_iso_date_is_still_not_a_figure():
     result = check_citations(
-        f"Window 2023-06-01 to 2023-06-30 covered 15 incidents [{CID}].", make_fact_table()
+        f"Window 2023-06-01 to 2023-06-30 covered 19 incidents [{CID}].", make_fact_table()
     )
 
     assert result.violations == []
@@ -347,7 +349,7 @@ def test_prose_that_cites_nothing_is_a_violation():
 
 
 def test_a_narrative_citing_a_fact_is_not_empty():
-    result = check_citations(f"There were 15 incidents [{CID}].", make_fact_table())
+    result = check_citations(f"There were 19 incidents [{CID}].", make_fact_table())
 
     assert result.passed is True
 
@@ -395,3 +397,156 @@ def test_real_month_and_year_is_still_not_a_figure():
     )
 
     assert result.violations == []
+
+
+# --- number-to-citation binding -------------------------------------------
+#
+# Before these, fact numbers were unioned across the whole table and a
+# sentence passed if it carried ANY valid cid; the two were never related.
+
+
+def make_two_source_fact_table() -> FactTable:
+    """C001: unverified Survey123 field count of 12. C002: signed-off SITREP
+    count of 7. The exact pairing the reviewer reproduced the defect with."""
+    return FactTable(
+        request_id="req-2",
+        template="single_region_report",
+        params={},
+        generated_at=datetime(2024, 7, 1),
+        facts=[
+            Fact(
+                metric="incident_count",
+                value=12,
+                unit="incidents",
+                scope={"corporation": "sangre_grande_regional_corporat"},
+                breakdown=None,
+                verification="pending",
+                citation=Citation(
+                    cid="C001",
+                    module="survey123",
+                    description="Survey123 incident count",
+                    query_ref="incident_count()",
+                    record_ids=["GUID-1"],
+                    as_of=datetime(2024, 7, 1),
+                ),
+            ),
+            Fact(
+                metric="incident_count",
+                value=7,
+                unit="incidents",
+                scope={"corporation": "sangre_grande_regional_corporat"},
+                breakdown=None,
+                verification="validated",
+                citation=Citation(
+                    cid="C002",
+                    module="sitreps",
+                    description="SITREP incident count",
+                    query_ref="incident_count()",
+                    record_ids=["arima_borough_corporation:1:1"],
+                    as_of=datetime(2024, 7, 1),
+                ),
+            ),
+        ],
+        gaps=[],
+    )
+
+
+def test_a_figure_published_under_another_facts_citation_is_flagged():
+    # The reviewer's exact reproduction. 12 is real — it is C001's Survey123
+    # field count, verification "pending" — but it is stated here under C002,
+    # the corporation's signed-off SITREP citation. Nothing about the sentence
+    # looks wrong; only its provenance is another fact's. This passed cleanly.
+    result = check_citations(
+        "Sangre Grande has confirmed 12 incidents in signed-off situation reports [C002].",
+        make_two_source_fact_table(),
+    )
+
+    assert result.passed is False
+    assert [v.kind for v in result.violations] == ["misattributed_number"]
+    assert result.violations[0].token == "12"
+    assert "C002" in result.violations[0].detail
+
+
+def test_a_list_block_is_checked_line_by_line():
+    # The reviewer's second reproduction. SENTENCE_SPLIT_RE split only on .!?,
+    # so this whole block was one "sentence" and the single [C002] laundered
+    # the 12 above it.
+    result = check_citations(
+        "- Incidents recorded: 12\n- Deaths: 7 [C002]", make_two_source_fact_table()
+    )
+
+    assert result.passed is False
+    assert "missing_citation" in [v.kind for v in result.violations]
+    assert result.violations[0].sentence == "- Incidents recorded: 12"
+
+
+def test_a_table_row_carrying_an_uncited_figure_is_checked_on_its_own():
+    result = check_citations(
+        "| Metric | Value |\n| Incidents | 12 |\n| Deaths | 7 [C002] |",
+        make_two_source_fact_table(),
+    )
+
+    assert result.passed is False
+    assert [v.sentence for v in result.violations] == ["| Incidents | 12 |"]
+
+
+def test_each_figure_cited_against_its_own_fact_passes():
+    result = check_citations(
+        "Field observations record 12 incidents [C001]. "
+        "Situation reports confirm 7 [C002].",
+        make_two_source_fact_table(),
+    )
+
+    assert result.passed is True
+
+
+def test_a_sentence_citing_both_facts_may_state_either_figure():
+    result = check_citations(
+        "Sources report 12 and 7 incidents respectively [C001] [C002].",
+        make_two_source_fact_table(),
+    )
+
+    assert result.passed is True
+
+
+def test_a_figure_from_the_cited_facts_breakdown_still_passes():
+    # The behaviour that must survive: a fact's own decomposition is part of
+    # what that fact says. 7 is incident_count's flooding_ breakdown entry.
+    result = check_citations(
+        f"Of these, 7 were flooding incidents [{CID}].", make_fact_table()
+    )
+
+    assert result.passed is True
+
+
+def test_a_breakdown_figure_from_another_fact_is_misattributed():
+    # 5 is estimated_damage_total's records_reporting_cost, not anything
+    # incident_count reported.
+    result = check_citations(
+        f"Only 5 incidents were assessed [{CID}].", make_fact_table()
+    )
+
+    assert [v.kind for v in result.violations] == ["misattributed_number"]
+    assert result.violations[0].token == "5"
+
+
+def test_a_number_in_no_fact_at_all_is_still_invented_not_misattributed():
+    # The two kinds must stay distinct: invented means the figure exists
+    # nowhere, misattributed means it exists under a different citation.
+    result = check_citations(
+        f"Officers responded within 9 hours [{CID}].", make_fact_table()
+    )
+
+    assert [v.kind for v in result.violations] == ["invented_number"]
+
+
+def test_an_uncited_sentence_is_reported_as_missing_citation_only():
+    # No valid cid means there is no attribution to be wrong about; reporting
+    # both would just duplicate the same defect.
+    result = check_citations(
+        f"There were 19 incidents [{CID}]. A further 15 records were reviewed.",
+        make_fact_table(),
+    )
+
+    kinds = [v.kind for v in result.violations]
+    assert kinds == ["missing_citation"]

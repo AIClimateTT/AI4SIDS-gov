@@ -6,7 +6,13 @@ from pydantic import BaseModel
 from app.core.contracts import FactTable
 
 ISO_DATE_RE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
-SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+# A newline ends a unit of text as surely as a full stop does. Splitting only
+# on .!? made a markdown list or table one enormous "sentence", so a single
+# citation at the end of the block laundered every figure above it:
+#   "- Incidents recorded: 12\n- Deaths: 7 [C002]"
+# passed with 12 attributed to a fact that never contained it. List items and
+# table rows must be checked individually.
+SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+|\n+")
 
 _MONTH = (
     r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?"
@@ -31,7 +37,9 @@ PROSE_DATE_RE = re.compile(
 
 
 class CitationViolation(BaseModel):
-    kind: Literal["invented_number", "missing_citation", "empty_narrative"]
+    kind: Literal[
+        "invented_number", "misattributed_number", "missing_citation", "empty_narrative"
+    ]
     detail: str
     sentence: str
     token: str | None = None
@@ -42,14 +50,41 @@ class CitationCheckResult(BaseModel):
     violations: list[CitationViolation]
 
 
+def _fact_numbers(fact) -> set[float]:
+    """Every figure one fact licenses: its value and its breakdown values.
+
+    The breakdown is included because a fact's own decomposition is part of
+    what it says — "of these, 7 were flooding incidents [C001]" is a correct
+    statement about C001, not a borrowed figure.
+    """
+    numbers: set[float] = set()
+    if isinstance(fact.value, (int, float)):
+        numbers.add(float(fact.value))
+    if fact.breakdown:
+        for value in fact.breakdown.values():
+            numbers.add(float(value))
+    return numbers
+
+
+def _collect_fact_numbers_by_cid(fact_table: FactTable) -> dict[str, set[float]]:
+    """Numbers grouped by the citation that licenses them.
+
+    The whole point of the checker is that a figure traces to its source. A
+    flat union across all facts could only ever answer "does this number exist
+    somewhere in the table", which is a different and much weaker question: an
+    unverified Survey123 field count published under a corporation's signed-off
+    SITREP citation passed it cleanly.
+    """
+    by_cid: dict[str, set[float]] = {}
+    for fact in fact_table.facts:
+        by_cid.setdefault(fact.citation.cid, set()).update(_fact_numbers(fact))
+    return by_cid
+
+
 def _collect_fact_numbers(fact_table: FactTable) -> set[float]:
     numbers: set[float] = set()
     for fact in fact_table.facts:
-        if isinstance(fact.value, (int, float)):
-            numbers.add(float(fact.value))
-        if fact.breakdown:
-            for value in fact.breakdown.values():
-                numbers.add(float(value))
+        numbers.update(_fact_numbers(fact))
     return numbers
 
 
@@ -87,6 +122,7 @@ NUMBER_TOKEN_RE = re.compile(r"\b\d[\d,]*(?:\.\d+)?%?")
 
 
 def check_citations(narrative: str, fact_table: FactTable) -> CitationCheckResult:
+    numbers_by_cid = _collect_fact_numbers_by_cid(fact_table)
     fact_numbers = _collect_fact_numbers(fact_table)
     valid_cids = _valid_cids(fact_table)
     violations: list[CitationViolation] = []
@@ -94,7 +130,12 @@ def check_citations(narrative: str, fact_table: FactTable) -> CitationCheckResul
 
     for sentence in _split_sentences(narrative):
         cited_ids = set(CITATION_MARKER_RE.findall(sentence))
-        has_valid_citation = bool(cited_ids & valid_cids)
+        cited_valid_ids = cited_ids & valid_cids
+        has_valid_citation = bool(cited_valid_ids)
+        # Only the facts this sentence actually cites license its figures.
+        licensed_numbers: set[float] = set()
+        for cid in cited_valid_ids:
+            licensed_numbers.update(numbers_by_cid.get(cid, set()))
         # Recorded before the no-tokens `continue` below, so a sentence that
         # cites a fact but states no figure still counts as having reported.
         if has_valid_citation:
@@ -124,6 +165,27 @@ def check_citations(narrative: str, fact_table: FactTable) -> CitationCheckResul
                     CitationViolation(
                         kind="invented_number",
                         detail=f"Number {token!r} does not match any fact or breakdown value",
+                        sentence=sentence,
+                        token=token,
+                    )
+                )
+            elif has_valid_citation and not _matches_any(value, licensed_numbers):
+                # The number exists in the table but belongs to a different
+                # fact than the one cited. Reported separately from
+                # invented_number because the failure is different in kind and
+                # worse in effect: the figure is real, so nothing about the
+                # sentence looks wrong, while its stated provenance —
+                # verification status, module, source authority — is another
+                # fact's. A sentence with no valid citation at all is left to
+                # missing_citation rather than double-reported here.
+                cited = ", ".join(sorted(cited_valid_ids))
+                violations.append(
+                    CitationViolation(
+                        kind="misattributed_number",
+                        detail=(
+                            f"Number {token!r} does not appear in the fact(s) cited here "
+                            f"({cited}); it belongs to a different fact"
+                        ),
                         sentence=sentence,
                         token=token,
                     )
