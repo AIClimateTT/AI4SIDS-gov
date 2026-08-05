@@ -90,7 +90,7 @@ def test_sitrep_incident_record_ref_is_stable(tmp_path):
     session.add(incident)
     session.commit()
 
-    assert incident.record_ref == "diego_martin_regional_corporati:-:1:1"
+    assert incident.record_ref == "diego_martin_regional_corporati:-:1"
 
 
 def test_situation_log_quantity_is_optional(tmp_path):
@@ -142,27 +142,51 @@ def test_enum_tuples_match_the_spec():
     )
 
 
-def test_record_ref_distinguishes_rows_from_different_submissions(tmp_path):
-    # Previously "corp:-:1" for every event-less row, so one identifier named
-    # many rows and no auditor could trace a figure back to one of them.
+def test_record_ref_does_not_move_when_the_submission_changes(tmp_path):
+    # The identity is (corporation, event_id, row_id) and nothing else.
+    # submission_id used to be part of it, and supersession rewrites
+    # submission_id in place — so a row's identifier changed every time the
+    # corp restated it, and reports already issued (stored immutable) went on
+    # citing an identifier that matched no row.
     from datetime import datetime
 
     from app.modules.sitreps.models import SitrepIncident
 
-    session = make_session(tmp_path)
+    row = SitrepIncident(
+        submission_id=1,
+        corporation="arima_borough_corporation",
+        event_id=1,
+        row_id="1",
+        ingested_at=datetime(2023, 6, 27),
+    )
+    before = row.record_ref
+
+    row.submission_id = 2
+
+    assert row.record_ref == before
+    assert row.record_ref == "arima_borough_corporation:1:1"
+
+
+def test_record_ref_distinguishes_rows_within_one_corporation_and_event(tmp_path):
+    # uq_sitrep_incident_corp_event_row guarantees the triple is unique, which
+    # is what makes submission_id unnecessary.
+    from datetime import datetime
+
+    from app.modules.sitreps.models import SitrepIncident
+
     first = SitrepIncident(
         submission_id=1,
         corporation="diego_martin_regional_corporati",
-        event_id=None,
+        event_id=1,
         row_id="1",
         ingested_at=datetime(2023, 6, 27),
     )
     second = SitrepIncident(
-        submission_id=2,
+        submission_id=1,
         corporation="diego_martin_regional_corporati",
-        event_id=None,
-        row_id="1",
-        ingested_at=datetime(2023, 6, 28),
+        event_id=1,
+        row_id="2",
+        ingested_at=datetime(2023, 6, 27),
     )
 
     assert first.record_ref != second.record_ref

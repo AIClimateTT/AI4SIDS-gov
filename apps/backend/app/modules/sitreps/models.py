@@ -129,11 +129,21 @@ class SitrepIncident(Base):
 
     @property
     def record_ref(self) -> str:
-        # submission_id included so one reference names exactly one row. Without
-        # it, every event-less row rendered event_id as "-" and rows from
-        # different submissions shared an identifier, making a cited figure
-        # untraceable.
-        return f"{self.corporation}:{self.event_id or '-'}:{self.submission_id}:{self.row_id}"
+        """Stable per-row identifier for citations.
+
+        Deliberately excludes submission_id. Supersession rewrites
+        existing.submission_id in place, so including it made a row's
+        identifier change every time the corp restated the row — and reports
+        are stored immutable, so a report issued before the restatement went on
+        citing an identifier that matched no row. An identifier that moves is
+        not an identifier.
+
+        uq_sitrep_incident_corp_event_row already guarantees this triple is
+        unique. submission_id was added to disambiguate event-less rows, but
+        both entry points (POST /submissions and the CLI) reject an
+        incident-bearing submission that names no event, so no such row exists.
+        """
+        return f"{self.corporation}:{self.event_id or '-'}:{self.row_id}"
 
 
 class SituationLog(Base):

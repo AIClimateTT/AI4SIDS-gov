@@ -160,6 +160,48 @@ def test_reuploading_a_cumulative_table_supersedes_rather_than_duplicates(tmp_pa
     assert row_one.incident_summary == "Corrected summary"
 
 
+def test_a_rows_record_ref_survives_being_superseded(tmp_path):
+    # The reproduction: report 1 cited
+    #   ['arima_borough_corporation:1:1:1']
+    # then the corp filed a corrected row under the same event and that row's
+    # ref became  ...:1:2:1  — supersession rewrites submission_id in place.
+    # Report 1 is stored and immutable, so it cited an identifier matching no
+    # row in the database.
+    session = make_session(tmp_path)
+    event = create_event(
+        session, corporation=CORP, title="Storm", hazard_type="wind",
+        started_at=datetime(2023, 6, 27),
+    )
+    header = ["Row ID", "Incident Type", "Date of Event", "Incident Summary"]
+
+    first = write_csv(
+        tmp_path, "first.csv", header,
+        [["1", "fallen_tree", "2023-06-27", "Original summary"]],
+    )
+    ingest_submission(
+        session, corporation=CORP, as_at=datetime(2023, 6, 27), event_id=event.id,
+        incidents_path=first,
+    )
+    cited_by_report_one = (
+        session.query(SitrepIncident).filter(SitrepIncident.row_id == "1").one().record_ref
+    )
+
+    second = write_csv(
+        tmp_path, "second.csv", header,
+        [["1", "fallen_tree", "2023-06-27", "Corrected summary"]],
+    )
+    ingest_submission(
+        session, corporation=CORP, as_at=datetime(2023, 6, 28), event_id=event.id,
+        incidents_path=second,
+    )
+
+    restated = session.query(SitrepIncident).filter(SitrepIncident.row_id == "1").one()
+    assert restated.incident_summary == "Corrected summary"
+    assert restated.submission_id != 1, "the row must actually have been superseded"
+    assert restated.record_ref == cited_by_report_one
+    assert cited_by_report_one == f"{CORP}:{event.id}:1"
+
+
 def test_event_less_submissions_do_not_supersede_each_other(tmp_path):
     session = make_session(tmp_path)
     header = ["Row ID", "Incident Type", "Date of Event"]
