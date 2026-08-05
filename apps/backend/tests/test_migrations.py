@@ -88,3 +88,41 @@ def test_downgrade_base_succeeds_from_head(tmp_path):
     result = run_alembic("downgrade", "base", database_url=f"sqlite:///{db}")
 
     assert result.returncode == 0, result.stderr
+
+
+def test_the_split_migration_preserves_every_row(tmp_path):
+    import sqlite3
+
+    db = tmp_path / "seeded.db"
+    url = f"sqlite:///{db}"
+    run_alembic("upgrade", "d1a4b7c92e10", database_url=url)
+
+    conn = sqlite3.connect(db)
+    for i, (source, corp) in enumerate(
+        [("survey123", "siparia_regional_corporation"),
+         ("sitreps", "diego_martin_regional_corporati"),
+         ("sitreps", "diego_martin_regional_corporati"),
+         ("sitreps", None)], start=1
+    ):
+        conn.execute(
+            "INSERT INTO incidents (global_id, object_id, source, corporation,"
+            " injuries_occurred, deaths_occurred, follow_up_flags, validation_status,"
+            " is_duplicate, source_file, ingested_at)"
+            " VALUES (?,?,?,?,0,0,'{}','validated',0,'f.csv','2023-06-27')",
+            (f"g{i}", i, source, corp),
+        )
+    conn.commit()
+    conn.close()
+
+    result = run_alembic("upgrade", "head", database_url=url)
+    assert result.returncode == 0, result.stderr
+
+    conn = sqlite3.connect(db)
+    fo = conn.execute("SELECT COUNT(*) FROM field_observations").fetchone()[0]
+    si = conn.execute("SELECT COUNT(*) FROM sitrep_incidents").fetchone()[0]
+    unmapped = conn.execute(
+        "SELECT COUNT(*) FROM sitrep_incidents WHERE corporation = 'unmapped'"
+    ).fetchone()[0]
+
+    assert (fo, si) == (1, 3), "every row must survive the split"
+    assert unmapped == 1, "the NULL-corporation row must land under 'unmapped', not vanish"
