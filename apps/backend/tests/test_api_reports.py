@@ -114,6 +114,55 @@ def test_get_reports_by_id_returns_full_detail(monkeypatch):
     assert body["created_at"]
 
 
+def test_post_reports_blank_optional_param_counts_the_same_as_an_omitted_one(monkeypatch):
+    # The Generate Report form seeds every template param to "" and validates
+    # only the required ones, so an untouched optional `community` arrived
+    # here as "". It reached SQL as `WHERE community = ''`, matched no row,
+    # and the report read "0 incidents in Sangre Grande" with status ok.
+    client = make_client(monkeypatch)
+    _ingest_fixture()
+
+    def facts_for(params: dict) -> dict[str, float]:
+        response = client.post(
+            "/reports", json={"template": "single_region_report", "params": params}
+        )
+        assert response.status_code == 200, response.text
+        detail = client.get(f"/reports/{response.json()['id']}")
+        assert detail.status_code == 200, detail.text
+        return {
+            f"{fact['metric']}:{fact['scope'].get('corporation')}": fact["value"]
+            for fact in detail.json()["fact_table"]["facts"]
+        }
+
+    base = {
+        "corporation": "sangre_grande_regional_corporat",
+        "date_from": "2024-06-01",
+        "date_to": "2024-06-30",
+    }
+    blank = facts_for({**base, "community": ""})
+    omitted = facts_for(base)
+
+    assert blank == omitted
+    assert blank["incident_count:sangre_grande_regional_corporat"] > 0
+
+
+def test_post_reports_blank_date_param_does_not_400(monkeypatch):
+    # datetime.fromisoformat("") raises, and generate_report's ValueError path
+    # turned that into a 400 on an otherwise valid request.
+    client = make_client(monkeypatch)
+    _ingest_fixture()
+
+    response = client.post(
+        "/reports",
+        json={
+            "template": "minister_regional_comparison",
+            "params": {"date_from": "", "date_to": ""},
+        },
+    )
+
+    assert response.status_code == 200, response.text
+
+
 def test_get_reports_list_returns_paginated_items(monkeypatch):
     client = make_client(monkeypatch)
     _ingest_fixture()

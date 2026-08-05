@@ -20,6 +20,7 @@ import { useCreateReport } from '@/lib/queries/reports'
 import { templateQueries } from '@/lib/queries/templates'
 import {
   buildDataRequirement,
+  dropBlankParams,
   metricKey,
   selectedMetricKeys,
 } from '@/lib/templates'
@@ -67,6 +68,12 @@ function AdminGeneratePage() {
         )
       }
 
+      // Every template param is seeded to '' when a template is picked, so an
+      // untouched optional field would POST as a blank. The backend now treats
+      // a blank as absent too, but sending one at all describes a filter the
+      // officer never asked for.
+      const params = dropBlankParams(value.params)
+
       const templateParamNames = template.params.map((param) => param.name)
       const allMetrics =
         modulesQuery.data?.flatMap((module) =>
@@ -78,7 +85,7 @@ function AdminGeneratePage() {
 
       await createReport.mutateAsync({
         template: template.name,
-        params: value.params,
+        params,
         ...(useDefaultMetrics
           ? {}
           : {

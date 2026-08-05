@@ -36,6 +36,25 @@ export function buildDataRequirement(
   }
 }
 
+/**
+ * Strip params the officer left blank before they cross into a query.
+ *
+ * The generate form seeds every template param to '' when a template is
+ * picked, and only the required ones are validated. A blank reaching the
+ * backend used to be applied as a real filter (`WHERE community = ''`),
+ * matching no row and reporting a confident zero. A blank is an unsupplied
+ * param, not an empty-string value, so it is not sent at all.
+ */
+export function dropBlankParams(
+  params: Record<string, string>,
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(params)
+      .map(([name, value]) => [name, value.trim()] as const)
+      .filter(([, trimmed]) => trimmed !== ''),
+  )
+}
+
 export function selectedMetricKeys(requirements: DataRequirementInfo[]) {
   return requirements.map((req) => metricKey(req.module, req.metric))
 }

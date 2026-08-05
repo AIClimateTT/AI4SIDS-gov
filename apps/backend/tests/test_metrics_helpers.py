@@ -30,8 +30,19 @@ def test_parse_date_param_datetime_passes_through():
     assert parse_date_param(dt) is dt
 
 
+def test_parse_date_param_blank_string_is_none():
+    # The Generate Report form seeds every optional param to "".
+    # datetime.fromisoformat("") raises ValueError, which the API turns into a
+    # 400 — a blank date_from used to reject the whole request.
+    assert parse_date_param("") is None
+
+
 def test_build_window_label_no_dates_is_all():
     assert build_window_label(None, None) == "all"
+
+
+def test_build_window_label_blank_dates_is_all():
+    assert build_window_label("", "") == "all"
 
 
 def test_build_window_label_from_only():
@@ -66,6 +77,23 @@ def test_build_query_ref_is_deterministic_and_excludes_none_values():
     ref_b = build_query_ref("incident_count", {"corporation": "sangre_grande_regional_corporat"})
     assert ref_a == ref_b
     assert "community" not in ref_a
+
+
+def test_build_query_ref_omits_blank_values():
+    # A blank narrows nothing (apply_common_filters ignores it), so printing
+    # "community=" would advertise a filter that never ran to the auditor
+    # reproducing the figure.
+    ref_blank = build_query_ref(
+        "incident_count",
+        {"corporation": "sangre_grande_regional_corporat", "community": "", "date_from": ""},
+    )
+    ref_omitted = build_query_ref(
+        "incident_count", {"corporation": "sangre_grande_regional_corporat"}
+    )
+
+    assert ref_blank == ref_omitted
+    assert "community" not in ref_blank
+    assert "date_from" not in ref_blank
 
 
 def test_build_query_ref_differs_for_different_params():
@@ -251,6 +279,85 @@ def test_base_query_returns_every_field_observation_by_default(tmp_path):
     rows = session.execute(base_query({})).scalars().all()
 
     assert sorted(r.global_id for r in rows) == ["G1", "G2"]
+
+
+def test_base_query_treats_a_blank_community_as_no_filter(tmp_path):
+    # Reproduction: three matching rows, community left blank on the form.
+    # `WHERE community = ''` matched none of them and the report read
+    # "0 incidents in Arima" with status ok.
+    session = make_session(tmp_path)
+    for suffix in ("G1", "G2", "G3"):
+        session.add(make_incident(global_id=suffix, community="Sangre Grande"))
+    session.commit()
+
+    blank = session.execute(
+        base_query({"corporation": "sangre_grande_regional_corporat", "community": ""})
+    ).scalars().all()
+    omitted = session.execute(
+        base_query({"corporation": "sangre_grande_regional_corporat"})
+    ).scalars().all()
+
+    assert len(blank) == 3
+    assert sorted(r.global_id for r in blank) == sorted(r.global_id for r in omitted)
+
+
+def test_base_query_treats_a_blank_corporation_and_dates_as_no_filter(tmp_path):
+    session = make_session(tmp_path)
+    session.add(make_incident(global_id="G1"))
+    session.add(make_incident(global_id="G2"))
+    session.commit()
+
+    rows = session.execute(
+        base_query({"corporation": "", "community": "", "date_from": "", "date_to": ""})
+    ).scalars().all()
+
+    assert sorted(r.global_id for r in rows) == ["G1", "G2"]
+
+
+def test_metrics_with_a_blank_community_agree_with_the_omitted_case(tmp_path):
+    # The compounding half of the defect: incident_count and street_level_tally
+    # returned 0 while data_coverage (whose requirement omits community)
+    # returned 3, all in one fact table, all scoped "community: all".
+    from app.modules.survey123.metrics import (
+        data_coverage,
+        incident_count,
+        street_level_tally,
+    )
+
+    session = make_session(tmp_path)
+    for suffix in ("G1", "G2", "G3"):
+        session.add(make_incident(global_id=suffix, community="Sangre Grande"))
+    session.commit()
+
+    blank_params = {"corporation": "sangre_grande_regional_corporat", "community": ""}
+    omitted_params = {"corporation": "sangre_grande_regional_corporat"}
+
+    for metric in (incident_count, street_level_tally, data_coverage):
+        blank_facts = metric(blank_params, session)
+        omitted_facts = metric(omitted_params, session)
+        assert [f.value for f in blank_facts] == [f.value for f in omitted_facts], metric.__name__
+        assert [f.scope for f in blank_facts] == [f.scope for f in omitted_facts], metric.__name__
+
+    assert incident_count(blank_params, session)[0].value == 3
+    assert data_coverage(blank_params, session)[0].value == 3
+
+
+def test_a_blank_scope_label_matches_the_query_that_actually_ran(tmp_path):
+    # build_scope's `or "all"` is only truthful once a blank stops filtering:
+    # the fact says "community: all" and the query really did span all
+    # communities.
+    session = make_session(tmp_path)
+    session.add(make_incident(global_id="G1", community="Sangre Grande"))
+    session.add(make_incident(global_id="G2", community="Cumuto"))
+    session.commit()
+
+    from app.modules.survey123.metrics import incident_count
+
+    fact = incident_count({"community": ""}, session)[0]
+
+    assert fact.scope["community"] == "all"
+    assert fact.value == 2
+    assert "community" not in fact.citation.query_ref
 
 
 def test_build_citation_takes_module_and_cid_from_the_model():

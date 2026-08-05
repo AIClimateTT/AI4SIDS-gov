@@ -10,7 +10,13 @@ from app.modules.survey123.models import FieldObservation
 
 
 def parse_date_param(value: str | datetime | None) -> datetime | None:
-    if value is None:
+    """A blank string means "not supplied", not "a date".
+
+    Every optional template param arrives from the Generate Report form as "",
+    and datetime.fromisoformat("") raises — a blank date_from used to 400 the
+    whole request. Blank is absent, here and at every other filter.
+    """
+    if value is None or value == "":
         return None
     if isinstance(value, datetime):
         return value
@@ -18,7 +24,9 @@ def parse_date_param(value: str | datetime | None) -> datetime | None:
 
 
 def build_window_label(date_from: str | None, date_to: str | None) -> str:
-    if date_from is None and date_to is None:
+    # Falsy, not `is None`: a blank date is an unsupplied date (see
+    # parse_date_param), so the window it describes really is "all".
+    if not date_from and not date_to:
         return "all"
     from_label = date_from or "earliest"
     to_label = date_to or "latest"
@@ -43,10 +51,13 @@ QUERY_PARAMS = ("corporation", "community", "date_from", "date_to", "include_pen
 
 
 def build_query_ref(metric_name: str, params: dict) -> str:
+    # `v != ""` for the same reason apply_common_filters ignores blanks: a
+    # blank narrows nothing, so printing `community=` would describe a filter
+    # that never ran.
     parts = [
         f"{k}={v}"
         for k, v in sorted(params.items())
-        if k in QUERY_PARAMS and v is not None and v is not False
+        if k in QUERY_PARAMS and v is not None and v is not False and v != ""
     ]
     return f"{metric_name}(" + ", ".join(parts) + ")"
 
@@ -147,9 +158,16 @@ def record_ref_of(row) -> str:
 def apply_common_filters(stmt: Select, params: dict, model=FieldObservation) -> Select:
     # No "source" filter: after the split each table IS one source, so the key
     # can never narrow a result set and must not look as though it could.
-    if params.get("corporation") is not None:
+    #
+    # Truthiness, not `is not None`. The Generate Report form seeds every
+    # template param to "" and validates only the required ones, and
+    # data_requirements on POST /reports is caller-controlled, so "" reaches
+    # here routinely. As a filter it became `WHERE community = ''`, which
+    # matches no row: counts collapsed to 0 while build_scope still labelled
+    # the fact "community: all". A blank is an unsupplied filter.
+    if params.get("corporation"):
         stmt = stmt.where(model.corporation == params["corporation"])
-    if params.get("community") is not None:
+    if params.get("community"):
         stmt = stmt.where(model.community == params["community"])
     date_from = parse_date_param(params.get("date_from"))
     if date_from is not None:
