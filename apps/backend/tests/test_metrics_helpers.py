@@ -162,8 +162,6 @@ def make_incident(**overrides) -> FieldObservation:
         flood_height=None,
         lon=None,
         lat=None,
-        officer_name=None,
-        officer_position=None,
         dedup_hash=None,
         source_file="test.csv",
         ingested_at=datetime(2024, 6, 1),

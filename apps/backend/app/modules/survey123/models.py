@@ -71,9 +71,6 @@ class FieldObservation(Base):
     lon: Mapped[float | None] = mapped_column(Float, nullable=True)
     lat: Mapped[float | None] = mapped_column(Float, nullable=True)
 
-    officer_name: Mapped[str | None] = mapped_column(String, nullable=True)
-    officer_position: Mapped[str | None] = mapped_column(String, nullable=True)
-
     dedup_hash: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
 
     source_file: Mapped[str] = mapped_column(String, nullable=False)

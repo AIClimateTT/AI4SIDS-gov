@@ -28,6 +28,8 @@ PII_COLUMNS = [
     "Second Contact Information",
     "Second Identification Card Number",
     "Please list the names of the occupants and their relation",
+    "Name of Officer",
+    "Position",
 ]
 
 DUPLICATE_MARKER = "duplicate entry"
@@ -128,8 +130,6 @@ def parse_row(row: dict[str, str], salt: str) -> dict:
         "flood_height": (row.get("Flood Height") or "").strip() or None,
         "lon": parse_float(row.get("x")),
         "lat": parse_float(row.get("y")),
-        "officer_name": (row.get("Name of Officer") or "").strip() or None,
-        "officer_position": (row.get("Position") or "").strip() or None,
         "dedup_hash": compute_dedup_hash(row.get("Identification Card Number"), salt),
     }
 

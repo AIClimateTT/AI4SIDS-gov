@@ -82,8 +82,6 @@ def test_incident_round_trips_through_sqlite(tmp_path):
         flood_height=None,
         lon=-61.13,
         lat=10.58,
-        officer_name="Kevin Jagassar",
-        officer_position="DMU Field Officer",
         dedup_hash=None,
         source_file="test.csv",
         ingested_at=datetime(2024, 6, 1, tzinfo=timezone.utc),

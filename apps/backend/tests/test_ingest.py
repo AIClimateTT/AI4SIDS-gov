@@ -187,3 +187,11 @@ def test_cross_ingest_duplicate_detected_against_already_persisted_rows(tmp_path
     new_row = session.execute(select(FieldObservation).where(FieldObservation.global_id == "GUID-099")).scalar_one()
     assert new_row.is_duplicate is True
     assert new_row.duplicate_reason == "repeated_id_date"
+
+
+def test_officer_identity_is_never_stored():
+    from app.modules.sitreps.models import SitrepIncident
+
+    for model in (FieldObservation, SitrepIncident):
+        assert "officer_name" not in model.__table__.columns
+        assert "officer_position" not in model.__table__.columns
