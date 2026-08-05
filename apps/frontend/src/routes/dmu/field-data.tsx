@@ -10,7 +10,7 @@ function IngestPage() {
     <div className="space-y-6">
       <PageHeader
         title="Ingest"
-        description="Upload Survey123 or SITREP CSV exports into the incident store."
+        description="Upload Survey123 CSV exports into the incident store. To file a situation report, go to /corp instead."
       />
 
       <ContentCard
@@ -19,7 +19,7 @@ function IngestPage() {
       >
         <FormPlaceholder
           title="Ingest form placeholder"
-          description="Module selector, corporation (for sitreps), and file upload will use the shared form convention next."
+          description="Module selector and file upload will use the shared form convention next."
         />
       </ContentCard>
     </div>
