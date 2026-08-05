@@ -469,3 +469,24 @@ def test_query_params_covers_every_key_the_query_layer_reads():
             f"{key} is read by apply_common_filters/base_query via params.get(...) "
             "but is missing from QUERY_PARAMS, so it would silently vanish from query_ref"
         )
+
+
+def test_unmapped_type_gap_caps_the_values_it_lists():
+    # FactTable.gaps reaches the LLM prompt unpared, so an unbounded list of
+    # distinct hand-typed values would overflow the context and return an
+    # empty narrative — a failure this codebase has already fixed twice.
+    from app.modules.survey123.metrics import unmapped_incident_type_gaps
+
+    class Row:
+        def __init__(self, raw):
+            self.incident_type = "unmapped"
+            self.raw_incident_type = raw
+
+    rows = [Row(f"Typo Type {i}") for i in range(40)]
+
+    gaps = unmapped_incident_type_gaps("incident_count", rows, "Consequence.")
+
+    assert len(gaps) == 1
+    assert "and 30 others" in gaps[0]
+    assert gaps[0].count("'") == 20  # 10 quoted values, two quotes each
+    assert "40 rows in scope" in gaps[0]

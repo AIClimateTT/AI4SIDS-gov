@@ -17,6 +17,7 @@ PLACEHOLDER_RE = re.compile(r"^\{(\w+)\}$")
 CITATION_RULES = """RULES (absolute — always apply):
 - Use ONLY numbers present in the fact table you are given as JSON. Never compute, sum, estimate, or round a number that is not already present.
 - Every sentence containing a figure must end with its citation marker, e.g. [C001]. Citation markers look like C001, C002, etc.
+- Never break a line between a figure and its citation marker. Each list item and each table row carries its own marker — the checker reads a line at a time.
 - Distinguish validated vs pending figures exactly as labeled in the fact table's "verification" field.
 - If the fact table lists gaps, state them plainly in a Data Gaps section.
 - Write every figure as digits, never words — "15", not "fifteen"."""

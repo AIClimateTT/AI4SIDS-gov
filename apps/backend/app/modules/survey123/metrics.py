@@ -233,7 +233,20 @@ def unmapped_incident_type_gaps(metric_name: str, rows, consequence: str) -> lis
             if (getattr(r, "raw_incident_type", None) or "").strip()
         }
     )
-    written_label = f" ({', '.join(repr(v) for v in written)})" if written else ""
+    # Capped: FactTable.gaps is not pared out of the LLM payload the way
+    # record_ids are, so a messy CSV with many distinct typed values would put
+    # an unbounded string into the prompt and overflow the context — the same
+    # failure that silently returns an empty narrative.
+    GAP_VALUE_LIMIT = 10
+    shown = written[:GAP_VALUE_LIMIT]
+    overflow = len(written) - len(shown)
+    if shown:
+        listed = ", ".join(repr(v) for v in shown)
+        if overflow:
+            listed += f", and {overflow} others"
+        written_label = f" ({listed})"
+    else:
+        written_label = ""
     return [
         f"{metric_name}: {len(unmapped)} rows in scope carry an incident type that was "
         f"not recognised{written_label}. {consequence}"
