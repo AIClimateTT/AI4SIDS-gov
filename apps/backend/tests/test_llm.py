@@ -76,7 +76,7 @@ def test_get_default_llm_client_returns_ollama_by_default(monkeypatch):
         type(
             "S",
             (),
-            {"llm_provider": "ollama", "ollama_base_url": "http://localhost:11434", "ollama_model": "gemma3:4b"},
+            {"llm_provider": "ollama", "ollama_base_url": "http://localhost:11434", "ollama_model": "gemma3:4b", "ollama_num_ctx": 8192},
         )(),
     )
 
@@ -91,7 +91,7 @@ def test_get_default_llm_client_returns_fake_when_provider_is_fake(monkeypatch):
         type(
             "S",
             (),
-            {"llm_provider": "fake", "ollama_base_url": "http://localhost:11434", "ollama_model": "gemma3:4b"},
+            {"llm_provider": "fake", "ollama_base_url": "http://localhost:11434", "ollama_model": "gemma3:4b", "ollama_num_ctx": 8192},
         )(),
     )
 

@@ -52,34 +52,6 @@ def create_report(
         ]
 
     try:
-        # #region agent log
-        import json
-        import time
-
-        _debug_path = "/Users/devonmurray/just-projects/AI4SIDS-repos/gov/.cursor/debug-33839c.log"
-        try:
-            with open(_debug_path, "a", encoding="utf-8") as fh:
-                fh.write(
-                    json.dumps(
-                        {
-                            "sessionId": "33839c",
-                            "hypothesisId": "C",
-                            "location": "reports.py:create_report",
-                            "message": "create_report before generate",
-                            "data": {
-                                "template": request.template,
-                                "version": request.version,
-                                "param_keys": sorted(request.params.keys()),
-                                "has_override": request.data_requirements is not None,
-                            },
-                            "timestamp": int(time.time() * 1000),
-                        }
-                    )
-                    + "\n"
-                )
-        except Exception:
-            pass
-        # #endregion
         report = generate_report(
             template,
             request.params,
@@ -88,48 +60,7 @@ def create_report(
             data_requirements=override,
         )
     except ValueError as exc:
-        # #region agent log
-        try:
-            with open(_debug_path, "a", encoding="utf-8") as fh:
-                fh.write(
-                    json.dumps(
-                        {
-                            "sessionId": "33839c",
-                            "hypothesisId": "C",
-                            "location": "reports.py:create_report",
-                            "message": "create_report ValueError",
-                            "data": {"error": str(exc)},
-                            "timestamp": int(time.time() * 1000),
-                        }
-                    )
-                    + "\n"
-                )
-        except Exception:
-            pass
-        # #endregion
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except Exception as exc:
-        # #region agent log
-        try:
-            with open(_debug_path, "a", encoding="utf-8") as fh:
-                fh.write(
-                    json.dumps(
-                        {
-                            "sessionId": "33839c",
-                            "hypothesisId": "C",
-                            "location": "reports.py:create_report",
-                            "message": "create_report unhandled exception",
-                            "data": {"error_type": type(exc).__name__, "error": str(exc)},
-                            "timestamp": int(time.time() * 1000),
-                            "runId": "pre-fix",
-                        }
-                    )
-                    + "\n"
-                )
-        except Exception:
-            pass
-        # #endregion
-        raise
 
     save_report(report, session)
 
