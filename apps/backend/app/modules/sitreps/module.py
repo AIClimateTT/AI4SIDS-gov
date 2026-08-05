@@ -10,6 +10,13 @@ from app.modules.survey123.metrics import METRIC_FUNCTIONS, METRIC_SPECS
 class SitrepModule:
     name = "sitreps"
 
+    # data_coverage measures validation status (pct_validated, pct_duplicates),
+    # which corp SITREP rows do not carry -- they are human-verified by
+    # definition. run_metric still serves it (see below), returning [], so a
+    # previously stored template naming it does not crash; it is just not
+    # offered as something new templates can request.
+    UNSUPPORTED_METRICS = frozenset({"data_coverage"})
+
     def ingest(self, file_path: Path) -> IngestResult:
         raise NotImplementedError(
             "sitreps data arrives as a submission (corporation, as-at time and "
@@ -18,7 +25,11 @@ class SitrepModule:
         )
 
     def list_metrics(self) -> list[MetricSpec]:
-        return [spec.model_copy(update={"module": "sitreps"}) for spec in METRIC_SPECS]
+        return [
+            spec.model_copy(update={"module": "sitreps"})
+            for spec in METRIC_SPECS
+            if spec.name not in self.UNSUPPORTED_METRICS
+        ]
 
     def run_metric(self, name: str, params: dict, session: Session) -> list[Fact]:
         fn = METRIC_FUNCTIONS.get(name)

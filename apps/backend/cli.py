@@ -67,6 +67,12 @@ def create_submission_command(
         )
         raise typer.Exit(code=1)
 
+    # Record just the filename, not the full local path: the path is an
+    # artifact of whatever machine ran the CLI, not part of the corp's
+    # submission. This also keeps source_file's format consistent with the
+    # API, which records the uploaded filename the same way.
+    source_name = ",".join(p.name for p in (incidents, logs) if p is not None) or None
+
     session = SessionLocal()
     try:
         result = ingest_submission(
@@ -77,6 +83,7 @@ def create_submission_command(
             alert_level=alert_level,
             incidents_path=incidents,
             logs_path=logs,
+            source_name=source_name,
         )
     finally:
         session.close()

@@ -111,6 +111,27 @@ def test_post_submission_with_both_files():
     assert body["pii_columns_dropped"] == ["Name of Person", "Contact Information"]
 
 
+def test_submission_records_the_uploaded_filename():
+    c = client()
+    incidents = "Row ID,Incident Type,Date of Event\n1,fallen_tree,2023-06-27\n"
+    created = c.post("/events", json={
+        "corporation": CORP, "title": "Storm", "hazard_type": "wind",
+        "started_at": "2023-06-27T00:00:00"})
+    c.post("/submissions",
+        data={"corporation": CORP, "as_at": "2023-06-30T16:00:00",
+              "event_id": created.json()["id"]},
+        files={"incidents_file": ("june-incidents.csv", io.BytesIO(incidents.encode()), "text/csv")})
+
+    from sqlalchemy import select
+    from app.db import SessionLocal
+    from app.modules.sitreps.models import Submission
+    s = SessionLocal()
+    stored = s.scalars(select(Submission)).first().source_file
+    s.close()
+
+    assert stored == "june-incidents.csv"
+
+
 def test_post_submission_reports_row_errors_without_failing():
     c = client()
     created = c.post(

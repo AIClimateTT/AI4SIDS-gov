@@ -71,13 +71,13 @@ def get_events(
     ]
 
 
-async def _spool(upload: UploadFile | None) -> Path | None:
+async def _spool(upload: UploadFile | None) -> tuple[Path, str] | None:
     if upload is None:
         return None
     contents = await upload.read()
     with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
         tmp.write(contents)
-        return Path(tmp.name)
+        return Path(tmp.name), upload.filename or Path(tmp.name).name
 
 
 @router.post("/submissions", response_model=SubmissionIngestResult, status_code=201)
@@ -111,8 +111,11 @@ async def post_submission(
                 status_code=404, detail=f"event not found for this corporation: {event_id}"
             )
 
-    incidents_path = await _spool(incidents_file)
-    logs_path = await _spool(logs_file)
+    spooled_incidents = await _spool(incidents_file)
+    spooled_logs = await _spool(logs_file)
+    incidents_path, incidents_name = spooled_incidents if spooled_incidents else (None, None)
+    logs_path, logs_name = spooled_logs if spooled_logs else (None, None)
+    source_name = ",".join(name for name in (incidents_name, logs_name) if name) or None
     try:
         return ingest_submission(
             session,
@@ -124,6 +127,7 @@ async def post_submission(
             situation_overview=situation_overview,
             incidents_path=incidents_path,
             logs_path=logs_path,
+            source_name=source_name,
         )
     finally:
         for path in (incidents_path, logs_path):

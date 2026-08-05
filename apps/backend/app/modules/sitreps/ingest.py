@@ -32,6 +32,7 @@ def ingest_submission(
     situation_overview: str | None = None,
     incidents_path: Path | None = None,
     logs_path: Path | None = None,
+    source_name: str | None = None,
 ) -> SubmissionIngestResult:
     """Create one submission and load its incident and log rows.
 
@@ -39,6 +40,12 @@ def ingest_submission(
     plus all of its child rows commit in a single transaction, so a submission
     never lands half-populated. Individual bad rows are collected and reported;
     they do not abort the batch.
+
+    ``incidents_path``/``logs_path`` are wherever the caller spooled the CSV
+    to on disk -- for the API that's a tempfile path, meaningless once the
+    request ends. ``source_name`` is the human-meaningful name to record on
+    the submission instead (e.g. the filename the corp actually uploaded).
+    When both files are present, callers should pass them comma-separated.
     """
     incident_rows = _read_rows(incidents_path) if incidents_path else []
     log_rows = _read_rows(logs_path) if logs_path else []
@@ -74,7 +81,16 @@ def ingest_submission(
             continue
         parsed_logs.append(fields)
 
-    source_file = str(incidents_path or logs_path) if (incidents_path or logs_path) else None
+    if source_name is not None:
+        source_file = source_name
+    elif incidents_path or logs_path:
+        # Fallback for callers that do not pass the real uploaded/provided
+        # name: derive it from whatever path we were handed. For the API this
+        # would be a tempfile path (superseded by source_name in practice),
+        # but it keeps this function usable standalone, e.g. from tests.
+        source_file = str(incidents_path or logs_path)
+    else:
+        source_file = None
 
     # Build the Submission inline and flush (not store.create_submission, which
     # commits): the submission and its child rows must land in ONE transaction,
