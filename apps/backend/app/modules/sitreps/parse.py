@@ -1,4 +1,5 @@
 import math
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
@@ -28,6 +29,15 @@ UNPARSEABLE = object()
 TRUE_VALUES = {"true", "yes", "y", "1"}
 FALSE_VALUES = {"false", "no", "n", "0"}
 
+# Matches a comma only where it is unambiguously a thousands separator: an
+# optional sign, 1-3 leading digits, then one or more groups of exactly
+# ",DDD", optionally followed by a decimal point and digits. "12,500" and
+# "1,200.50" match; "12,5" (a European decimal typo) and "12.500,50" (European
+# grouping) do not. A comma that fails this is UNPARSEABLE rather than
+# stripped-and-guessed: a plausible-but-wrong number reaching a report with no
+# trace is worse than a rejected row.
+THOUSANDS_GROUPED = re.compile(r"[+-]?\d{1,3}(,\d{3})+(\.\d+)?")
+
 
 def parse_corp_bool(raw: str | None) -> bool | None:
     """None means unparseable. An empty cell is False, not an error.
@@ -53,11 +63,18 @@ def parse_corp_decimal(raw: str | None) -> "Decimal | None | object":
 
     Accepts what a person types: a leading currency symbol and thousands
     separators. "$12,500" is a number; "about ten grand" is a row error.
+    A comma is only accepted when THOUSANDS_GROUPED confirms it is an
+    unambiguous thousands separator -- see that pattern's comment for why an
+    ambiguous comma is rejected rather than guessed.
     """
     cleaned = _clean(raw)
     if cleaned is None:
         return None
-    stripped = cleaned.lstrip("$").replace(",", "").strip()
+    stripped = cleaned.lstrip("$").strip()
+    if "," in stripped:
+        if not THOUSANDS_GROUPED.fullmatch(stripped):
+            return UNPARSEABLE
+        stripped = stripped.replace(",", "")
     try:
         return Decimal(stripped)
     except InvalidOperation:
@@ -65,12 +82,21 @@ def parse_corp_decimal(raw: str | None) -> "Decimal | None | object":
 
 
 def parse_corp_int(raw: str | None) -> "int | None | object":
-    """Returns int, None for an empty cell, or UNPARSEABLE."""
+    """Returns int, None for an empty cell, or UNPARSEABLE.
+
+    See parse_corp_decimal for why a comma is only accepted as an
+    unambiguous thousands separator.
+    """
     cleaned = _clean(raw)
     if cleaned is None:
         return None
+    stripped = cleaned.strip()
+    if "," in stripped:
+        if not THOUSANDS_GROUPED.fullmatch(stripped):
+            return UNPARSEABLE
+        stripped = stripped.replace(",", "")
     try:
-        return int(cleaned.replace(",", ""))
+        return int(stripped)
     except ValueError:
         return UNPARSEABLE
 

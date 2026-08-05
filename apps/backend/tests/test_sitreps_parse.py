@@ -1,5 +1,6 @@
 import csv
 from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 
 from app.modules.sitreps.parse import (
@@ -307,3 +308,63 @@ def test_empty_cells_are_not_errors():
     assert fields["estimated_damage_cost"] is None
     assert fields["injuries_count"] is None
     assert fields["injuries_occurred"] is False
+
+
+def test_dollar_and_grouped_thousands_still_parse():
+    # Guard the intended cases: an unambiguous thousands separator must keep
+    # working, or the fix for the ambiguous cases below would be too strict.
+    fields, error = parse_incident_row(_incident_row(**{"Estimated Damage Cost": "$12,500"}), 1)
+
+    assert error is None
+    assert int(fields["estimated_damage_cost"]) == 12500
+
+
+def test_grouped_thousands_with_decimal_still_parses():
+    fields, error = parse_incident_row(_incident_row(**{"Estimated Damage Cost": "1,200.50"}), 1)
+
+    assert error is None
+    assert fields["estimated_damage_cost"] == Decimal("1200.50")
+
+
+def test_ambiguous_comma_as_decimal_separator_is_a_row_error():
+    # "12,5" read as European decimal notation means 12.5. Stripping the comma
+    # would silently produce 125 -- a 10x-inflated, unflagged, plausible-looking
+    # number reaching a Minister's report with no trace. That is worse than
+    # rejecting the row, so this must be a RowError, not a guess.
+    fields, error = parse_incident_row(_incident_row(**{"Estimated Damage Cost": "12,5"}), 1)
+
+    assert fields is None
+    assert error == RowError(row_number=1, reason="Estimated Damage Cost is not a number: '12,5'")
+
+
+def test_european_grouping_with_comma_decimal_is_a_row_error():
+    # "12.500,50" in European formatting means 12500.50. Naively treating every
+    # comma as a thousands separator would silently produce 12.50050 -- roughly
+    # 1000x wrong and unflagged. Reject rather than guess.
+    fields, error = parse_incident_row(_incident_row(**{"Estimated Damage Cost": "12.500,50"}), 1)
+
+    assert fields is None
+    assert error == RowError(
+        row_number=1, reason="Estimated Damage Cost is not a number: '12.500,50'"
+    )
+
+
+def test_wrongly_grouped_thousands_is_a_row_error():
+    # "1,2345" has a comma but not in a 3-digit group, so it is not an
+    # unambiguous thousands separator. Stripping it anyway would silently
+    # produce 12345 with no trace it was ever ambiguous.
+    fields, error = parse_incident_row(_incident_row(**{"Estimated Damage Cost": "1,2345"}), 1)
+
+    assert fields is None
+    assert error == RowError(
+        row_number=1, reason="Estimated Damage Cost is not a number: '1,2345'"
+    )
+
+
+def test_ambiguous_comma_in_an_integer_cell_is_a_row_error():
+    # Same rule applies to parse_corp_int: "1,2" silently stripped would
+    # produce 12, a wrong count reaching the report with no trace.
+    fields, error = parse_incident_row(_incident_row(**{"Injuries Count": "1,2"}), 1)
+
+    assert fields is None
+    assert error == RowError(row_number=1, reason="Injuries Count is not a whole number: '1,2'")
