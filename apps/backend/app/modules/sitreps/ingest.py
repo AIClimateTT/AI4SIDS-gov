@@ -47,7 +47,9 @@ def ingest_submission(
     unmapped_values: dict[str, list[str]] = {}
 
     parsed_incidents: list[dict] = []
-    for number, raw in enumerate(incident_rows, start=1):
+    # start=2: the header occupies spreadsheet row 1, so the first data row is
+    # row 2. These numbers are read by a corp officer looking at their own file.
+    for number, raw in enumerate(incident_rows, start=2):
         fields, error = parse_incident_row(raw, number)
         if error is not None:
             row_errors.append(
@@ -61,7 +63,9 @@ def ingest_submission(
         parsed_incidents.append(fields)
 
     parsed_logs: list[dict] = []
-    for number, raw in enumerate(log_rows, start=1):
+    # start=2: the header occupies spreadsheet row 1, so the first data row is
+    # row 2. These numbers are read by a corp officer looking at their own file.
+    for number, raw in enumerate(log_rows, start=2):
         fields, error = parse_log_row(raw, number)
         if error is not None:
             row_errors.append(

@@ -116,8 +116,8 @@ def test_bad_rows_are_reported_and_good_rows_still_land(tmp_path):
     assert result.incidents_read == 4
     assert result.incidents_inserted == 2
     assert [(e.row_number, e.file) for e in result.row_errors] == [
-        (2, "incidents"),
         (3, "incidents"),
+        (4, "incidents"),
     ]
     assert session.query(SitrepIncident).count() == 2
 
@@ -236,6 +236,28 @@ def test_duplicate_row_id_within_one_file_collapses_to_last_occurrence(tmp_path)
     assert session.query(SitrepIncident).count() == 1
     row_one = session.query(SitrepIncident).filter(SitrepIncident.row_id == "1").one()
     assert row_one.incident_summary == "Corrected mention"
+
+
+def test_row_errors_use_spreadsheet_row_numbers(tmp_path):
+    # The officer opens the CSV and looks at row 3 — header is row 1, so the
+    # second data row is row 3. Reporting "2" sends them to the wrong line.
+    session = make_session(tmp_path)
+    path = write_csv(
+        tmp_path, "bad.csv",
+        ["Row ID", "Incident Type", "Date of Event"],
+        [["1", "fire", "2023-06-27"], ["", "landslide", "2023-06-28"]],
+    )
+    event = create_event(
+        session, corporation=CORP, title="Storm", hazard_type="wind",
+        started_at=datetime(2023, 6, 27),
+    )
+
+    result = ingest_submission(
+        session, corporation=CORP, as_at=datetime(2023, 6, 30),
+        event_id=event.id, incidents_path=path,
+    )
+
+    assert [e.row_number for e in result.row_errors] == [3]
 
 
 def test_duplicate_row_id_within_one_file_collapses_even_without_an_event(tmp_path):

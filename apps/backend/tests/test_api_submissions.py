@@ -114,7 +114,7 @@ def test_post_submission_reports_row_errors_without_failing():
     body = response.json()
     assert body["incidents_inserted"] == 1
     assert body["row_errors"] == [
-        {"file": "incidents", "row_number": 1, "reason": "Row ID is required"}
+        {"file": "incidents", "row_number": 2, "reason": "Row ID is required"}
     ]
 
 

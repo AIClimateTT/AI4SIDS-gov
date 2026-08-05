@@ -84,6 +84,9 @@ class Template(BaseModel):
 class RowErrorInfo(BaseModel):
     file: Literal["incidents", "logs"]
     row_number: int
+    """The spreadsheet row number as the corp officer sees it in their file
+    (header is row 1, so the first data row is row 2), not a zero- or
+    one-indexed offset into the data rows."""
     reason: str
 
 
