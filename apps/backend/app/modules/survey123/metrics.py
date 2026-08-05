@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Literal
 
@@ -135,7 +135,11 @@ def build_citation(
         description=description,
         query_ref=build_query_ref(metric_name, params),
         record_ids=record_ids,
-        as_of=datetime.now(),
+        # UTC, like FactTable.generated_at and every ingested_at. This value is
+        # printed verbatim into the ministerial citation appendix, and a naive
+        # local timestamp sitting next to aware ones there is a provenance
+        # claim nobody can check.
+        as_of=datetime.now(timezone.utc),
     )
 
 

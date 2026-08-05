@@ -367,6 +367,20 @@ def test_build_citation_takes_module_and_cid_from_the_model():
     assert citation.cid == "survey123-incident_count-0"
 
 
+def test_build_citation_as_of_is_utc_aware():
+    # renderer.py prints as_of verbatim into the ministerial citation
+    # appendix. datetime.now() gave a naive local timestamp there while
+    # FactTable.generated_at and every ingested_at were UTC-aware.
+    from datetime import timezone
+
+    citation = build_citation(
+        "incident_count", 0, {}, ["GUID-1"], "test description", FieldObservation
+    )
+
+    assert citation.as_of.tzinfo is not None
+    assert citation.as_of.utcoffset() == timezone.utc.utcoffset(None)
+
+
 def test_build_citation_ignores_a_caller_supplied_source_param():
     # params is author-controlled (DataRequirement.params), so a "source" key
     # there must not be able to relabel where a citation came from.
