@@ -326,9 +326,14 @@ def test_query_ref_still_names_every_applied_filter():
 
 
 def test_query_params_covers_every_key_the_query_layer_reads():
-    # Guards the two from drifting: a filter added to apply_common_filters or
-    # base_query without being listed here would vanish from query_ref.
+    # Guards the two from drifting in BOTH directions:
+    #   - a name in QUERY_PARAMS that no query reads (checked first, below)
+    #   - a params.get("...") call site the query layer reads that is not
+    #     listed in QUERY_PARAMS (checked second, via regex) — this is the
+    #     dangerous direction: it reproduces the exact defect Task 2 closed,
+    #     a filter that silently vanishes from query_ref while still applying.
     import inspect
+    import re
 
     from app.modules.survey123 import metrics
 
@@ -338,3 +343,10 @@ def test_query_params_covers_every_key_the_query_layer_reads():
 
     for name in metrics.QUERY_PARAMS:
         assert f'"{name}"' in source, f"{name} is in QUERY_PARAMS but no query reads it"
+
+    read_keys = set(re.findall(r'params\.get\(\s*"([^"]+)"', source))
+    for key in read_keys:
+        assert key in metrics.QUERY_PARAMS, (
+            f"{key} is read by apply_common_filters/base_query via params.get(...) "
+            "but is missing from QUERY_PARAMS, so it would silently vanish from query_ref"
+        )

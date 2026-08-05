@@ -105,6 +105,22 @@ class GeneratedReport(BaseModel):
     markdown: str
 
 
+def _fact_table_for_llm(fact_table: FactTable) -> FactTable:
+    # The LLM narrates from fact values and cites by cid; it never reads
+    # record_ids. Left in, those ids run into hundreds of KB at realistic
+    # data volumes (thousands of rows per metric, multiple metrics per
+    # template) and blow straight through settings.ollama_num_ctx — an
+    # overflowed context silently returns an empty narrative, resurrecting a
+    # failure mode this codebase already fixed once. Storage and the
+    # citation appendix use the full fact_table; only the LLM-facing copy
+    # is pared down, and no cap is reintroduced anywhere else.
+    pared_facts = [
+        fact.model_copy(update={"citation": fact.citation.model_copy(update={"record_ids": None})})
+        for fact in fact_table.facts
+    ]
+    return fact_table.model_copy(update={"facts": pared_facts})
+
+
 def build_retry_content(user_content: str, violations: list[CitationViolation]) -> str:
     violation_lines = "\n".join(f"- {v.kind}: {v.detail} (sentence: {v.sentence!r})" for v in violations)
     return (
@@ -125,7 +141,7 @@ def generate_report(
     fact_table = assemble_fact_table(template, params, session, request_id, effective_requirements)
 
     system_prompt = compose_system_prompt(template)
-    user_content = fact_table.model_dump_json()
+    user_content = _fact_table_for_llm(fact_table).model_dump_json()
     narrative = llm_client.generate(system_prompt, user_content)
     result = check_citations(narrative, fact_table)
 
