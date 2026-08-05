@@ -13,12 +13,13 @@
 ## Global Constraints
 
 - **Every fix lands with its reproduction as a regression test.** All four defects passed a green suite; a fix without the reproducing test has not been demonstrated.
-- **Do not change `parse_bool` / `parse_decimal` / `parse_int` in `app/modules/survey123/ingest.py`.** Those serve machine-generated Survey123 exports covering 14,942 rows of existing field data. The new strictness is corp-path only, and lives in `app/modules/sitreps/parse.py`.
-- **An empty cell is not an error.** Only a non-empty cell that fails to parse becomes a `RowError`. Blank stays `None` / `False` exactly as today.
-- **Unrecognised `query_ref` keys are dropped, never rejected.** Templates stored before the schema split still carry a legacy `source` key; rejecting would turn a reporting defect into an outage.
-- **Situation logs remain filable without an event.** Only incidents require one. Logs are point-in-time state, never supersede, and never collide.
-- **Tests:** `cd apps/backend && .venv/bin/python -m pytest`. Baseline is **320 passed, 0 failed** — the suite is fully green, so any failure is yours.
-- **Frontend:** untouched by this plan.
+- **All database contents are disposable and migrations may change anything.** There is no production data and no back-compatibility obligation. Choose the correct schema and the correct parsing rules outright — never soften a fix to accommodate rows that already exist. Add a migration where the right answer needs one.
+- **An empty cell is not an error.** Only a non-empty cell that fails to parse becomes a `RowError`. Blank stays `None` / `False`.
+- **Unrecognised `query_ref` keys are dropped, never rejected.** This is about the audit string describing the query that ran, not about tolerating bad input.
+- **Situation logs remain filable without an event.** Only incidents require one. Logs are point-in-time state, never supersede, never collide.
+- **PII is never stored, on any path.** Names, contact details, and officer identities. If a column holds one, drop it in a migration.
+- **Error messages are read by a corporation officer under time pressure**, not a developer. Row numbers must match what their spreadsheet shows; messages must name the column and the offending value.
+- **Tests:** `cd apps/backend && .venv/bin/python -m pytest`. Baseline is **320 passed, 0 failed** — the suite is fully green, so any failure is yours. Frontend: `cd apps/frontend && pnpm test` (19) and `pnpm exec tsc --noEmit -p tsconfig.json`.
 
 ---
 
@@ -732,3 +733,355 @@ Report each expectation and what actually printed. No commit.
 - A submission carrying incidents without an event is rejected by both API and CLI; a logs-only submission without an event still succeeds.
 - `record_ref` differs across submissions for the same row id.
 - Backend suite: **0 failed**.
+
+---
+
+## Task 6: Spreadsheet-relative row numbers
+
+**Files:** Modify `apps/backend/app/modules/sitreps/ingest.py`, `apps/backend/app/core/contracts.py`. Test: `apps/backend/tests/test_sitreps_submission_ingest.py`.
+
+`RowErrorInfo.row_number` counts from the first data row, so data row 1 is spreadsheet row 2. A corp officer opens the file and goes to the wrong line. Report the number they actually see.
+
+- [ ] **Step 1: Write the failing test**
+
+```python
+def test_row_errors_use_spreadsheet_row_numbers(tmp_path):
+    # The officer opens the CSV and looks at row 3 — header is row 1, so the
+    # second data row is row 3. Reporting "2" sends them to the wrong line.
+    session = make_session(tmp_path)
+    path = write_csv(
+        tmp_path, "bad.csv",
+        ["Row ID", "Incident Type", "Date of Event"],
+        [["1", "fire", "2023-06-27"], ["", "landslide", "2023-06-28"]],
+    )
+    event = create_event(
+        session, corporation=CORP, title="Storm", hazard_type="wind",
+        started_at=datetime(2023, 6, 27),
+    )
+
+    result = ingest_submission(
+        session, corporation=CORP, as_at=datetime(2023, 6, 30),
+        event_id=event.id, incidents_path=path,
+    )
+
+    assert [e.row_number for e in result.row_errors] == [3]
+```
+
+- [ ] **Step 2: Run it — expect `[2]`, not `[3]`.**
+
+- [ ] **Step 3: Fix at the boundary.** In `ingest_submission`, both `enumerate(...)` loops currently `start=1`. Change both to `start=2` and add:
+
+```python
+    # start=2: the header occupies spreadsheet row 1, so the first data row is
+    # row 2. These numbers are read by a corp officer looking at their own file.
+```
+
+Update `RowErrorInfo.row_number`'s docstring in `contracts.py` to say it is the spreadsheet row.
+
+- [ ] **Step 4: Fix the parser tests that assert the old numbering.** `tests/test_sitreps_parse.py` passes explicit row numbers straight to `parse_incident_row` / `parse_log_row`, so those are unaffected — verify rather than assume.
+
+- [ ] **Step 5:** Full suite green, then commit `sitreps: report spreadsheet row numbers in ingest errors`.
+
+---
+
+## Task 7: Drop officer identity columns
+
+**Files:** Modify `apps/backend/app/modules/survey123/models.py`, `ingest.py`, `app/modules/sitreps/parse.py`; new migration. Test: `apps/backend/tests/test_ingest.py`.
+
+`officer_name` and `officer_position` are written by the Survey123 path while the result claims PII was dropped. They are PII. The corp parser also collects them.
+
+- [ ] **Step 1: Write the failing test**
+
+```python
+def test_officer_identity_is_never_stored():
+    from app.modules.survey123.models import FieldObservation
+    from app.modules.sitreps.models import SitrepIncident
+
+    for model in (FieldObservation, SitrepIncident):
+        assert "officer_name" not in model.__table__.columns
+        assert "officer_position" not in model.__table__.columns
+```
+
+- [ ] **Step 2: Run it — expect FAIL on `FieldObservation`.**
+
+- [ ] **Step 3:** Remove both columns from `FieldObservation`; remove `officer_name`/`officer_position` from `parse_row` in `survey123/ingest.py` and add `"Name of Officer"`, `"Position"` to its `PII_COLUMNS`; confirm `sitreps/parse.py` never collects them.
+
+- [ ] **Step 4:** New migration revising `e2b5c8d03f21`, using `batch_alter_table` so it works on SQLite:
+
+```python
+def upgrade() -> None:
+    with op.batch_alter_table("field_observations") as batch:
+        batch.drop_column("officer_name")
+        batch.drop_column("officer_position")
+```
+Downgrade re-adds both as nullable `sa.String()`.
+
+- [ ] **Step 5:** `alembic upgrade head` from empty, then `alembic check` clean. Full suite green. Commit `survey123: stop storing officer identity`.
+
+---
+
+## Task 8: Sequence numbers cannot collide
+
+**Files:** Modify `apps/backend/app/modules/sitreps/models.py`; new migration. Test: `apps/backend/tests/test_sitreps_store.py`.
+
+`next_sequence_no` is a read-then-write increment with nothing preventing two submissions taking the same number.
+
+- [ ] **Step 1: Write the failing test**
+
+```python
+def test_two_submissions_cannot_share_a_sequence_number(tmp_path):
+    import pytest
+    from sqlalchemy.exc import IntegrityError
+
+    from app.modules.sitreps.models import Submission
+
+    session = make_session(tmp_path)
+    event = create_event(
+        session, corporation=CORP, title="Storm", hazard_type="wind",
+        started_at=datetime(2023, 6, 27),
+    )
+    create_submission(session, corporation=CORP, as_at=datetime(2023, 6, 27), event_id=event.id)
+
+    session.add(
+        Submission(
+            corporation=CORP, event_id=event.id, as_at=datetime(2023, 6, 28),
+            alert_level="none", sequence_no=1, ingested_at=datetime(2023, 6, 28),
+        )
+    )
+
+    with pytest.raises(IntegrityError):
+        session.commit()
+```
+
+- [ ] **Step 2: Run it — expect no IntegrityError; the duplicate commits cleanly.**
+
+- [ ] **Step 3:** Add to `Submission`:
+
+```python
+    __table_args__ = (
+        UniqueConstraint(
+            "corporation", "event_id", "sequence_no",
+            name="uq_submission_corp_event_sequence",
+        ),
+    )
+```
+Import `UniqueConstraint` if not already imported. Note in a comment that NULL `event_id` does not collide in SQL, which is correct — event-less submissions all carry `sequence_no` 1 by design.
+
+- [ ] **Step 4:** Migration revising Task 7's, adding the constraint via `batch_alter_table`.
+
+- [ ] **Step 5:** `alembic upgrade head` from empty, `alembic check` clean, full suite green. Commit `sitreps: make duplicate sequence numbers impossible`.
+
+---
+
+## Task 9: CLI validates what the API validates
+
+**Files:** Modify `apps/backend/cli.py`. Test: `apps/backend/tests/test_cli_submissions.py`.
+
+A typo'd corporation via CLI writes rows invisible to every corporation-filtered metric — an undercount with no error anywhere.
+
+- [ ] **Step 1: Write the failing test**
+
+```python
+def test_cli_rejects_an_unknown_corporation():
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["submissions", "not_a_corporation", "2023-06-30T16:00:00"])
+
+    assert result.exit_code != 0
+    assert "corporation" in result.output.lower()
+```
+
+- [ ] **Step 2: Run it — expect exit code 0.**
+
+- [ ] **Step 3:** In `create_submission_command`, before ingesting:
+
+```python
+    from app.modules.survey123.normalize import CANONICAL_CORPORATIONS
+
+    if corporation not in CANONICAL_CORPORATIONS:
+        typer.echo(f"unknown corporation: {corporation}", err=True)
+        raise typer.Exit(code=1)
+```
+
+- [ ] **Step 4:** Full suite green. Commit `cli: validate corporation like the API does`.
+
+---
+
+## Task 10: Real filenames, and no phantom metric
+
+**Files:** Modify `apps/backend/app/api/submissions.py`, `apps/backend/app/modules/sitreps/ingest.py`, `apps/backend/app/modules/sitreps/module.py`. Test: `apps/backend/tests/test_api_submissions.py`, `test_sitreps_module.py`.
+
+Two provenance holes. `Submission.source_file` records a tempfile path like `/var/folders/…/tmpXXXX.csv`, discarding the filename the corp uploaded. And `SitrepModule` advertises `data_coverage`, which returns `[]` unconditionally — a report built from only that requirement yields zero facts and is marked `status: ok`.
+
+- [ ] **Step 1: Write the failing tests**
+
+```python
+def test_submission_records_the_uploaded_filename():
+    c = client()
+    incidents = "Row ID,Incident Type,Date of Event\n1,fallen_tree,2023-06-27\n"
+    created = c.post("/events", json={
+        "corporation": CORP, "title": "Storm", "hazard_type": "wind",
+        "started_at": "2023-06-27T00:00:00"})
+    c.post("/submissions",
+        data={"corporation": CORP, "as_at": "2023-06-30T16:00:00",
+              "event_id": created.json()["id"]},
+        files={"incidents_file": ("june-incidents.csv", io.BytesIO(incidents.encode()), "text/csv")})
+
+    from sqlalchemy import select
+    from app.db import SessionLocal
+    from app.modules.sitreps.models import Submission
+    s = SessionLocal()
+    stored = s.scalars(select(Submission)).first().source_file
+    s.close()
+
+    assert stored == "june-incidents.csv"
+```
+
+```python
+def test_sitreps_does_not_advertise_a_metric_that_returns_nothing():
+    # data_coverage measures validation status, which corp SITREP rows do not
+    # have. Advertising it lets a template request a metric that can only ever
+    # yield zero facts — and a report with zero facts is marked "ok".
+    from app.core.registry import ensure_default_modules_registered, get_module, reset_registry
+
+    reset_registry()
+    ensure_default_modules_registered()
+
+    names = {spec.name for spec in get_module("sitreps").list_metrics()}
+
+    assert "data_coverage" not in names
+```
+
+- [ ] **Step 2: Run both — expect a tempfile path, and `data_coverage` present.**
+
+- [ ] **Step 3:** Add an `original_name` parameter to `_spool` and thread the uploaded filename into `ingest_submission` as a new `source_name: str | None` argument, recorded on the submission instead of the temp path. When both files are present, record them comma-separated.
+
+- [ ] **Step 4:** In `SitrepModule.list_metrics`, exclude specs the module cannot serve:
+
+```python
+    UNSUPPORTED_METRICS = frozenset({"data_coverage"})
+
+    def list_metrics(self) -> list[MetricSpec]:
+        return [
+            spec.model_copy(update={"module": "sitreps"})
+            for spec in METRIC_SPECS
+            if spec.name not in UNSUPPORTED_METRICS
+        ]
+```
+Leave `run_metric` able to serve it (returning `[]`) so a stored template naming it does not crash.
+
+- [ ] **Step 5:** Full suite green. Commit `sitreps: record uploaded filenames and stop advertising an unservable metric`.
+
+---
+
+## Task 11: Migration test with real rows
+
+**Files:** Modify `apps/backend/tests/test_migrations.py`.
+
+All four migration tests run against an empty database, where `e2b5c8d03f21`'s backfill loop is a no-op. The branch's highest-risk operation has no coverage.
+
+- [ ] **Step 1: Write the failing test**
+
+Seed a database at revision `d1a4b7c92e10` with survey123 rows and `source='sitreps'` rows — including one with a NULL corporation, the case that silently destroyed a row before the `COALESCE` fix — then upgrade to head and assert every row is accounted for:
+
+```python
+def test_the_split_migration_preserves_every_row(tmp_path):
+    import sqlite3
+
+    db = tmp_path / "seeded.db"
+    url = f"sqlite:///{db}"
+    run_alembic("upgrade", "d1a4b7c92e10", database_url=url)
+
+    conn = sqlite3.connect(db)
+    for i, (source, corp) in enumerate(
+        [("survey123", "siparia_regional_corporation"),
+         ("sitreps", "diego_martin_regional_corporati"),
+         ("sitreps", "diego_martin_regional_corporati"),
+         ("sitreps", None)], start=1
+    ):
+        conn.execute(
+            "INSERT INTO incidents (global_id, object_id, source, corporation,"
+            " injuries_occurred, deaths_occurred, follow_up_flags, validation_status,"
+            " is_duplicate, source_file, ingested_at)"
+            " VALUES (?,?,?,?,0,0,'{}','validated',0,'f.csv','2023-06-27')",
+            (f"g{i}", i, source, corp),
+        )
+    conn.commit()
+    conn.close()
+
+    result = run_alembic("upgrade", "head", database_url=url)
+    assert result.returncode == 0, result.stderr
+
+    conn = sqlite3.connect(db)
+    fo = conn.execute("SELECT COUNT(*) FROM field_observations").fetchone()[0]
+    si = conn.execute("SELECT COUNT(*) FROM sitrep_incidents").fetchone()[0]
+    unmapped = conn.execute(
+        "SELECT COUNT(*) FROM sitrep_incidents WHERE corporation = 'unmapped'"
+    ).fetchone()[0]
+
+    assert (fo, si) == (1, 3), "every row must survive the split"
+    assert unmapped == 1, "the NULL-corporation row must land under 'unmapped', not vanish"
+```
+
+- [ ] **Step 2: Run it.** It should pass — the `COALESCE` fix is already in. If it fails, the migration loses rows and that is a stop-and-report defect.
+
+- [ ] **Step 3:** Commit `tests: cover the split migration with real rows`.
+
+---
+
+## Task 12: Frontend copy and corporation context
+
+**Files:** Modify `apps/frontend/src/routes/dmu/field-data.tsx`, `apps/frontend/src/routes/corp/index.tsx`.
+
+Two UX defects. `/dmu/field-data` still advertises "Upload Survey123 **or SITREP** CSV exports" and promises a corporation field — that endpoint now returns 400. And `/corp` is titled "My corporation" without ever naming which corporation, on a screen whose entire purpose is acting as one.
+
+- [ ] **Step 1:** Rewrite the `field-data.tsx` `PageHeader` description to describe only Survey123 field-data upload, and remove the `FormPlaceholder` copy promising a corporation field for sitreps. Point at `/corp` for situation reports.
+
+- [ ] **Step 2:** In `corp/index.tsx`, title the page with the actual corporation from `useIdentity()` via `identityLabel`, falling back to "My corporation" when identity is null:
+
+```tsx
+  const { identity } = useIdentity()
+  const title = identity?.role === 'corp' ? identityLabel(identity) : 'My corporation'
+```
+
+- [ ] **Step 3:** `pnpm exec tsc --noEmit -p tsconfig.json` and `pnpm test` clean. Commit `frontend: name the acting corporation and correct the field-data copy`.
+
+---
+
+## Task 13: Close the remaining review nits
+
+**Files:** Modify `apps/backend/app/modules/survey123/metrics.py`, `apps/backend/tests/test_engine_assembly.py`.
+
+- [ ] **Step 1:** `metrics.py`'s `ordered[:200] if len(ordered) <= 200 else None` — the slice is a no-op, and above 200 it discards provenance entirely. Keep the ids and drop the cap:
+
+```python
+    record_ids = ordered
+```
+Add a comment noting the previous cap silently erased provenance for large result sets, which is the opposite of what a citation is for.
+
+- [ ] **Step 2:** `test_engine_assembly.py`'s `test_citation_rules_require_digits_not_words` asserts only that the substring `"digits"` appears. Strengthen it to assert the rule reaches a composed prompt:
+
+```python
+def test_citation_rules_require_digits_not_words():
+    from app.core.contracts import NarrationConfig, RenderConfig, Template
+    from app.core.engine import compose_system_prompt
+
+    template = Template(
+        name="t", title="T", description="d", params=[], data_requirements=[],
+        narration=NarrationConfig(system_prompt="Write the report.", output_sections=[]),
+        render=RenderConfig(),
+    )
+
+    composed = compose_system_prompt(template).lower()
+
+    assert "digits" in composed and "never words" in composed
+    assert "write the report." in composed
+```
+
+- [ ] **Step 3:** Full suite green. Commit `metrics: keep full provenance in citations; strengthen the prompt-rule test`.
+
+---
+
+## Final gate
+
+After Task 13: `alembic upgrade head` from an empty database succeeds, `alembic check` reports no drift, backend suite is 0 failed, frontend is 19 passed with `tsc` clean, and every reproduction in Task 5 is closed.
