@@ -9,8 +9,14 @@ from sqlalchemy.orm import Session
 from app.core.contracts import SubmissionIngestResult
 from app.db import get_session
 from app.modules.sitreps.ingest import ingest_submission
-from app.modules.sitreps.models import ALERT_LEVELS, HAZARD_TYPES
-from app.modules.sitreps.store import create_event, get_event, list_events
+from app.modules.sitreps.models import ALERT_LEVELS, HAZARD_TYPES, Submission
+from app.modules.sitreps.store import (
+    create_event,
+    get_event,
+    list_events,
+    list_submissions,
+    submission_counts,
+)
 from app.modules.survey123.normalize import CANONICAL_CORPORATIONS
 
 router = APIRouter()
@@ -133,3 +139,72 @@ async def post_submission(
         for path in (incidents_path, logs_path):
             if path is not None:
                 path.unlink(missing_ok=True)
+
+
+class SubmissionSummary(BaseModel):
+    id: int
+    corporation: str
+    event_id: int | None
+    event_title: str | None
+    as_at: datetime
+    alert_level: str
+    sequence_no: int
+    incident_count: int
+    log_count: int
+
+
+class SubmissionDetail(SubmissionSummary):
+    present_activity: str | None
+    situation_overview: str | None
+    source_file: str | None
+    row_errors: list
+
+
+def _summary(session: Session, submission) -> SubmissionSummary:
+    incidents, logs = submission_counts(session, submission.id)
+    event = get_event(session, submission.event_id) if submission.event_id else None
+    return SubmissionSummary(
+        id=submission.id,
+        corporation=submission.corporation,
+        event_id=submission.event_id,
+        event_title=event.title if event else None,
+        as_at=submission.as_at,
+        alert_level=submission.alert_level,
+        sequence_no=submission.sequence_no,
+        incident_count=incidents,
+        log_count=logs,
+    )
+
+
+@router.get("/submissions", response_model=list[SubmissionSummary])
+def get_submissions(
+    corporation: str | None = None,
+    event_id: int | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
+    session: Session = Depends(get_session),
+) -> list[SubmissionSummary]:
+    return [
+        _summary(session, s)
+        for s in list_submissions(
+            session, corporation=corporation, event_id=event_id,
+            date_from=date_from, date_to=date_to,
+        )
+    ]
+
+
+@router.get("/submissions/{submission_id}", response_model=SubmissionDetail)
+def get_submission(
+    submission_id: int, session: Session = Depends(get_session)
+) -> SubmissionDetail:
+    submission = session.get(Submission, submission_id)
+    if submission is None:
+        raise HTTPException(status_code=404, detail=f"submission not found: {submission_id}")
+    summary = _summary(session, submission)
+    return SubmissionDetail(
+        **summary.model_dump(),
+        present_activity=submission.present_activity,
+        situation_overview=submission.situation_overview,
+        source_file=submission.source_file,
+        row_errors=submission.row_errors,
+    )

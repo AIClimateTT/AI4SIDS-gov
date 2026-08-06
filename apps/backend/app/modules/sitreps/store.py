@@ -1,9 +1,9 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.modules.sitreps.models import Event, Submission
+from app.modules.sitreps.models import Event, SitrepIncident, SituationLog, Submission
 
 
 def create_event(
@@ -90,3 +90,43 @@ def latest_submission(
         stmt = stmt.where(Submission.event_id == event_id)
     stmt = stmt.order_by(Submission.as_at.desc(), Submission.id.desc()).limit(1)
     return session.scalars(stmt).first()
+
+
+def list_submissions(
+    session: Session,
+    *,
+    corporation: str | None = None,
+    event_id: int | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
+) -> list[Submission]:
+    """Newest first. EVERY filter is optional — the DMU dashboard passes only a
+    window and must get all fourteen corporations back."""
+    stmt = select(Submission)
+    if corporation is not None:
+        stmt = stmt.where(Submission.corporation == corporation)
+    if event_id is not None:
+        stmt = stmt.where(Submission.event_id == event_id)
+    if date_from is not None:
+        stmt = stmt.where(Submission.as_at >= date_from)
+    if date_to is not None:
+        # date_to arrives as a date-only string parsed to midnight; compare
+        # against the start of the next day so the whole day is included.
+        stmt = stmt.where(Submission.as_at < date_to + timedelta(days=1))
+    stmt = stmt.order_by(Submission.as_at.desc(), Submission.id.desc())
+    return list(session.scalars(stmt).all())
+
+
+def submission_counts(session: Session, submission_id: int) -> tuple[int, int]:
+    """(incidents, logs) attributed to this submission."""
+    incidents = session.scalar(
+        select(func.count()).select_from(SitrepIncident).where(
+            SitrepIncident.submission_id == submission_id
+        )
+    ) or 0
+    logs = session.scalar(
+        select(func.count()).select_from(SituationLog).where(
+            SituationLog.submission_id == submission_id
+        )
+    ) or 0
+    return incidents, logs

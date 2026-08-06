@@ -302,3 +302,96 @@ def test_a_submission_with_incidents_and_an_event_is_accepted():
 
     assert response.status_code == 201
     assert response.json()["incidents_inserted"] == 1
+
+
+def _event(c, corporation=CORP, title="Adverse Weather June 2023"):
+    return c.post("/events", json={
+        "corporation": corporation, "title": title, "hazard_type": "wind",
+        "started_at": "2023-06-27T00:00:00"}).json()["id"]
+
+
+def _file(c, event_id, corporation=CORP, as_at="2023-06-28T09:00:00", rows=1):
+    body = "Row ID,Incident Type,Date of Event\n" + "".join(
+        f"{i},fallen_tree,2023-06-27\n" for i in range(1, rows + 1)
+    )
+    return c.post(
+        "/submissions",
+        data={"corporation": corporation, "as_at": as_at, "event_id": event_id},
+        files={"incidents_file": ("i.csv", io.BytesIO(body.encode()), "text/csv")},
+    )
+
+
+def test_list_submissions_is_newest_first_with_counts():
+    c = client()
+    event_id = _event(c)
+    _file(c, event_id, as_at="2023-06-28T09:00:00", rows=1)
+    _file(c, event_id, as_at="2023-06-30T16:00:00", rows=3)
+
+    body = c.get("/submissions").json()
+
+    assert [s["sequence_no"] for s in body] == [2, 1]
+    assert body[0]["incident_count"] == 3
+    assert body[0]["event_title"] == "Adverse Weather June 2023"
+
+
+def test_list_submissions_with_no_filters_returns_every_corporation():
+    # The DMU dashboard passes only a window and needs all corporations back.
+    c = client()
+    _file(c, _event(c), rows=1)
+    other = "siparia_regional_corporation"
+    _file(c, _event(c, corporation=other), corporation=other, rows=1)
+
+    corps = {s["corporation"] for s in c.get("/submissions").json()}
+
+    assert corps == {CORP, "siparia_regional_corporation"}
+
+
+def test_list_submissions_filters_by_corporation_and_event():
+    c = client()
+    first, second = _event(c), _event(c, title="Second Event")
+    _file(c, first, rows=1)
+    _file(c, second, as_at="2023-07-02T09:00:00", rows=1)
+
+    by_event = c.get("/submissions", params={"event_id": first}).json()
+    by_corp = c.get("/submissions", params={"corporation": "arima_borough_corporation"}).json()
+
+    assert [s["event_id"] for s in by_event] == [first]
+    assert by_corp == []
+
+
+def test_list_submissions_filters_by_window():
+    c = client()
+    event_id = _event(c)
+    _file(c, event_id, as_at="2023-06-28T09:00:00", rows=1)
+    _file(c, event_id, as_at="2023-07-15T09:00:00", rows=1)
+
+    june = c.get(
+        "/submissions", params={"date_from": "2023-06-01", "date_to": "2023-06-30"}
+    ).json()
+
+    assert len(june) == 1
+
+
+def test_submission_detail_carries_row_errors_and_overview():
+    c = client()
+    event_id = _event(c)
+    incidents = "Row ID,Incident Type,Date of Event\n,landslide,2023-06-27\n2,fire,2023-06-28\n"
+    created = c.post(
+        "/submissions",
+        data={
+            "corporation": CORP, "as_at": "2023-06-30T16:00:00", "event_id": event_id,
+            "situation_overview": "Heavy rainfall affected the Borough.",
+        },
+        files={"incidents_file": ("i.csv", io.BytesIO(incidents.encode()), "text/csv")},
+    ).json()
+
+    detail = c.get(f"/submissions/{created['submission_id']}").json()
+
+    assert detail["situation_overview"] == "Heavy rainfall affected the Borough."
+    assert detail["row_errors"] == [
+        {"file": "incidents", "row_number": 2, "reason": "Row ID is required"}
+    ]
+
+
+def test_submission_detail_404s_for_an_unknown_id():
+    assert client().get("/submissions/99999").status_code == 404
