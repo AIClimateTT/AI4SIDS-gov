@@ -29,7 +29,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from sqlalchemy import delete  # noqa: E402
 
 from app.config import settings  # noqa: E402
-from app.core.template_store import import_template_directory  # noqa: E402
+from app.core.engine import generate_report  # noqa: E402
+from app.core.llm import get_default_llm_client  # noqa: E402
+from app.core.registry import ensure_default_modules_registered  # noqa: E402
+from app.core.report_models import Report  # noqa: E402
+from app.core.report_store import save_report  # noqa: E402
+from app.core.template_models import TemplateRecord  # noqa: E402
+from app.core.template_store import (  # noqa: E402
+    get_latest_template_version,
+    import_template_directory,
+)
 from app.db import SessionLocal  # noqa: E402
 from app.modules.sitreps.ingest import ingest_submission  # noqa: E402
 from app.modules.sitreps.models import (  # noqa: E402
@@ -220,10 +229,18 @@ def main() -> None:
     print(f"target: {settings.database_url}")
     session = SessionLocal()
 
-    for model in (SitrepIncident, SituationLog, Submission, Event, FieldObservation):
+    # Templates and reports too. import_template_directory is additive by
+    # design — every run adds a version — so without clearing, a database that
+    # has seen a few sessions accumulates dozens of versions of templates that
+    # no longer exist in the repo, and the UI shows retired names alongside
+    # current ones.
+    for model in (
+        SitrepIncident, SituationLog, Submission, Event, FieldObservation,
+        Report, TemplateRecord,
+    ):
         session.execute(delete(model))
     session.commit()
-    print("cleared existing data")
+    print("cleared existing data, reports and templates")
 
     import_template_directory(TEMPLATES, session)
     print("imported templates")
@@ -262,6 +279,27 @@ def main() -> None:
             f"{corp}: report #{r.sequence_no}, {r.incidents_updated} incidents, "
             f"{r.logs_inserted} logs, alert={alert}, {len(r.row_errors)} row errors"
         )
+
+    # Reports, saved. The CLI's generate command prints to stdout and never
+    # persists — only POST /reports calls save_report — so a demo seeded
+    # without this step leaves the reports list empty.
+    ensure_default_modules_registered()
+    llm = get_default_llm_client()
+    window = {"date_from": "2023-06-01", "date_to": "2023-06-30"}
+    wanted = [
+        ("corp_situation_report", {**window, "corporation": "diego_martin_regional_corporati"}),
+        ("corp_situation_report", {**window, "corporation": "tunapuna_piarco_regional_corpor"}),
+        ("minister_situation_report", dict(window)),
+    ]
+    for name, params in wanted:
+        template = get_latest_template_version(name, session)
+        try:
+            report = generate_report(template, params, session, llm)
+        except Exception as exc:  # Ollama down, model missing, timeout
+            print(f"  ! {name}: could not generate ({type(exc).__name__}: {exc})")
+            continue
+        save_report(report, session)
+        print(f"  {name}: {report.status}, {len(report.violations)} violations, saved")
 
     session.close()
     print("\nSiparia filed nothing — the ministerial report should say so.")
