@@ -171,3 +171,71 @@ export type IngestResult = {
   unmapped_values: Record<string, string[]>
   pii_columns_dropped: string[]
 }
+
+export type EventSummary = {
+  id: number
+  corporation: string
+  title: string
+  hazard_type: string
+  started_at: string
+  ended_at: string | null
+}
+
+export type CreateEventInput = {
+  corporation: string
+  title: string
+  hazard_type: string
+  started_at: string
+}
+
+export type RowErrorInfo = {
+  file: 'incidents' | 'logs'
+  /** Spreadsheet row — the header is row 1. Display as-is; the backend
+   *  already offsets it, so adding another would send an officer to the
+   *  wrong line. */
+  row_number: number
+  reason: string
+}
+
+export type SubmissionSummary = {
+  id: number
+  corporation: string
+  event_id: number | null
+  event_title: string | null
+  as_at: string
+  alert_level: string
+  sequence_no: number
+  incident_count: number
+  log_count: number
+}
+
+export type SubmissionDetail = SubmissionSummary & {
+  present_activity: string | null
+  situation_overview: string | null
+  source_file: string | null
+  row_errors: RowErrorInfo[]
+}
+
+export type SubmissionIngestResult = {
+  submission_id: number
+  sequence_no: number
+  incidents_read: number
+  incidents_inserted: number
+  incidents_updated: number
+  logs_read: number
+  logs_inserted: number
+  row_errors: RowErrorInfo[]
+  unmapped_values: Record<string, string[]>
+  pii_columns_dropped: string[]
+}
+
+export type FileSubmissionInput = {
+  corporation: string
+  as_at: string
+  event_id?: number
+  alert_level: string
+  present_activity?: string
+  situation_overview?: string
+  incidentsFile?: File
+  logsFile?: File
+}
