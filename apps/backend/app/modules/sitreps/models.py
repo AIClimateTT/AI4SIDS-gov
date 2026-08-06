@@ -79,6 +79,10 @@ class Submission(Base):
     sequence_no: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     source_file: Mapped[str | None] = mapped_column(String, nullable=True)
     ingested_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    # Persisted so an officer can reopen a filing and see what was rejected.
+    # These are built during ingest anyway; keeping them only in the response
+    # meant closing the tab lost them.
+    row_errors: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
 
 
 class SitrepIncident(Base):

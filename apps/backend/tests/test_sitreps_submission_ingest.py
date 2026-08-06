@@ -326,3 +326,28 @@ def test_duplicate_row_id_within_one_file_collapses_even_without_an_event(tmp_pa
     assert session.query(SitrepIncident).count() == 1
     row_one = session.query(SitrepIncident).filter(SitrepIncident.row_id == "1").one()
     assert row_one.incident_summary == "Corrected mention"
+
+
+def test_row_errors_are_persisted_on_the_submission(tmp_path):
+    # Ephemeral row errors mean an officer who closes the tab loses the list of
+    # what to fix and must re-upload to rediscover it.
+    session = make_session(tmp_path)
+    event = create_event(
+        session, corporation=CORP, title="Storm", hazard_type="wind",
+        started_at=datetime(2023, 6, 27),
+    )
+    path = write_csv(
+        tmp_path, "bad.csv",
+        ["Row ID", "Incident Type", "Date of Event"],
+        [["1", "fire", "2023-06-27"], ["", "landslide", "2023-06-28"]],
+    )
+
+    result = ingest_submission(
+        session, corporation=CORP, as_at=datetime(2023, 6, 30),
+        event_id=event.id, incidents_path=path,
+    )
+
+    stored = session.get(Submission, result.submission_id)
+    assert stored.row_errors == [
+        {"file": "incidents", "row_number": 3, "reason": "Row ID is required"}
+    ]

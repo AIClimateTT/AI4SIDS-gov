@@ -167,6 +167,7 @@ def ingest_submission(
     for fields in parsed_logs:
         session.add(SituationLog(**fields, submission_id=submission.id))
 
+    submission.row_errors = [e.model_dump() for e in row_errors]
     session.commit()
 
     return SubmissionIngestResult(
