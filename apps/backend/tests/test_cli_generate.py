@@ -20,7 +20,7 @@ def _reset_state():
         DEV_DB_PATH.unlink()
 
 
-def test_list_templates_shows_both_real_templates():
+def test_list_templates_shows_every_shipped_template():
     _reset_state()
     Base.metadata.create_all(db_engine)
 
@@ -30,13 +30,13 @@ def test_list_templates_shows_both_real_templates():
         result = runner.invoke(app, ["list-templates"])
 
         assert result.exit_code == 0, result.stdout
-        assert "minister_regional_comparison" in result.stdout
-        assert "single_region_report" in result.stdout
+        assert "minister_situation_report" in result.stdout
+        assert "field_data_region_review" in result.stdout
     finally:
         _reset_state()
 
 
-def test_generate_minister_regional_comparison_produces_markdown_report(monkeypatch):
+def test_generate_minister_situation_report_produces_markdown_report(monkeypatch):
     # Force the fake, network-free provider regardless of Settings.llm_provider's
     # real-world default ("ollama") — this test must stay testable without a
     # network connection or a running Ollama server, per PLAN.md's "everything
@@ -58,7 +58,7 @@ def test_generate_minister_regional_comparison_produces_markdown_report(monkeypa
             app,
             [
                 "generate",
-                "minister_regional_comparison",
+                "minister_situation_report",
                 "--date-from",
                 "2024-06-01",
                 "--date-to",
@@ -80,7 +80,7 @@ def test_generate_missing_required_param_errors():
     try:
         runner.invoke(app, ["templates", "import-all", str(Path(__file__).parent.parent / "app" / "templates" / "definitions")])
 
-        result = runner.invoke(app, ["generate", "minister_regional_comparison", "--date-from", "2024-06-01"])
+        result = runner.invoke(app, ["generate", "minister_situation_report", "--date-from", "2024-06-01"])
 
         assert result.exit_code == 1
     finally:
@@ -149,7 +149,7 @@ def test_generate_rejects_a_corporation_that_is_not_one_of_the_fourteen():
             app,
             [
                 "generate",
-                "single_region_report",
+                "field_data_region_review",
                 "--corporation",
                 "Diego Martin",
                 "--date-from",
@@ -179,7 +179,7 @@ def test_generate_accepts_a_canonical_corporation(monkeypatch):
             app,
             [
                 "generate",
-                "single_region_report",
+                "field_data_region_review",
                 "--corporation",
                 "diego_martin_regional_corporati",
                 "--date-from",

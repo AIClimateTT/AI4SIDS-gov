@@ -49,7 +49,7 @@ def _clean_registry():
 
 def make_minister_template() -> Template:
     return Template(
-        name="minister_regional_comparison",
+        name="minister_situation_report",
         title="Regional Comparison Briefing",
         description="test",
         params=[

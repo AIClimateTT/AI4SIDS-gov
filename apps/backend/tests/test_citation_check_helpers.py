@@ -25,7 +25,7 @@ def make_citation(cid: str) -> Citation:
 def make_fact_table() -> FactTable:
     return FactTable(
         request_id="req-1",
-        template="minister_regional_comparison",
+        template="minister_situation_report",
         params={"date_from": "2024-06-01", "date_to": "2024-06-30"},
         generated_at=datetime(2024, 7, 1),
         facts=[

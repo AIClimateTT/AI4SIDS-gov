@@ -57,7 +57,7 @@ def test_post_reports_returns_id_status_markdown(monkeypatch):
     response = client.post(
         "/reports",
         json={
-            "template": "minister_regional_comparison",
+            "template": "minister_situation_report",
             "params": {"date_from": "2024-06-01", "date_to": "2024-06-30"},
         },
     )
@@ -83,7 +83,7 @@ def test_post_reports_missing_required_param_returns_400(monkeypatch):
     _ingest_fixture()
 
     response = client.post(
-        "/reports", json={"template": "minister_regional_comparison", "params": {"date_from": "2024-06-01"}}
+        "/reports", json={"template": "minister_situation_report", "params": {"date_from": "2024-06-01"}}
     )
 
     assert response.status_code == 400
@@ -96,7 +96,7 @@ def test_get_reports_by_id_returns_full_detail(monkeypatch):
     create_response = client.post(
         "/reports",
         json={
-            "template": "minister_regional_comparison",
+            "template": "minister_situation_report",
             "params": {"date_from": "2024-06-01", "date_to": "2024-06-30"},
         },
     )
@@ -107,7 +107,7 @@ def test_get_reports_by_id_returns_full_detail(monkeypatch):
     assert response.status_code == 200
     body = response.json()
     assert body["id"] == report_id
-    assert body["template"] == "minister_regional_comparison"
+    assert body["template"] == "minister_situation_report"
     assert body["template_version"] == 1
     assert "facts" in body["fact_table"]
     assert isinstance(body["violations"], list)
@@ -124,7 +124,7 @@ def test_post_reports_blank_optional_param_counts_the_same_as_an_omitted_one(mon
 
     def facts_for(params: dict) -> dict[str, float]:
         response = client.post(
-            "/reports", json={"template": "single_region_report", "params": params}
+            "/reports", json={"template": "field_data_region_review", "params": params}
         )
         assert response.status_code == 200, response.text
         detail = client.get(f"/reports/{response.json()['id']}")
@@ -155,7 +155,7 @@ def test_post_reports_blank_date_param_does_not_400(monkeypatch):
     response = client.post(
         "/reports",
         json={
-            "template": "minister_regional_comparison",
+            "template": "minister_situation_report",
             "params": {"date_from": "", "date_to": ""},
         },
     )
@@ -173,7 +173,7 @@ def test_post_reports_unknown_corporation_returns_400(monkeypatch):
     response = client.post(
         "/reports",
         json={
-            "template": "single_region_report",
+            "template": "field_data_region_review",
             "params": {
                 "corporation": "Diego Martin",
                 "date_from": "2024-06-01",
@@ -197,7 +197,7 @@ def test_post_reports_rejects_an_unknown_corporation_in_a_requirement_override(
     response = client.post(
         "/reports",
         json={
-            "template": "minister_regional_comparison",
+            "template": "minister_situation_report",
             "params": {"date_from": "2024-06-01", "date_to": "2024-06-30"},
             "data_requirements": [
                 {
@@ -221,7 +221,7 @@ def test_post_reports_still_accepts_a_placeholder_corporation_in_a_requirement(
     response = client.post(
         "/reports",
         json={
-            "template": "single_region_report",
+            "template": "field_data_region_review",
             "params": {
                 "corporation": "sangre_grande_regional_corporat",
                 "date_from": "2024-06-01",
@@ -247,14 +247,14 @@ def test_get_reports_list_returns_paginated_items(monkeypatch):
     first = client.post(
         "/reports",
         json={
-            "template": "minister_regional_comparison",
+            "template": "minister_situation_report",
             "params": {"date_from": "2024-06-01", "date_to": "2024-06-30"},
         },
     )
     second = client.post(
         "/reports",
         json={
-            "template": "single_region_report",
+            "template": "field_data_region_review",
             "params": {
                 "corporation": "diego_martin_regional_corporati",
                 "date_from": "2024-06-01",
@@ -282,14 +282,14 @@ def test_get_reports_list_filters_by_q_and_status(monkeypatch):
     client.post(
         "/reports",
         json={
-            "template": "minister_regional_comparison",
+            "template": "minister_situation_report",
             "params": {"date_from": "2024-06-01", "date_to": "2024-06-30"},
         },
     )
     client.post(
         "/reports",
         json={
-            "template": "single_region_report",
+            "template": "field_data_region_review",
             "params": {
                 "corporation": "diego_martin_regional_corporati",
                 "date_from": "2024-06-01",

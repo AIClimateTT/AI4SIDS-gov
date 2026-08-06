@@ -33,7 +33,7 @@ def _clean_registry():
 
 def make_minister_template() -> Template:
     return Template(
-        name="minister_regional_comparison",
+        name="minister_situation_report",
         title="Regional Comparison Briefing",
         description="test",
         params=[
@@ -111,7 +111,7 @@ def test_assemble_fact_table_calls_all_data_requirements_and_renumbers_citations
     )
 
     assert fact_table.request_id == "req-1"
-    assert fact_table.template == "minister_regional_comparison"
+    assert fact_table.template == "minister_situation_report"
     assert fact_table.template_version == 4
     assert len(fact_table.facts) == 8
     assert [f.citation.cid for f in fact_table.facts] == [f"C{i:03d}" for i in range(1, 9)]

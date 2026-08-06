@@ -48,7 +48,7 @@ def make_fact_table(facts=None) -> FactTable:
         ]
     return FactTable(
         request_id="req-1",
-        template="minister_regional_comparison",
+        template="minister_situation_report",
         params={"date_from": "2024-06-01", "date_to": "2024-06-30"},
         generated_at=datetime(2024, 7, 1),
         facts=facts,
@@ -410,7 +410,7 @@ def make_two_source_fact_table() -> FactTable:
     count of 7. The exact pairing the reviewer reproduced the defect with."""
     return FactTable(
         request_id="req-2",
-        template="single_region_report",
+        template="field_data_region_review",
         params={},
         generated_at=datetime(2024, 7, 1),
         facts=[

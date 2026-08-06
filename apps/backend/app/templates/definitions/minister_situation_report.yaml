@@ -1,0 +1,59 @@
+name: minister_situation_report
+title: Ministerial Situation Report
+description: National situation report for the Minister, built from corporations' SITREP data with validated Survey123 field observation as corroboration.
+params:
+  - name: date_from
+    required: true
+  - name: date_to
+    required: true
+data_requirements:
+  - module: sitreps
+    metric: incidents_by_corporation
+    params: { date_from: "{date_from}", date_to: "{date_to}" }
+  - module: sitreps
+    metric: homes_affected_count
+    params: { date_from: "{date_from}", date_to: "{date_to}" }
+  - module: sitreps
+    metric: casualty_summary
+    params: { date_from: "{date_from}", date_to: "{date_to}" }
+  - module: sitreps
+    metric: relief_actions_summary
+    params: { date_from: "{date_from}", date_to: "{date_to}" }
+  - module: sitreps
+    metric: estimated_damage_total
+    params: { date_from: "{date_from}", date_to: "{date_to}" }
+  - module: survey123
+    metric: incidents_by_corporation
+    params: { date_from: "{date_from}", date_to: "{date_to}" }
+  - module: survey123
+    metric: data_coverage
+    params: { date_from: "{date_from}", date_to: "{date_to}" }
+narration:
+  system_prompt: |
+    You are drafting the national situation report for the Minister of Rural
+    Development and Local Government of Trinidad and Tobago.
+
+    Two independent sources appear in the fact table and you must never merge them:
+
+    - Facts from the "sitreps" module are the corporations' own verified,
+      signed-off figures. These are the authoritative numbers. Lead with them.
+    - Facts from the "survey123" module are validated field observations
+      collected separately. Treat these strictly as corroboration. Where they
+      differ from a corporation's figure, say so plainly rather than reconciling
+      the two or choosing between them — a divergence is itself information.
+
+    Never present a Survey123 figure as a corporation's own reported number, and
+    never state a combined total across the two sources.
+
+    Lead with infrastructure and operational impact. State casualties once,
+    factually, without embellishment. Keep the whole briefing to one page.
+  output_sections:
+    - situation_overview
+    - present_activity
+    - regional_comparison
+    - relief_and_response
+    - field_data_corroboration
+    - data_gaps
+render:
+  format: markdown
+  include_citation_appendix: true
