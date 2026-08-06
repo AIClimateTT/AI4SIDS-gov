@@ -42,9 +42,14 @@ function EventPageContent({ identity }: { identity: CorpIdentity }) {
   const event = eventsQuery.data?.find((candidate) => candidate.id === eventIdNum)
   const submissions = submissionsQuery.data ?? []
   const latestId = submissions[0]?.id
+  const hasLatest = latestId !== undefined
   // Present activity only lives on the detail record — the list endpoint
   // returns summaries without it — so the header needs a second fetch for
-  // the single most recent filing.
+  // the single most recent filing. Kept out of the page-wide isPending /
+  // isError below: its own pending/error/success states render locally
+  // inside "Latest situation" so a failed detail fetch reads as exactly
+  // that, not as "no filings yet" or as a whole-page failure that would
+  // hide the (already loaded) filings list.
   const latestDetailQuery = useQuery(submissionQueries.detail(latestId ?? 0))
   const latest = latestDetailQuery.data
 
@@ -56,6 +61,25 @@ function EventPageContent({ identity }: { identity: CorpIdentity }) {
   const isPending = eventsQuery.isPending || submissionsQuery.isPending
   const isError = eventsQuery.isError || submissionsQuery.isError
   const error = eventsQuery.error ?? submissionsQuery.error
+
+  if (isError) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title={event?.title ?? 'Event'}
+          actions={
+            <Button variant="outline" render={<Link to="/corp" />}>
+              Back to events
+            </Button>
+          }
+        />
+        <EmptyState
+          title="Could not load event"
+          description={error?.message ?? 'Unknown error'}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -73,46 +97,51 @@ function EventPageContent({ identity }: { identity: CorpIdentity }) {
             <Button variant="outline" render={<Link to="/corp" />}>
               Back to events
             </Button>
-            <Button
-              render={
-                <Link
-                  to="/corp/events/$eventId/file"
-                  params={{ eventId }}
-                />
-              }
-            >
-              <PlusIcon />
-              File report #{nextSequence}
-            </Button>
+            {/* sequence_no is backend-assigned; showing a number before the
+                filings list has actually loaded would name the wrong report. */}
+            {submissionsQuery.isSuccess ? (
+              <Button
+                render={
+                  <Link
+                    to="/corp/events/$eventId/file"
+                    params={{ eventId }}
+                  />
+                }
+              >
+                <PlusIcon />
+                File report #{nextSequence}
+              </Button>
+            ) : null}
           </div>
         }
       />
 
       {isPending ? <LoadingBlock rows={4} /> : null}
 
-      {isError ? (
-        <EmptyState
-          title="Could not load event"
-          description={error?.message ?? 'Unknown error'}
-        />
-      ) : null}
-
-      {latest ? (
+      {hasLatest ? (
         <ContentCard title="Latest situation">
-          <dl className="grid gap-4 text-sm sm:grid-cols-3">
-            <div>
-              <dt className="text-muted-foreground">Present activity</dt>
-              <dd>{latest.present_activity || '—'}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Alert level</dt>
-              <dd>{formatConstant(latest.alert_level)}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">As at</dt>
-              <dd>{new Date(latest.as_at).toLocaleString()}</dd>
-            </div>
-          </dl>
+          {latestDetailQuery.isPending ? (
+            <LoadingBlock rows={2} />
+          ) : latestDetailQuery.isError ? (
+            <p className="text-sm text-muted-foreground">
+              The previous filing could not be loaded.
+            </p>
+          ) : latest ? (
+            <dl className="grid gap-4 text-sm sm:grid-cols-3">
+              <div>
+                <dt className="text-muted-foreground">Present activity</dt>
+                <dd>{latest.present_activity || '—'}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Alert level</dt>
+                <dd>{formatConstant(latest.alert_level)}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">As at</dt>
+                <dd>{new Date(latest.as_at).toLocaleString()}</dd>
+              </div>
+            </dl>
+          ) : null}
         </ContentCard>
       ) : null}
 

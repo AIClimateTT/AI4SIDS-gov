@@ -73,8 +73,15 @@ function FileSubmissionForm({ identity }: { identity: CorpIdentity }) {
     submissionQueries.list({ event_id: eventIdNum }),
   )
   const latestId = submissionsQuery.data?.[0]?.id
+  const hasLatest = latestId !== undefined
   const latestDetailQuery = useQuery(submissionQueries.detail(latestId ?? 0))
   const latest = latestDetailQuery.data
+  // Whether there is a previous submission to prefill from is not yet known.
+  // Filling the form now would look identical to a genuine first filing, so
+  // the fields stay disabled until this resolves — the officer should never
+  // be able to type over a carried-forward value they haven't seen yet.
+  const awaitingPrefill = hasLatest && latestDetailQuery.isPending
+  const prefillFailed = hasLatest && latestDetailQuery.isError
 
   const fileSubmission = useFileSubmission()
 
@@ -156,6 +163,20 @@ function FileSubmissionForm({ identity }: { identity: CorpIdentity }) {
         }
       />
 
+      {awaitingPrefill ? (
+        <p className="text-sm text-muted-foreground">
+          Loading the previous filing to pre-fill this form…
+        </p>
+      ) : null}
+
+      {prefillFailed ? (
+        <p className="text-sm text-muted-foreground">
+          The previous filing could not be loaded — alert level, present
+          activity, and situation overview were not carried forward. Fill
+          them in manually.
+        </p>
+      ) : null}
+
       <form
         className="space-y-6"
         onSubmit={(event) => {
@@ -168,7 +189,12 @@ function FileSubmissionForm({ identity }: { identity: CorpIdentity }) {
             <div className="grid gap-4 sm:grid-cols-2">
               <form.AppField name="as_at">
                 {(field) => (
-                  <field.TextField label="As at" type="datetime-local" required />
+                  <field.TextField
+                    label="As at"
+                    type="datetime-local"
+                    required
+                    disabled={awaitingPrefill}
+                  />
                 )}
               </form.AppField>
               <form.AppField name="alert_level">
@@ -176,6 +202,7 @@ function FileSubmissionForm({ identity }: { identity: CorpIdentity }) {
                   <field.SelectField
                     label="Alert level"
                     required
+                    disabled={awaitingPrefill}
                     options={ALERT_LEVELS.map((level) => ({
                       value: level,
                       label: formatConstant(level),
@@ -184,12 +211,18 @@ function FileSubmissionForm({ identity }: { identity: CorpIdentity }) {
                 )}
               </form.AppField>
               <form.AppField name="present_activity">
-                {(field) => <field.TextField label="Present activity" />}
+                {(field) => (
+                  <field.TextField label="Present activity" disabled={awaitingPrefill} />
+                )}
               </form.AppField>
             </div>
             <form.AppField name="situation_overview">
               {(field) => (
-                <field.TextareaField label="Situation overview" rows={5} />
+                <field.TextareaField
+                  label="Situation overview"
+                  rows={5}
+                  disabled={awaitingPrefill}
+                />
               )}
             </form.AppField>
           </ContentCard>
@@ -198,11 +231,21 @@ function FileSubmissionForm({ identity }: { identity: CorpIdentity }) {
             <CsvTemplateLinks />
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <form.AppField name="incidentsFile">
-                {(field) => <field.FileField label="Incidents file" accept=".csv" />}
+                {(field) => (
+                  <field.FileField
+                    label="Incidents file"
+                    accept=".csv"
+                    disabled={awaitingPrefill}
+                  />
+                )}
               </form.AppField>
               <form.AppField name="logsFile">
                 {(field) => (
-                  <field.FileField label="Situation logs file" accept=".csv" />
+                  <field.FileField
+                    label="Situation logs file"
+                    accept=".csv"
+                    disabled={awaitingPrefill}
+                  />
                 )}
               </form.AppField>
             </div>
@@ -213,7 +256,7 @@ function FileSubmissionForm({ identity }: { identity: CorpIdentity }) {
           </ContentCard>
 
           <div className="flex justify-end">
-            <form.SubmitButton label="File report" />
+            <form.SubmitButton label="File report" disabled={awaitingPrefill} />
           </div>
         </form.AppForm>
       </form>
