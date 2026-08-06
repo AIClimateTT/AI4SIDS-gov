@@ -1,0 +1,5 @@
+Row ID,Community,Street,Incident Type,Date of Event,Incident Summary,Name of Person,Contact Information,Injuries Occurred,Injuries Count,Deaths Occurred,Deaths Count,Building Damage,Special Needs Occupants,Estimated Damage Cost,Action Taken,Relief Supplied,Forwarded To Agency,Further Assessment Required,Other Follow Up
+1,Penal,Clarke Road,flooding_,2023-06-28,Flooding reported at Clarke Road.,Resident 1,8685551001,No,,No,,Ground floor inundated,,"$12,500",DMU team responded and cleared the roadway.,Yes,Yes,No,No
+2,Debe,SS Erin Road,landslide,2023-06-29,Landslide reported at SS Erin Road.,Resident 2,8685551002,No,,No,,Ground floor inundated,,"$2,800",Assessment complete. Tarpaulin issued to resident.,No,Yes,No,No
+3,Barrackpore,Papourie Road,fallen_tree,2023-06-30,Fallen Tree reported at Papourie Road.,Resident 3,8685551003,No,,No,,Ground floor inundated,,,Referred to Self-Help for further assistance.,Yes,No,No,No
+4,Penal,Rochard Douglas Road,blown_off_roof,2023-06-27,Blown Off Roof reported at Rochard Douglas Road.,Resident 4,8685551004,No,,No,,Roof and ceiling water damage,,"$22,000",Cleaning hamper issued. Referred to Social Development.,No,Yes,Yes,No

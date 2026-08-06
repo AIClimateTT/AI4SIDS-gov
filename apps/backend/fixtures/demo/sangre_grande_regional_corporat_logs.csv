@@ -1,0 +1,10 @@
+Category,Statement,Item,Quantity,Unit,Status
+relief_distributed,Tarpaulins issued to affected residents,tarpaulins,9,units,completed
+relief_distributed,Sandbags distributed to vulnerable properties,sandbags,61,bags,completed
+relief_distributed,Cleaning hampers issued to flood-affected households,cleaning hampers,3,units,completed
+resource,Additional tarpaulins held in reserve at the corporation store,tarpaulins,25,units,in_stock
+facility,Designated emergency shelters inspected and confirmed ready,shelters,9,facilities,inspected
+personnel,Informed Chairman of Council and CEO of the adverse weather alert,,,,completed
+personnel,CERT members and shelter managers placed on alert and standby,,,,on_standby
+activity,Tree cutting team deployed to clear obstructed roadways,,,,ongoing
+activity,Re-check of relief items completed at the corporation store,,,,completed

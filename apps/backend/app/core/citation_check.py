@@ -19,6 +19,11 @@ _MONTH = (
     r"|Aug(?:ust)?|Sep(?:t|tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)"
 )
 _DAY = r"\d{1,2}(?:st|nd|rd|th)?"
+# An ordinal suffix makes a day unambiguous on its own, which matters for a
+# range like "June 1st - June 30th, 2023" where only the last part carries the
+# year. A BARE "June 15" still is not stripped: that could be "In June 15 homes
+# were affected", and swallowing the 15 would hide a real figure.
+_ORDINAL_DAY = r"\d{1,2}(?:st|nd|rd|th)"
 # Bounded to plausible years. An unbounded \d{4} swallowed any 4-digit figure
 # following a month name — "In May 2500 households were affected" was erased
 # before the number scan, so both the invented-number and missing-citation
@@ -31,6 +36,7 @@ _YEAR = r"(?:19|20)\d{2}"
 PROSE_DATE_RE = re.compile(
     rf"\b(?:{_DAY}\s+{_MONTH},?\s+{_YEAR}"
     rf"|{_MONTH}\s+{_DAY},?\s+{_YEAR}"
+    rf"|{_MONTH}\s+{_ORDINAL_DAY}"
     rf"|{_MONTH}\s+{_YEAR})\b",
     re.IGNORECASE,
 )
@@ -114,7 +120,20 @@ def _matches_any(value: float, candidates: set[float], epsilon: float = 1e-6) ->
     return any(abs(value - c) < epsilon for c in candidates)
 
 
-CITATION_MARKER_RE = re.compile(r"\[([A-Za-z0-9_-]+)\]")
+# One bracket may carry several cids — "[C008, C009, C010]" is how a model
+# naturally cites a figure drawn from more than one fact. Matching only a single
+# cid read the whole bracket as unparseable, so a correctly-cited sentence was
+# reported as citing nothing.
+CITATION_MARKER_RE = re.compile(r"\[([A-Za-z0-9_,\s-]+)\]")
+
+
+def _cids_in(text: str) -> set[str]:
+    return {
+        cid.strip()
+        for group in CITATION_MARKER_RE.findall(text)
+        for cid in group.split(",")
+        if cid.strip()
+    }
 # \b so a digit run glued to a word is not a figure: "Survey123" must not
 # yield "123", and a bare "C001" marker must not yield "001". Real figures
 # ("15", "115,800", "66.7%") always follow a boundary.
@@ -129,7 +148,7 @@ def check_citations(narrative: str, fact_table: FactTable) -> CitationCheckResul
     cited_any = False
 
     for sentence in _split_sentences(narrative):
-        cited_ids = set(CITATION_MARKER_RE.findall(sentence))
+        cited_ids = _cids_in(sentence)
         cited_valid_ids = cited_ids & valid_cids
         has_valid_citation = bool(cited_valid_ids)
         # Only the facts this sentence actually cites license its figures.

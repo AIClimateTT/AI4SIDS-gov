@@ -550,3 +550,45 @@ def test_an_uncited_sentence_is_reported_as_missing_citation_only():
 
     kinds = [v.kind for v in result.violations]
     assert kinds == ["missing_citation"]
+
+
+def test_a_date_range_carrying_one_year_is_not_a_figure():
+    # "June 1st - June 30th, 2023" only carries a year on the last part, so the
+    # leading "1" leaked through as an invented figure on every report.
+    result = check_citations(
+        f"This report covers June 1st to June 30th, 2023 [{CID}].", make_fact_table()
+    )
+
+    assert result.violations == []
+
+
+def test_a_bare_month_and_day_with_no_ordinal_is_still_checked():
+    # "In June 88 homes were affected" — stripping this would hide a real
+    # figure. 88 is absent from the fact table, so it must surface as invented.
+    result = check_citations(
+        f"In June 88 homes were affected [{CID}].", make_fact_table()
+    )
+
+    assert [v.token for v in result.violations if v.kind == "invented_number"] == ["88"]
+
+
+def test_one_bracket_may_carry_several_cids():
+    # "[C008, C009]" is how a model cites a figure drawn from more than one
+    # fact. Matching only a single cid read the bracket as citing nothing.
+    result = check_citations(
+        "Coverage was 19 records "
+        "[survey123-incident_count-0, survey123-estimated_damage_total-0].",
+        make_fact_table(),
+    )
+
+    assert result.passed is True
+
+
+def test_a_multi_cid_bracket_still_binds_the_number_to_those_facts():
+    result = check_citations(
+        "Officers responded within 9 hours "
+        "[survey123-incident_count-0, survey123-data_coverage-2].",
+        make_fact_table(),
+    )
+
+    assert [v.kind for v in result.violations] == ["invented_number"]
