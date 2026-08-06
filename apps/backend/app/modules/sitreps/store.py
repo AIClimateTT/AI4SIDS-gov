@@ -110,9 +110,10 @@ def list_submissions(
     if date_from is not None:
         stmt = stmt.where(Submission.as_at >= date_from)
     if date_to is not None:
-        # date_to arrives as a date-only string parsed to midnight; compare
-        # against the start of the next day so the whole day is included.
-        stmt = stmt.where(Submission.as_at < date_to + timedelta(days=1))
+        # Normalize date_to to midnight of its day, then compare against the
+        # start of the next day so submissions through the entire day are included.
+        normalized_date_to = date_to.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+        stmt = stmt.where(Submission.as_at < normalized_date_to)
     stmt = stmt.order_by(Submission.as_at.desc(), Submission.id.desc())
     return list(session.scalars(stmt).all())
 

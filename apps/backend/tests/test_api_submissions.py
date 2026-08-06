@@ -324,12 +324,25 @@ def _file(c, event_id, corporation=CORP, as_at="2023-06-28T09:00:00", rows=1):
 def test_list_submissions_is_newest_first_with_counts():
     c = client()
     event_id = _event(c)
-    _file(c, event_id, as_at="2023-06-28T09:00:00", rows=1)
-    _file(c, event_id, as_at="2023-06-30T16:00:00", rows=3)
+    # File later-as_at submission first so creation order (id) and as_at order disagree.
+    # Only real as_at DESC ordering can produce the expected result.
+    # Use different row ID ranges to avoid supersession: first 1-3, second 4-4.
+    body1 = "Row ID,Incident Type,Date of Event\n1,fallen_tree,2023-06-27\n2,fallen_tree,2023-06-27\n3,fallen_tree,2023-06-27\n"
+    c.post(
+        "/submissions",
+        data={"corporation": CORP, "as_at": "2023-06-30T16:00:00", "event_id": event_id},
+        files={"incidents_file": ("i.csv", io.BytesIO(body1.encode()), "text/csv")},
+    )
+    body2 = "Row ID,Incident Type,Date of Event\n4,fallen_tree,2023-06-27\n"
+    c.post(
+        "/submissions",
+        data={"corporation": CORP, "as_at": "2023-06-28T09:00:00", "event_id": event_id},
+        files={"incidents_file": ("i.csv", io.BytesIO(body2.encode()), "text/csv")},
+    )
 
     body = c.get("/submissions").json()
 
-    assert [s["sequence_no"] for s in body] == [2, 1]
+    assert [s["sequence_no"] for s in body] == [1, 2]
     assert body[0]["incident_count"] == 3
     assert body[0]["event_title"] == "Adverse Weather June 2023"
 
@@ -370,6 +383,23 @@ def test_list_submissions_filters_by_window():
     ).json()
 
     assert len(june) == 1
+
+
+def test_list_submissions_date_to_normalizes_non_midnight_time():
+    # Verify date_to with a time component still includes the whole day.
+    c = client()
+    event_id = _event(c)
+    _file(c, event_id, as_at="2023-06-28T09:00:00", rows=1)
+    _file(c, event_id, as_at="2023-06-30T22:00:00", rows=1)  # Late in the day
+    _file(c, event_id, as_at="2023-07-01T08:00:00", rows=1)  # Next day
+
+    # Even with a time component in date_to, it should include the whole 2023-06-30.
+    result = c.get(
+        "/submissions", params={"date_from": "2023-06-01", "date_to": "2023-06-30T16:00:00"}
+    ).json()
+
+    assert len(result) == 2  # Both June submissions included
+    assert all(s["as_at"].startswith("2023-06-") for s in result)
 
 
 def test_submission_detail_carries_row_errors_and_overview():
