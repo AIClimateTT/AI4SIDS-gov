@@ -6,7 +6,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { formatConstant } from '@/lib/format-constant'
+import { PiiDroppedNotice } from '@/components/submissions/pii-dropped-notice'
+import { UnmappedValuesNotice } from '@/components/submissions/unmapped-values-notice'
 import type { SubmissionIngestResult } from '@/types/dmcu'
 
 const FILE_LABELS: Record<'incidents' | 'logs', string> = {
@@ -17,7 +18,6 @@ const FILE_LABELS: Record<'incidents' | 'logs', string> = {
 /** What landed and what didn't, for a single filing. */
 export function SubmissionResult({ result }: { result: SubmissionIngestResult }) {
   const incidentsAccepted = result.incidents_inserted + result.incidents_updated
-  const unmappedEntries = Object.entries(result.unmapped_values)
 
   return (
     <div className="space-y-4">
@@ -66,32 +66,9 @@ export function SubmissionResult({ result }: { result: SubmissionIngestResult })
         </div>
       ) : null}
 
-      {unmappedEntries.length > 0 ? (
-        <div className="rounded-md border border-dashed p-3 text-sm">
-          <p className="font-medium">Unrecognised values</p>
-          <p className="text-muted-foreground">
-            These rows were still accepted, but a value the system doesn't
-            recognise affects which metrics count them.
-          </p>
-          <ul className="mt-2 space-y-1">
-            {unmappedEntries.map(([column, values]) => (
-              <li key={column}>
-                <span className="font-medium">{formatConstant(column)}:</span>{' '}
-                {values.join(', ')}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+      <UnmappedValuesNotice unmappedValues={result.unmapped_values} />
 
-      {result.pii_columns_dropped.length > 0 ? (
-        <p className="text-sm text-muted-foreground">
-          {result.pii_columns_dropped.join(', ')}{' '}
-          {result.pii_columns_dropped.length === 1
-            ? 'was present in the upload and was not stored.'
-            : 'were present in the upload and were not stored.'}
-        </p>
-      ) : null}
+      <PiiDroppedNotice columns={result.pii_columns_dropped} />
     </div>
   )
 }

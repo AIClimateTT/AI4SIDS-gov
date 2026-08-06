@@ -3,7 +3,8 @@ import { z } from 'zod'
 
 import { PageHeader } from '@/components/shared'
 import { ContentCard } from '@/components/shared/content-card'
-import { formatConstant } from '@/lib/format-constant'
+import { PiiDroppedNotice } from '@/components/submissions/pii-dropped-notice'
+import { UnmappedValuesNotice } from '@/components/submissions/unmapped-values-notice'
 import { useAppForm } from '@/hooks/form'
 import { useIngestModule } from '@/lib/queries/ingest'
 import type { IngestResult } from '@/types/dmcu'
@@ -72,8 +73,6 @@ function IngestPage() {
 
 /** What landed from a Survey123 upload. */
 function IngestResultView({ result }: { result: IngestResult }) {
-  const unmappedEntries = Object.entries(result.unmapped_values)
-
   return (
     <div className="mt-4 space-y-3 border-t pt-4">
       <p className="text-sm font-medium">
@@ -81,32 +80,9 @@ function IngestResultView({ result }: { result: IngestResult }) {
         {result.rows_updated} updated · {result.duplicates_flagged} duplicates flagged
       </p>
 
-      {unmappedEntries.length > 0 ? (
-        <div className="rounded-md border border-dashed p-3 text-sm">
-          <p className="font-medium">Unrecognised values</p>
-          <p className="text-muted-foreground">
-            These rows were still accepted, but a value the system doesn't
-            recognise affects which metrics count them.
-          </p>
-          <ul className="mt-2 space-y-1">
-            {unmappedEntries.map(([column, values]) => (
-              <li key={column}>
-                <span className="font-medium">{formatConstant(column)}:</span>{' '}
-                {values.join(', ')}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+      <UnmappedValuesNotice unmappedValues={result.unmapped_values} />
 
-      {result.pii_columns_dropped.length > 0 ? (
-        <p className="text-sm text-muted-foreground">
-          {result.pii_columns_dropped.join(', ')}{' '}
-          {result.pii_columns_dropped.length === 1
-            ? 'was present in the upload and was not stored.'
-            : 'were present in the upload and were not stored.'}
-        </p>
-      ) : null}
+      <PiiDroppedNotice columns={result.pii_columns_dropped} />
     </div>
   )
 }
