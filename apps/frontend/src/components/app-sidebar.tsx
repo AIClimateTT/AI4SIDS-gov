@@ -23,9 +23,13 @@ import {
   SidebarRail,
 } from '@/components/ui/sidebar'
 
-// One item for now. "File a report" and "My submissions" land with the screens
-// they point at — a menu of dead links would be worse than a short menu.
-const CORP_NAV = [{ title: 'Events', to: '/corp', icon: CalendarIcon }] as const
+// "File a report" is deliberately absent: filing happens through an event, and
+// a nav item that cannot know which event would have to ask — the picker the
+// spec rejects.
+const CORP_NAV = [
+  { title: 'Events', to: '/corp', icon: CalendarIcon },
+  { title: 'My submissions', to: '/corp/submissions', icon: FileTextIcon },
+] as const
 
 const DMU_NAV = [
   { title: 'Dashboard', to: '/dmu', icon: LayoutDashboardIcon },

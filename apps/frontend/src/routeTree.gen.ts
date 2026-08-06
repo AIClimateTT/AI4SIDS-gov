@@ -14,11 +14,14 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as DmuIndexRouteImport } from './routes/dmu/index'
 import { Route as CorpIndexRouteImport } from './routes/corp/index'
 import { Route as DmuFieldDataRouteImport } from './routes/dmu/field-data'
+import { Route as CorpSubmissionsRouteImport } from './routes/corp/submissions'
 import { Route as DmuReportsIndexRouteImport } from './routes/dmu/reports/index'
 import { Route as DmuReportsNewRouteImport } from './routes/dmu/reports/new'
 import { Route as DmuReportsReportIdRouteImport } from './routes/dmu/reports/$reportId'
 import { Route as DmuAdminModulesRouteImport } from './routes/dmu/admin/modules'
+import { Route as CorpEventsNewRouteImport } from './routes/corp/events/new'
 import { Route as DmuAdminTemplatesIndexRouteImport } from './routes/dmu/admin/templates/index'
+import { Route as CorpEventsEventIdIndexRouteImport } from './routes/corp/events/$eventId/index'
 import { Route as DmuAdminTemplatesNameIndexRouteImport } from './routes/dmu/admin/templates/$name/index'
 import { Route as DmuAdminTemplatesNameNewRouteImport } from './routes/dmu/admin/templates/$name/new'
 import { Route as DmuAdminTemplatesNameVersionsVersionRouteImport } from './routes/dmu/admin/templates/$name/versions/$version'
@@ -48,6 +51,11 @@ const DmuFieldDataRoute = DmuFieldDataRouteImport.update({
   path: '/dmu/field-data',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CorpSubmissionsRoute = CorpSubmissionsRouteImport.update({
+  id: '/corp/submissions',
+  path: '/corp/submissions',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DmuReportsIndexRoute = DmuReportsIndexRouteImport.update({
   id: '/dmu/reports/',
   path: '/dmu/reports/',
@@ -68,9 +76,19 @@ const DmuAdminModulesRoute = DmuAdminModulesRouteImport.update({
   path: '/dmu/admin/modules',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CorpEventsNewRoute = CorpEventsNewRouteImport.update({
+  id: '/corp/events/new',
+  path: '/corp/events/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DmuAdminTemplatesIndexRoute = DmuAdminTemplatesIndexRouteImport.update({
   id: '/dmu/admin/templates/',
   path: '/dmu/admin/templates/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CorpEventsEventIdIndexRoute = CorpEventsEventIdIndexRouteImport.update({
+  id: '/corp/events/$eventId/',
+  path: '/corp/events/$eventId/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DmuAdminTemplatesNameIndexRoute =
@@ -95,13 +113,16 @@ const DmuAdminTemplatesNameVersionsVersionRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/who-are-you': typeof WhoAreYouRoute
+  '/corp/submissions': typeof CorpSubmissionsRoute
   '/dmu/field-data': typeof DmuFieldDataRoute
   '/corp/': typeof CorpIndexRoute
   '/dmu/': typeof DmuIndexRoute
+  '/corp/events/new': typeof CorpEventsNewRoute
   '/dmu/admin/modules': typeof DmuAdminModulesRoute
   '/dmu/reports/$reportId': typeof DmuReportsReportIdRoute
   '/dmu/reports/new': typeof DmuReportsNewRoute
   '/dmu/reports/': typeof DmuReportsIndexRoute
+  '/corp/events/$eventId/': typeof CorpEventsEventIdIndexRoute
   '/dmu/admin/templates/': typeof DmuAdminTemplatesIndexRoute
   '/dmu/admin/templates/$name/new': typeof DmuAdminTemplatesNameNewRoute
   '/dmu/admin/templates/$name/': typeof DmuAdminTemplatesNameIndexRoute
@@ -110,13 +131,16 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/who-are-you': typeof WhoAreYouRoute
+  '/corp/submissions': typeof CorpSubmissionsRoute
   '/dmu/field-data': typeof DmuFieldDataRoute
   '/corp': typeof CorpIndexRoute
   '/dmu': typeof DmuIndexRoute
+  '/corp/events/new': typeof CorpEventsNewRoute
   '/dmu/admin/modules': typeof DmuAdminModulesRoute
   '/dmu/reports/$reportId': typeof DmuReportsReportIdRoute
   '/dmu/reports/new': typeof DmuReportsNewRoute
   '/dmu/reports': typeof DmuReportsIndexRoute
+  '/corp/events/$eventId': typeof CorpEventsEventIdIndexRoute
   '/dmu/admin/templates': typeof DmuAdminTemplatesIndexRoute
   '/dmu/admin/templates/$name/new': typeof DmuAdminTemplatesNameNewRoute
   '/dmu/admin/templates/$name': typeof DmuAdminTemplatesNameIndexRoute
@@ -126,13 +150,16 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/who-are-you': typeof WhoAreYouRoute
+  '/corp/submissions': typeof CorpSubmissionsRoute
   '/dmu/field-data': typeof DmuFieldDataRoute
   '/corp/': typeof CorpIndexRoute
   '/dmu/': typeof DmuIndexRoute
+  '/corp/events/new': typeof CorpEventsNewRoute
   '/dmu/admin/modules': typeof DmuAdminModulesRoute
   '/dmu/reports/$reportId': typeof DmuReportsReportIdRoute
   '/dmu/reports/new': typeof DmuReportsNewRoute
   '/dmu/reports/': typeof DmuReportsIndexRoute
+  '/corp/events/$eventId/': typeof CorpEventsEventIdIndexRoute
   '/dmu/admin/templates/': typeof DmuAdminTemplatesIndexRoute
   '/dmu/admin/templates/$name/new': typeof DmuAdminTemplatesNameNewRoute
   '/dmu/admin/templates/$name/': typeof DmuAdminTemplatesNameIndexRoute
@@ -143,13 +170,16 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/who-are-you'
+    | '/corp/submissions'
     | '/dmu/field-data'
     | '/corp/'
     | '/dmu/'
+    | '/corp/events/new'
     | '/dmu/admin/modules'
     | '/dmu/reports/$reportId'
     | '/dmu/reports/new'
     | '/dmu/reports/'
+    | '/corp/events/$eventId/'
     | '/dmu/admin/templates/'
     | '/dmu/admin/templates/$name/new'
     | '/dmu/admin/templates/$name/'
@@ -158,13 +188,16 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/who-are-you'
+    | '/corp/submissions'
     | '/dmu/field-data'
     | '/corp'
     | '/dmu'
+    | '/corp/events/new'
     | '/dmu/admin/modules'
     | '/dmu/reports/$reportId'
     | '/dmu/reports/new'
     | '/dmu/reports'
+    | '/corp/events/$eventId'
     | '/dmu/admin/templates'
     | '/dmu/admin/templates/$name/new'
     | '/dmu/admin/templates/$name'
@@ -173,13 +206,16 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/who-are-you'
+    | '/corp/submissions'
     | '/dmu/field-data'
     | '/corp/'
     | '/dmu/'
+    | '/corp/events/new'
     | '/dmu/admin/modules'
     | '/dmu/reports/$reportId'
     | '/dmu/reports/new'
     | '/dmu/reports/'
+    | '/corp/events/$eventId/'
     | '/dmu/admin/templates/'
     | '/dmu/admin/templates/$name/new'
     | '/dmu/admin/templates/$name/'
@@ -189,13 +225,16 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   WhoAreYouRoute: typeof WhoAreYouRoute
+  CorpSubmissionsRoute: typeof CorpSubmissionsRoute
   DmuFieldDataRoute: typeof DmuFieldDataRoute
   CorpIndexRoute: typeof CorpIndexRoute
   DmuIndexRoute: typeof DmuIndexRoute
+  CorpEventsNewRoute: typeof CorpEventsNewRoute
   DmuAdminModulesRoute: typeof DmuAdminModulesRoute
   DmuReportsReportIdRoute: typeof DmuReportsReportIdRoute
   DmuReportsNewRoute: typeof DmuReportsNewRoute
   DmuReportsIndexRoute: typeof DmuReportsIndexRoute
+  CorpEventsEventIdIndexRoute: typeof CorpEventsEventIdIndexRoute
   DmuAdminTemplatesIndexRoute: typeof DmuAdminTemplatesIndexRoute
   DmuAdminTemplatesNameNewRoute: typeof DmuAdminTemplatesNameNewRoute
   DmuAdminTemplatesNameIndexRoute: typeof DmuAdminTemplatesNameIndexRoute
@@ -239,6 +278,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DmuFieldDataRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/corp/submissions': {
+      id: '/corp/submissions'
+      path: '/corp/submissions'
+      fullPath: '/corp/submissions'
+      preLoaderRoute: typeof CorpSubmissionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dmu/reports/': {
       id: '/dmu/reports/'
       path: '/dmu/reports'
@@ -267,11 +313,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DmuAdminModulesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/corp/events/new': {
+      id: '/corp/events/new'
+      path: '/corp/events/new'
+      fullPath: '/corp/events/new'
+      preLoaderRoute: typeof CorpEventsNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dmu/admin/templates/': {
       id: '/dmu/admin/templates/'
       path: '/dmu/admin/templates'
       fullPath: '/dmu/admin/templates/'
       preLoaderRoute: typeof DmuAdminTemplatesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/corp/events/$eventId/': {
+      id: '/corp/events/$eventId/'
+      path: '/corp/events/$eventId'
+      fullPath: '/corp/events/$eventId/'
+      preLoaderRoute: typeof CorpEventsEventIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dmu/admin/templates/$name/': {
@@ -301,13 +361,16 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   WhoAreYouRoute: WhoAreYouRoute,
+  CorpSubmissionsRoute: CorpSubmissionsRoute,
   DmuFieldDataRoute: DmuFieldDataRoute,
   CorpIndexRoute: CorpIndexRoute,
   DmuIndexRoute: DmuIndexRoute,
+  CorpEventsNewRoute: CorpEventsNewRoute,
   DmuAdminModulesRoute: DmuAdminModulesRoute,
   DmuReportsReportIdRoute: DmuReportsReportIdRoute,
   DmuReportsNewRoute: DmuReportsNewRoute,
   DmuReportsIndexRoute: DmuReportsIndexRoute,
+  CorpEventsEventIdIndexRoute: CorpEventsEventIdIndexRoute,
   DmuAdminTemplatesIndexRoute: DmuAdminTemplatesIndexRoute,
   DmuAdminTemplatesNameNewRoute: DmuAdminTemplatesNameNewRoute,
   DmuAdminTemplatesNameIndexRoute: DmuAdminTemplatesNameIndexRoute,
