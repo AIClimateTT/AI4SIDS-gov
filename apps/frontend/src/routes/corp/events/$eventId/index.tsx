@@ -1,25 +1,164 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute } from '@tanstack/react-router'
+import { useQuery } from '@tanstack/react-query'
+import { PlusIcon } from 'lucide-react'
 
-import { EmptyState, PageHeader } from '@/components/shared'
+import { Button } from '@/components/ui/button'
+import { EmptyState, LoadingBlock, PageHeader } from '@/components/shared'
+import { ContentCard } from '@/components/shared/content-card'
+import { CorpRoleNotice } from '@/components/identity/corp-role-notice'
+import { useIdentity } from '@/hooks/use-identity'
+import type { Identity } from '@/lib/identity'
+import { formatConstant } from '@/lib/format-constant'
+import { eventQueries, submissionQueries } from '@/lib/queries/submissions'
+import type { SubmissionSummary } from '@/types/dmcu'
 
-// Placeholder so /corp and /corp/events/new can link here now. Task 5 replaces
-// this with the real event page: header from the latest submission, the run
-// of filings, and the "File report #{next}" action.
+type CorpIdentity = Extract<Identity, { role: 'corp' }>
+
 export const Route = createFileRoute('/corp/events/$eventId/')({
   component: EventPage,
 })
 
 function EventPage() {
+  const { identity } = useIdentity()
+
+  if (identity?.role !== 'corp') {
+    return (
+      <CorpRoleNotice description="Switch to a corporation identity to view this event." />
+    )
+  }
+
+  return <EventPageContent identity={identity} />
+}
+
+function EventPageContent({ identity }: { identity: CorpIdentity }) {
+  const { eventId } = Route.useParams()
+  const eventIdNum = Number(eventId)
+
+  const eventsQuery = useQuery(eventQueries.list(identity.corporation))
+  const submissionsQuery = useQuery(
+    submissionQueries.list({ event_id: eventIdNum }),
+  )
+
+  const event = eventsQuery.data?.find((candidate) => candidate.id === eventIdNum)
+  const submissions = submissionsQuery.data ?? []
+  const latestId = submissions[0]?.id
+  // Present activity only lives on the detail record — the list endpoint
+  // returns summaries without it — so the header needs a second fetch for
+  // the single most recent filing.
+  const latestDetailQuery = useQuery(submissionQueries.detail(latestId ?? 0))
+  const latest = latestDetailQuery.data
+
+  const nextSequence =
+    submissions.length > 0
+      ? Math.max(...submissions.map((submission) => submission.sequence_no)) + 1
+      : 1
+
+  const isPending = eventsQuery.isPending || submissionsQuery.isPending
+  const isError = eventsQuery.isError || submissionsQuery.isError
+  const error = eventsQuery.error ?? submissionsQuery.error
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Event"
-        description="Situation report filings for this event."
+        title={event?.title ?? 'Event'}
+        description={
+          event
+            ? `${formatConstant(event.hazard_type)} · started ${new Date(
+                event.started_at,
+              ).toLocaleDateString()}`
+            : undefined
+        }
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" render={<Link to="/corp" />}>
+              Back to events
+            </Button>
+            <Button
+              render={
+                <Link
+                  to="/corp/events/$eventId/file"
+                  params={{ eventId }}
+                />
+              }
+            >
+              <PlusIcon />
+              File report #{nextSequence}
+            </Button>
+          </div>
+        }
       />
-      <EmptyState
-        title="Event detail arrives next"
-        description="The filing history and report form land in the next release."
-      />
+
+      {isPending ? <LoadingBlock rows={4} /> : null}
+
+      {isError ? (
+        <EmptyState
+          title="Could not load event"
+          description={error?.message ?? 'Unknown error'}
+        />
+      ) : null}
+
+      {latest ? (
+        <ContentCard title="Latest situation">
+          <dl className="grid gap-4 text-sm sm:grid-cols-3">
+            <div>
+              <dt className="text-muted-foreground">Present activity</dt>
+              <dd>{latest.present_activity || '—'}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Alert level</dt>
+              <dd>{formatConstant(latest.alert_level)}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">As at</dt>
+              <dd>{new Date(latest.as_at).toLocaleString()}</dd>
+            </div>
+          </dl>
+        </ContentCard>
+      ) : null}
+
+      <div className="space-y-3">
+        <h2 className="text-sm font-medium text-muted-foreground">Filings</h2>
+
+        {submissionsQuery.data && submissions.length === 0 ? (
+          <EmptyState
+            title="No filings yet"
+            description="File the first situation report for this event."
+            action={
+              <Button
+                render={
+                  <Link to="/corp/events/$eventId/file" params={{ eventId }} />
+                }
+              >
+                <PlusIcon />
+                File report #1
+              </Button>
+            }
+          />
+        ) : null}
+
+        {submissions.length > 0 ? (
+          <div className="space-y-2">
+            {submissions.map((submission) => (
+              <SubmissionRow key={submission.id} submission={submission} />
+            ))}
+          </div>
+        ) : null}
+      </div>
     </div>
+  )
+}
+
+function SubmissionRow({ submission }: { submission: SubmissionSummary }) {
+  return (
+    <ContentCard
+      title={`Situation Report #${submission.sequence_no}`}
+      description={`As at ${new Date(submission.as_at).toLocaleString()} · ${formatConstant(
+        submission.alert_level,
+      )}`}
+    >
+      <p className="text-sm text-muted-foreground">
+        {submission.incident_count} incidents · {submission.log_count} logs
+      </p>
+    </ContentCard>
   )
 }

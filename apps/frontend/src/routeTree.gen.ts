@@ -22,6 +22,7 @@ import { Route as DmuAdminModulesRouteImport } from './routes/dmu/admin/modules'
 import { Route as CorpEventsNewRouteImport } from './routes/corp/events/new'
 import { Route as DmuAdminTemplatesIndexRouteImport } from './routes/dmu/admin/templates/index'
 import { Route as CorpEventsEventIdIndexRouteImport } from './routes/corp/events/$eventId/index'
+import { Route as CorpEventsEventIdFileRouteImport } from './routes/corp/events/$eventId/file'
 import { Route as DmuAdminTemplatesNameIndexRouteImport } from './routes/dmu/admin/templates/$name/index'
 import { Route as DmuAdminTemplatesNameNewRouteImport } from './routes/dmu/admin/templates/$name/new'
 import { Route as DmuAdminTemplatesNameVersionsVersionRouteImport } from './routes/dmu/admin/templates/$name/versions/$version'
@@ -91,6 +92,11 @@ const CorpEventsEventIdIndexRoute = CorpEventsEventIdIndexRouteImport.update({
   path: '/corp/events/$eventId/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CorpEventsEventIdFileRoute = CorpEventsEventIdFileRouteImport.update({
+  id: '/corp/events/$eventId/file',
+  path: '/corp/events/$eventId/file',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DmuAdminTemplatesNameIndexRoute =
   DmuAdminTemplatesNameIndexRouteImport.update({
     id: '/dmu/admin/templates/$name/',
@@ -122,6 +128,7 @@ export interface FileRoutesByFullPath {
   '/dmu/reports/$reportId': typeof DmuReportsReportIdRoute
   '/dmu/reports/new': typeof DmuReportsNewRoute
   '/dmu/reports/': typeof DmuReportsIndexRoute
+  '/corp/events/$eventId/file': typeof CorpEventsEventIdFileRoute
   '/corp/events/$eventId/': typeof CorpEventsEventIdIndexRoute
   '/dmu/admin/templates/': typeof DmuAdminTemplatesIndexRoute
   '/dmu/admin/templates/$name/new': typeof DmuAdminTemplatesNameNewRoute
@@ -140,6 +147,7 @@ export interface FileRoutesByTo {
   '/dmu/reports/$reportId': typeof DmuReportsReportIdRoute
   '/dmu/reports/new': typeof DmuReportsNewRoute
   '/dmu/reports': typeof DmuReportsIndexRoute
+  '/corp/events/$eventId/file': typeof CorpEventsEventIdFileRoute
   '/corp/events/$eventId': typeof CorpEventsEventIdIndexRoute
   '/dmu/admin/templates': typeof DmuAdminTemplatesIndexRoute
   '/dmu/admin/templates/$name/new': typeof DmuAdminTemplatesNameNewRoute
@@ -159,6 +167,7 @@ export interface FileRoutesById {
   '/dmu/reports/$reportId': typeof DmuReportsReportIdRoute
   '/dmu/reports/new': typeof DmuReportsNewRoute
   '/dmu/reports/': typeof DmuReportsIndexRoute
+  '/corp/events/$eventId/file': typeof CorpEventsEventIdFileRoute
   '/corp/events/$eventId/': typeof CorpEventsEventIdIndexRoute
   '/dmu/admin/templates/': typeof DmuAdminTemplatesIndexRoute
   '/dmu/admin/templates/$name/new': typeof DmuAdminTemplatesNameNewRoute
@@ -179,6 +188,7 @@ export interface FileRouteTypes {
     | '/dmu/reports/$reportId'
     | '/dmu/reports/new'
     | '/dmu/reports/'
+    | '/corp/events/$eventId/file'
     | '/corp/events/$eventId/'
     | '/dmu/admin/templates/'
     | '/dmu/admin/templates/$name/new'
@@ -197,6 +207,7 @@ export interface FileRouteTypes {
     | '/dmu/reports/$reportId'
     | '/dmu/reports/new'
     | '/dmu/reports'
+    | '/corp/events/$eventId/file'
     | '/corp/events/$eventId'
     | '/dmu/admin/templates'
     | '/dmu/admin/templates/$name/new'
@@ -215,6 +226,7 @@ export interface FileRouteTypes {
     | '/dmu/reports/$reportId'
     | '/dmu/reports/new'
     | '/dmu/reports/'
+    | '/corp/events/$eventId/file'
     | '/corp/events/$eventId/'
     | '/dmu/admin/templates/'
     | '/dmu/admin/templates/$name/new'
@@ -234,6 +246,7 @@ export interface RootRouteChildren {
   DmuReportsReportIdRoute: typeof DmuReportsReportIdRoute
   DmuReportsNewRoute: typeof DmuReportsNewRoute
   DmuReportsIndexRoute: typeof DmuReportsIndexRoute
+  CorpEventsEventIdFileRoute: typeof CorpEventsEventIdFileRoute
   CorpEventsEventIdIndexRoute: typeof CorpEventsEventIdIndexRoute
   DmuAdminTemplatesIndexRoute: typeof DmuAdminTemplatesIndexRoute
   DmuAdminTemplatesNameNewRoute: typeof DmuAdminTemplatesNameNewRoute
@@ -334,6 +347,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CorpEventsEventIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/corp/events/$eventId/file': {
+      id: '/corp/events/$eventId/file'
+      path: '/corp/events/$eventId/file'
+      fullPath: '/corp/events/$eventId/file'
+      preLoaderRoute: typeof CorpEventsEventIdFileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dmu/admin/templates/$name/': {
       id: '/dmu/admin/templates/$name/'
       path: '/dmu/admin/templates/$name'
@@ -370,6 +390,7 @@ const rootRouteChildren: RootRouteChildren = {
   DmuReportsReportIdRoute: DmuReportsReportIdRoute,
   DmuReportsNewRoute: DmuReportsNewRoute,
   DmuReportsIndexRoute: DmuReportsIndexRoute,
+  CorpEventsEventIdFileRoute: CorpEventsEventIdFileRoute,
   CorpEventsEventIdIndexRoute: CorpEventsEventIdIndexRoute,
   DmuAdminTemplatesIndexRoute: DmuAdminTemplatesIndexRoute,
   DmuAdminTemplatesNameNewRoute: DmuAdminTemplatesNameNewRoute,

@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { PageHeader } from '@/components/shared'
 import { ContentCard } from '@/components/shared/content-card'
 import { Button } from '@/components/ui/button'
-import { RoleMismatchNotice } from '@/components/identity/role-mismatch-notice'
+import { CorpRoleNotice } from '@/components/identity/corp-role-notice'
 import { useAppForm } from '@/hooks/form'
 import { useIdentity } from '@/hooks/use-identity'
 import { useCreateEvent } from '@/lib/queries/submissions'
@@ -55,12 +55,7 @@ function NewEventPage() {
 
   if (identity?.role !== 'corp') {
     return (
-      <div className="space-y-6">
-        <RoleMismatchNotice expected="corp" />
-        <p className="text-sm text-muted-foreground">
-          Switch to a corporation identity to declare an event.
-        </p>
-      </div>
+      <CorpRoleNotice description="Switch to a corporation identity to declare an event." />
     )
   }
 

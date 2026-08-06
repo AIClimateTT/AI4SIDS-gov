@@ -1,25 +1,25 @@
-import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { useFieldContext } from '@/hooks/contexts'
 import { FieldErrors } from '@/components/forms/field-error'
 
-type TextFieldProps = {
+type TextareaFieldProps = {
   label: string
-  type?: 'text' | 'email' | 'date' | 'datetime-local'
   required?: boolean
   placeholder?: string
   helpText?: string
   disabled?: boolean
+  rows?: number
 }
 
-export function TextField({
+export function TextareaField({
   label,
-  type = 'text',
   required,
   placeholder,
   helpText,
   disabled,
-}: TextFieldProps) {
+  rows = 4,
+}: TextareaFieldProps) {
   const field = useFieldContext<string>()
 
   return (
@@ -28,15 +28,15 @@ export function TextField({
         {label}
         {required ? <span className="text-destructive">*</span> : null}
       </FieldLabel>
-      <Input
+      <Textarea
         id={field.name}
         name={field.name}
-        type={type}
         value={field.state.value ?? ''}
         onChange={(event) => field.handleChange(event.target.value)}
         onBlur={field.handleBlur}
         placeholder={placeholder}
         disabled={disabled}
+        rows={rows}
         aria-invalid={
           field.state.meta.isTouched && field.state.meta.errors.length > 0
         }

@@ -5,7 +5,7 @@ import { PlusIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { EmptyState, LoadingBlock, PageHeader } from '@/components/shared'
 import { ContentCard } from '@/components/shared/content-card'
-import { RoleMismatchNotice } from '@/components/identity/role-mismatch-notice'
+import { CorpRoleNotice } from '@/components/identity/corp-role-notice'
 import { useIdentity } from '@/hooks/use-identity'
 import { identityLabel } from '@/lib/identity'
 import type { Identity } from '@/lib/identity'
@@ -24,12 +24,7 @@ function CorpHomePage() {
 
   if (identity?.role !== 'corp') {
     return (
-      <div className="space-y-6">
-        <RoleMismatchNotice expected="corp" />
-        <p className="text-sm text-muted-foreground">
-          Switch to a corporation identity to see your events.
-        </p>
-      </div>
+      <CorpRoleNotice description="Switch to a corporation identity to see your events." />
     )
   }
 
