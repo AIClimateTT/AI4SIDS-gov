@@ -25,11 +25,11 @@ def test_import_template_command_reports_version_one():
 
     try:
         result = runner.invoke(
-            app, ["templates", "import", str(TEMPLATES_DIR / "single_region_report.yaml")]
+            app, ["templates", "import", str(TEMPLATES_DIR / "field_data_region_review.yaml")]
         )
 
         assert result.exit_code == 0, result.stdout
-        assert "single_region_report" in result.stdout
+        assert "field_data_region_review" in result.stdout
         assert "version 1" in result.stdout
     finally:
         _reset_state()
@@ -40,9 +40,9 @@ def test_import_template_command_twice_increments_version():
     Base.metadata.create_all(db_engine)
 
     try:
-        runner.invoke(app, ["templates", "import", str(TEMPLATES_DIR / "single_region_report.yaml")])
+        runner.invoke(app, ["templates", "import", str(TEMPLATES_DIR / "field_data_region_review.yaml")])
         result = runner.invoke(
-            app, ["templates", "import", str(TEMPLATES_DIR / "single_region_report.yaml")]
+            app, ["templates", "import", str(TEMPLATES_DIR / "field_data_region_review.yaml")]
         )
 
         assert result.exit_code == 0, result.stdout
@@ -51,7 +51,7 @@ def test_import_template_command_twice_increments_version():
         _reset_state()
 
 
-def test_import_all_command_imports_both_default_templates():
+def test_import_all_command_imports_every_default_template():
     _reset_state()
     Base.metadata.create_all(db_engine)
 
@@ -59,7 +59,7 @@ def test_import_all_command_imports_both_default_templates():
         result = runner.invoke(app, ["templates", "import-all", str(TEMPLATES_DIR)])
 
         assert result.exit_code == 0, result.stdout
-        assert "minister_regional_comparison" in result.stdout
-        assert "single_region_report" in result.stdout
+        assert "minister_situation_report" in result.stdout
+        assert "field_data_region_review" in result.stdout
     finally:
         _reset_state()

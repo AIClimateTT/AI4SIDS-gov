@@ -57,7 +57,7 @@ def test_post_reports_returns_id_status_markdown(monkeypatch):
     response = client.post(
         "/reports",
         json={
-            "template": "minister_regional_comparison",
+            "template": "minister_situation_report",
             "params": {"date_from": "2024-06-01", "date_to": "2024-06-30"},
         },
     )
@@ -83,7 +83,7 @@ def test_post_reports_missing_required_param_returns_400(monkeypatch):
     _ingest_fixture()
 
     response = client.post(
-        "/reports", json={"template": "minister_regional_comparison", "params": {"date_from": "2024-06-01"}}
+        "/reports", json={"template": "minister_situation_report", "params": {"date_from": "2024-06-01"}}
     )
 
     assert response.status_code == 400
@@ -96,7 +96,7 @@ def test_get_reports_by_id_returns_full_detail(monkeypatch):
     create_response = client.post(
         "/reports",
         json={
-            "template": "minister_regional_comparison",
+            "template": "minister_situation_report",
             "params": {"date_from": "2024-06-01", "date_to": "2024-06-30"},
         },
     )
@@ -107,11 +107,137 @@ def test_get_reports_by_id_returns_full_detail(monkeypatch):
     assert response.status_code == 200
     body = response.json()
     assert body["id"] == report_id
-    assert body["template"] == "minister_regional_comparison"
+    assert body["template"] == "minister_situation_report"
     assert body["template_version"] == 1
     assert "facts" in body["fact_table"]
     assert isinstance(body["violations"], list)
     assert body["created_at"]
+
+
+def test_post_reports_blank_optional_param_counts_the_same_as_an_omitted_one(monkeypatch):
+    # The Generate Report form seeds every template param to "" and validates
+    # only the required ones, so an untouched optional `community` arrived
+    # here as "". It reached SQL as `WHERE community = ''`, matched no row,
+    # and the report read "0 incidents in Sangre Grande" with status ok.
+    client = make_client(monkeypatch)
+    _ingest_fixture()
+
+    def facts_for(params: dict) -> dict[str, float]:
+        response = client.post(
+            "/reports", json={"template": "field_data_region_review", "params": params}
+        )
+        assert response.status_code == 200, response.text
+        detail = client.get(f"/reports/{response.json()['id']}")
+        assert detail.status_code == 200, detail.text
+        return {
+            f"{fact['metric']}:{fact['scope'].get('corporation')}": fact["value"]
+            for fact in detail.json()["fact_table"]["facts"]
+        }
+
+    base = {
+        "corporation": "sangre_grande_regional_corporat",
+        "date_from": "2024-06-01",
+        "date_to": "2024-06-30",
+    }
+    blank = facts_for({**base, "community": ""})
+    omitted = facts_for(base)
+
+    assert blank == omitted
+    assert blank["incident_count:sangre_grande_regional_corporat"] > 0
+
+
+def test_post_reports_blank_date_param_does_not_400(monkeypatch):
+    # datetime.fromisoformat("") raises, and generate_report's ValueError path
+    # turned that into a 400 on an otherwise valid request.
+    client = make_client(monkeypatch)
+    _ingest_fixture()
+
+    response = client.post(
+        "/reports",
+        json={
+            "template": "minister_situation_report",
+            "params": {"date_from": "", "date_to": ""},
+        },
+    )
+
+    assert response.status_code == 200, response.text
+
+
+def test_post_reports_unknown_corporation_returns_400(monkeypatch):
+    # A corporation that is not one of the fourteen matches no row, so every
+    # metric returns zero and the report reads as an authoritative "nothing
+    # happened" for a region that may have filed plenty.
+    client = make_client(monkeypatch)
+    _ingest_fixture()
+
+    response = client.post(
+        "/reports",
+        json={
+            "template": "field_data_region_review",
+            "params": {
+                "corporation": "Diego Martin",
+                "date_from": "2024-06-01",
+                "date_to": "2024-06-30",
+            },
+        },
+    )
+
+    assert response.status_code == 400
+    assert "unknown corporation" in response.json()["detail"]
+
+
+def test_post_reports_rejects_an_unknown_corporation_in_a_requirement_override(
+    monkeypatch,
+):
+    # data_requirements is caller-controlled, so a literal corporation can
+    # reach a query without ever appearing in params.
+    client = make_client(monkeypatch)
+    _ingest_fixture()
+
+    response = client.post(
+        "/reports",
+        json={
+            "template": "minister_situation_report",
+            "params": {"date_from": "2024-06-01", "date_to": "2024-06-30"},
+            "data_requirements": [
+                {
+                    "module": "survey123",
+                    "metric": "incident_count",
+                    "params": {"corporation": "Sangre Grande"},
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 400
+
+
+def test_post_reports_still_accepts_a_placeholder_corporation_in_a_requirement(
+    monkeypatch,
+):
+    client = make_client(monkeypatch)
+    _ingest_fixture()
+
+    response = client.post(
+        "/reports",
+        json={
+            "template": "field_data_region_review",
+            "params": {
+                "corporation": "sangre_grande_regional_corporat",
+                "date_from": "2024-06-01",
+                "date_to": "2024-06-30",
+            },
+            "data_requirements": [
+                {
+                    "module": "survey123",
+                    "metric": "incident_count",
+                    "params": {"corporation": "{corporation}"},
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200, response.text
 
 
 def test_get_reports_list_returns_paginated_items(monkeypatch):
@@ -121,16 +247,16 @@ def test_get_reports_list_returns_paginated_items(monkeypatch):
     first = client.post(
         "/reports",
         json={
-            "template": "minister_regional_comparison",
+            "template": "minister_situation_report",
             "params": {"date_from": "2024-06-01", "date_to": "2024-06-30"},
         },
     )
     second = client.post(
         "/reports",
         json={
-            "template": "single_region_report",
+            "template": "field_data_region_review",
             "params": {
-                "corporation": "Diego Martin",
+                "corporation": "diego_martin_regional_corporati",
                 "date_from": "2024-06-01",
                 "date_to": "2024-06-30",
             },
@@ -156,16 +282,16 @@ def test_get_reports_list_filters_by_q_and_status(monkeypatch):
     client.post(
         "/reports",
         json={
-            "template": "minister_regional_comparison",
+            "template": "minister_situation_report",
             "params": {"date_from": "2024-06-01", "date_to": "2024-06-30"},
         },
     )
     client.post(
         "/reports",
         json={
-            "template": "single_region_report",
+            "template": "field_data_region_review",
             "params": {
-                "corporation": "Diego Martin",
+                "corporation": "diego_martin_regional_corporati",
                 "date_from": "2024-06-01",
                 "date_to": "2024-06-30",
             },

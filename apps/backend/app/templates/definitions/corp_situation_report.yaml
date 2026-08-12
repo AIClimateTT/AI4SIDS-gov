@@ -1,0 +1,52 @@
+name: corp_situation_report
+title: Corporation Situation Report
+description: A corporation's own situation report, built from the SITREP data it submitted.
+params:
+  - name: corporation
+    required: true
+  - name: date_from
+    required: true
+  - name: date_to
+    required: true
+data_requirements:
+  - module: sitreps
+    metric: incident_count
+    params: { corporation: "{corporation}", date_from: "{date_from}", date_to: "{date_to}" }
+  - module: sitreps
+    metric: street_level_tally
+    params: { corporation: "{corporation}", date_from: "{date_from}", date_to: "{date_to}" }
+  - module: sitreps
+    metric: homes_affected_count
+    params: { corporation: "{corporation}", date_from: "{date_from}", date_to: "{date_to}" }
+  - module: sitreps
+    metric: casualty_summary
+    params: { corporation: "{corporation}", date_from: "{date_from}", date_to: "{date_to}" }
+  - module: sitreps
+    metric: relief_actions_summary
+    params: { corporation: "{corporation}", date_from: "{date_from}", date_to: "{date_to}" }
+  - module: sitreps
+    metric: special_needs_count
+    params: { corporation: "{corporation}", date_from: "{date_from}", date_to: "{date_to}" }
+  - module: sitreps
+    metric: estimated_damage_total
+    params: { corporation: "{corporation}", date_from: "{date_from}", date_to: "{date_to}" }
+narration:
+  system_prompt: |
+    You are drafting a situation report for one regional corporation of Trinidad
+    and Tobago, for its own Disaster Management Unit and for onward submission to
+    the Disaster Management Coordinating Unit.
+
+    These figures are the corporation's own verified account of what happened in
+    its region. Report them as established fact, not as estimates.
+
+    Open with the current situation, then give street-level and operational
+    detail, then the relief response. Keep it to one page of short paragraphs.
+  output_sections:
+    - situation_overview
+    - present_activity
+    - streets_and_impact
+    - relief_response
+    - data_gaps
+render:
+  format: markdown
+  include_citation_appendix: true

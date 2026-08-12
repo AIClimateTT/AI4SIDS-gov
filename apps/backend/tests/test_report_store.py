@@ -36,7 +36,7 @@ def make_generated_report(status="ok", violations=None, template_version=1) -> G
     )
     fact_table = FactTable(
         request_id="req-1",
-        template="minister_regional_comparison",
+        template="minister_situation_report",
         template_version=template_version,
         params={"date_from": "2024-06-01", "date_to": "2024-06-30"},
         generated_at=datetime(2024, 7, 1, tzinfo=timezone.utc),
@@ -45,7 +45,7 @@ def make_generated_report(status="ok", violations=None, template_version=1) -> G
     )
     return GeneratedReport(
         request_id="req-1",
-        template="minister_regional_comparison",
+        template="minister_situation_report",
         template_version=template_version,
         params={"date_from": "2024-06-01", "date_to": "2024-06-30"},
         data_requirements=[
@@ -70,7 +70,7 @@ def test_save_report_persists_all_fields(tmp_path):
     saved = save_report(report, session)
 
     assert saved.id == "req-1"
-    assert saved.template == "minister_regional_comparison"
+    assert saved.template == "minister_situation_report"
     assert saved.params == {"date_from": "2024-06-01", "date_to": "2024-06-30"}
     assert saved.status == "ok"
     assert saved.narrative == "There were 19 incidents recorded [C001]."

@@ -1,0 +1,4 @@
+Row ID,Community,Street,Incident Type,Date of Event,Incident Summary,Name of Person,Contact Information,Injuries Occurred,Injuries Count,Deaths Occurred,Deaths Count,Building Damage,Special Needs Occupants,Estimated Damage Cost,Action Taken,Relief Supplied,Forwarded To Agency,Further Assessment Required,Other Follow Up
+1,Petit Valley,Cameron Road,fallen_tree,2023-06-27,Fallen tree on home.,Velma Cupidore,793-9056,False,,False,,Branch damaged metal sheet.,,,DMU removed fallen tree.,True,False,False,False
+2,Maraval,Saddle Road,blown_off_roof,2023-06-27,Leaking roof causing rainwater inundation.,Juliet Henderson,681-4001,False,,False,,Minor holes in roof,,1500,Tarpaulin issued 20 x 30.,True,True,False,False
+3,Diamond Vale,Opal Gardens,landslide,2023-06-28,Landslide across access road.,Simone Beard,493-8022,True,1,False,,Retaining wall collapsed,2,25000,Assessment complete.,False,True,True,False

@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.core.report_models import Report
 from app.db import get_session
-from app.modules.survey123.models import Incident
+from app.modules.sitreps.models import SitrepIncident
+from app.modules.survey123.models import FieldObservation
 
 router = APIRouter()
 
@@ -34,18 +35,10 @@ def get_overview(
     recent_limit: int = Query(5, ge=1, le=20),
     session: Session = Depends(get_session),
 ) -> OverviewSummary:
-    survey123_count = (
-        session.scalar(
-            select(func.count()).select_from(Incident).where(Incident.source == "survey123")
-        )
-        or 0
-    )
-    sitreps_count = (
-        session.scalar(
-            select(func.count()).select_from(Incident).where(Incident.source == "sitreps")
-        )
-        or 0
-    )
+    # Each module now has its own table, so the counts come from the tables
+    # themselves rather than from a source discriminator on a shared one.
+    survey123_count = session.scalar(select(func.count()).select_from(FieldObservation)) or 0
+    sitreps_count = session.scalar(select(func.count()).select_from(SitrepIncident)) or 0
     report_count = session.scalar(select(func.count()).select_from(Report)) or 0
     needs_review_count = (
         session.scalar(

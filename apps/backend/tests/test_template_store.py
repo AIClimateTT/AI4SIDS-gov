@@ -17,7 +17,7 @@ def make_session(tmp_path):
     return Session()
 
 
-def make_template(name="single_region_report", **overrides) -> Template:
+def make_template(name="field_data_region_review", **overrides) -> Template:
     defaults = dict(
         name=name,
         title="Single Region Deep Dive",
@@ -63,7 +63,7 @@ def test_get_latest_template_version_returns_highest_version(tmp_path):
     create_template_version(make_template(), session)
     create_template_version(make_template(title="v2 title"), session)
 
-    latest = get_latest_template_version("single_region_report", session)
+    latest = get_latest_template_version("field_data_region_review", session)
 
     assert latest is not None
     assert latest.version == 2
@@ -81,7 +81,7 @@ def test_get_template_version_returns_frozen_historical_version(tmp_path):
     create_template_version(make_template(), session)
     create_template_version(make_template(title="v2 title"), session)
 
-    v1 = get_template_version("single_region_report", 1, session)
+    v1 = get_template_version("field_data_region_review", 1, session)
 
     assert v1 is not None
     assert v1.title == "Single Region Deep Dive"

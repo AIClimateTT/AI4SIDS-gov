@@ -33,7 +33,7 @@ def _clean_registry():
 
 def make_minister_template() -> Template:
     return Template(
-        name="minister_regional_comparison",
+        name="minister_situation_report",
         title="Regional Comparison Briefing",
         description="test",
         params=[
@@ -111,7 +111,7 @@ def test_assemble_fact_table_calls_all_data_requirements_and_renumbers_citations
     )
 
     assert fact_table.request_id == "req-1"
-    assert fact_table.template == "minister_regional_comparison"
+    assert fact_table.template == "minister_situation_report"
     assert fact_table.template_version == 4
     assert len(fact_table.facts) == 8
     assert [f.citation.cid for f in fact_table.facts] == [f"C{i:03d}" for i in range(1, 9)]
@@ -158,3 +158,22 @@ def test_assemble_fact_table_records_gap_for_empty_metric_result(tmp_path):
     assert len(fact_table.facts) == 1
     assert fact_table.facts[0].value == 0
     assert fact_table.gaps == []
+
+
+def test_citation_rules_require_digits_not_words():
+    # A ministerial report wrote "Fifteen incidents ... Thirteen homes", none of
+    # which the digit-scanning checker ever examined. Assert the rule actually
+    # reaches a composed prompt, not just that the constant contains the word.
+    from app.core.contracts import NarrationConfig, RenderConfig, Template
+    from app.core.engine import compose_system_prompt
+
+    template = Template(
+        name="t", title="T", description="d", params=[], data_requirements=[],
+        narration=NarrationConfig(system_prompt="Write the report.", output_sections=[]),
+        render=RenderConfig(),
+    )
+
+    composed = compose_system_prompt(template).lower()
+
+    assert "digits" in composed and "never words" in composed
+    assert "write the report." in composed

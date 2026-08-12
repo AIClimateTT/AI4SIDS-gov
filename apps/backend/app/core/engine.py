@@ -17,8 +17,10 @@ PLACEHOLDER_RE = re.compile(r"^\{(\w+)\}$")
 CITATION_RULES = """RULES (absolute — always apply):
 - Use ONLY numbers present in the fact table you are given as JSON. Never compute, sum, estimate, or round a number that is not already present.
 - Every sentence containing a figure must end with its citation marker, e.g. [C001]. Citation markers look like C001, C002, etc.
+- Never break a line between a figure and its citation marker. Each list item and each table row carries its own marker — the checker reads a line at a time.
 - Distinguish validated vs pending figures exactly as labeled in the fact table's "verification" field.
-- If the fact table lists gaps, state them plainly in a Data Gaps section."""
+- If the fact table lists gaps, state them plainly in a Data Gaps section.
+- Write every figure as digits, never words — "15", not "fifteen"."""
 
 
 def compose_system_prompt(template: Template) -> str:
@@ -73,6 +75,15 @@ def assemble_fact_table(
         facts = module.run_metric(requirement.metric, resolved, session)
         if not facts:
             gaps.append(f"No data returned for {requirement.module}.{requirement.metric} with params {resolved}")
+        # A metric knows things about its own rows that the caller cannot see
+        # — chiefly rows its selection predicate silently drops. Hoisted here
+        # because FactTable.gaps is what the narration prompt points the model
+        # at, and what the renderer prints as "Data Gaps". Deduped, order
+        # preserved: two metrics over the same rows report the same caveat.
+        for fact in facts:
+            for gap in fact.gaps:
+                if gap not in gaps:
+                    gaps.append(gap)
         all_facts.extend(facts)
 
     renumbered: list[Fact] = []
@@ -104,6 +115,30 @@ class GeneratedReport(BaseModel):
     markdown: str
 
 
+def _fact_table_for_llm(fact_table: FactTable) -> FactTable:
+    # The LLM narrates from fact values and cites by cid; it never reads
+    # record_ids. Left in, those ids run into hundreds of KB at realistic
+    # data volumes (thousands of rows per metric, multiple metrics per
+    # template) and blow straight through settings.ollama_num_ctx — an
+    # overflowed context silently returns an empty narrative, resurrecting a
+    # failure mode this codebase already fixed once. Storage and the
+    # citation appendix use the full fact_table; only the LLM-facing copy
+    # is pared down, and no cap is reintroduced anywhere else.
+    # Per-fact gaps go too: assemble_fact_table has already hoisted them into
+    # fact_table.gaps, which is where the prompt tells the model to look.
+    # Leaving both would show the model the same caveat twice.
+    pared_facts = [
+        fact.model_copy(
+            update={
+                "citation": fact.citation.model_copy(update={"record_ids": None}),
+                "gaps": [],
+            }
+        )
+        for fact in fact_table.facts
+    ]
+    return fact_table.model_copy(update={"facts": pared_facts})
+
+
 def build_retry_content(user_content: str, violations: list[CitationViolation]) -> str:
     violation_lines = "\n".join(f"- {v.kind}: {v.detail} (sentence: {v.sentence!r})" for v in violations)
     return (
@@ -124,7 +159,7 @@ def generate_report(
     fact_table = assemble_fact_table(template, params, session, request_id, effective_requirements)
 
     system_prompt = compose_system_prompt(template)
-    user_content = fact_table.model_dump_json()
+    user_content = _fact_table_for_llm(fact_table).model_dump_json()
     narrative = llm_client.generate(system_prompt, user_content)
     result = check_citations(narrative, fact_table)
 

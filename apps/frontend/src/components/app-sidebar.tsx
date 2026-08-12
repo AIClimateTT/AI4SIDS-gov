@@ -1,13 +1,15 @@
 import type { ComponentProps } from 'react'
 import { Link } from '@tanstack/react-router'
 import {
-  Building2Icon,
+  CalendarIcon,
   FileTextIcon,
   LayoutDashboardIcon,
   LibraryIcon,
   BoxesIcon,
   UploadIcon,
 } from 'lucide-react'
+
+import { useIdentity } from '@/hooks/use-identity'
 
 import {
   Sidebar,
@@ -21,40 +23,29 @@ import {
   SidebarRail,
 } from '@/components/ui/sidebar'
 
-const navItems = [
-  {
-    title: 'Overview',
-    to: '/',
-    icon: LayoutDashboardIcon,
-  },
-  {
-    title: 'Ingest',
-    to: '/ingest',
-    icon: UploadIcon,
-  },
-  {
-    title: 'Reports',
-    to: '/reports',
-    icon: FileTextIcon,
-  },
-  {
-    title: 'Corp report',
-    to: '/reports/corp',
-    icon: Building2Icon,
-  },
-  {
-    title: 'Templates',
-    to: '/templates',
-    icon: LibraryIcon,
-  },
-  {
-    title: 'Modules',
-    to: '/modules',
-    icon: BoxesIcon,
-  },
+// "File a report" is deliberately absent: filing happens through an event, and
+// a nav item that cannot know which event would have to ask — the picker the
+// spec rejects.
+const CORP_NAV = [
+  { title: 'Events', to: '/corp', icon: CalendarIcon },
+  { title: 'My submissions', to: '/corp/submissions', icon: FileTextIcon },
+] as const
+
+const DMU_NAV = [
+  { title: 'Dashboard', to: '/dmu', icon: LayoutDashboardIcon },
+  { title: 'Field data', to: '/dmu/field-data', icon: UploadIcon },
+  { title: 'Reports', to: '/dmu/reports', icon: FileTextIcon },
+  { title: 'Templates', to: '/dmu/admin/templates', icon: LibraryIcon },
+  { title: 'Modules', to: '/dmu/admin/modules', icon: BoxesIcon },
 ] as const
 
 export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
+  const { identity } = useIdentity()
+  // No identity means the only reachable page is the who-are-you screen, so an
+  // empty sidebar is correct rather than a fallback to one role's menu.
+  const navItems =
+    identity === null ? [] : identity.role === 'corp' ? CORP_NAV : DMU_NAV
+
   return (
     <Sidebar variant="inset" {...props}>
       <SidebarHeader>

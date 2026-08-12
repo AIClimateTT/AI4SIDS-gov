@@ -12,5 +12,10 @@ dist-ssr
 __unconfig*
 todos.json
 
+# editor/assistant workspace state
+.cursor/
+
 
 *.xlsx
+# local sqlite databases
+*.db

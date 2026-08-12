@@ -76,7 +76,7 @@ def test_get_default_llm_client_returns_ollama_by_default(monkeypatch):
         type(
             "S",
             (),
-            {"llm_provider": "ollama", "ollama_base_url": "http://localhost:11434", "ollama_model": "gemma3:4b"},
+            {"llm_provider": "ollama", "ollama_base_url": "http://localhost:11434", "ollama_model": "gemma3:4b", "ollama_num_ctx": 8192},
         )(),
     )
 
@@ -91,10 +91,27 @@ def test_get_default_llm_client_returns_fake_when_provider_is_fake(monkeypatch):
         type(
             "S",
             (),
-            {"llm_provider": "fake", "ollama_base_url": "http://localhost:11434", "ollama_model": "gemma3:4b"},
+            {"llm_provider": "fake", "ollama_base_url": "http://localhost:11434", "ollama_model": "gemma3:4b", "ollama_num_ctx": 8192},
         )(),
     )
 
     client = get_default_llm_client()
 
     assert isinstance(client, FakeLLMClient)
+
+
+def test_ollama_client_sets_an_explicit_context_window():
+    # Ollama defaults num_ctx to 2048. A fact table of ~2,049 tokens silently
+    # produced an empty narrative, which the checker then passed as "ok".
+    from app.config import settings
+    from app.core.llm import OllamaLLMClient
+
+    client = OllamaLLMClient(base_url="http://localhost:11434", model="gemma3:4b")
+
+    assert client._chat.num_ctx == settings.ollama_num_ctx
+
+
+def test_default_context_window_is_large_enough_for_a_real_fact_table():
+    from app.config import Settings
+
+    assert Settings().ollama_num_ctx >= 8192

@@ -93,7 +93,7 @@ def test_post_templates_creates_new_version(monkeypatch):
     response = client.post(
         "/templates",
         json={
-            "name": "minister_regional_comparison",
+            "name": "minister_situation_report",
             "title": "Minister Briefing v2",
             "description": "Updated",
             "params": [
@@ -125,7 +125,7 @@ def test_get_template_versions_lists_all(monkeypatch):
     client.post(
         "/templates",
         json={
-            "name": "minister_regional_comparison",
+            "name": "minister_situation_report",
             "title": "v2",
             "description": "d",
             "params": [
@@ -143,7 +143,7 @@ def test_get_template_versions_lists_all(monkeypatch):
         },
     )
 
-    response = client.get("/templates/minister_regional_comparison/versions")
+    response = client.get("/templates/minister_situation_report/versions")
 
     assert response.status_code == 200
     versions = [v["version"] for v in response.json()]
@@ -156,7 +156,7 @@ def test_generate_with_metric_override_stores_effective_requirements(monkeypatch
     create = client.post(
         "/reports",
         json={
-            "template": "minister_regional_comparison",
+            "template": "minister_situation_report",
             "params": {"date_from": "2024-06-01", "date_to": "2024-06-30"},
             "data_requirements": [
                 {
@@ -183,7 +183,7 @@ def test_generate_with_empty_requirements_returns_400(monkeypatch):
     response = client.post(
         "/reports",
         json={
-            "template": "minister_regional_comparison",
+            "template": "minister_situation_report",
             "params": {"date_from": "2024-06-01", "date_to": "2024-06-30"},
             "data_requirements": [],
         },
@@ -204,7 +204,7 @@ def test_generate_includes_citation_rules_in_llm_prompt(tmp_path, monkeypatch):
     ingest_csv(FIXTURE_PATH, session, salt="test-salt")
 
     template = Template(
-        name="minister_regional_comparison",
+        name="minister_situation_report",
         title="Regional Comparison Briefing",
         description="test",
         params=[

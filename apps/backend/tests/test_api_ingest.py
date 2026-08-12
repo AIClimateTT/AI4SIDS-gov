@@ -47,20 +47,14 @@ def test_post_ingest_survey123_returns_ingest_result():
     assert "Name of Person" in body["pii_columns_dropped"]
 
 
-def test_post_ingest_sitreps_requires_corporation():
-    client = make_client()
-
-    with open(SITREP_FIXTURE_PATH, "rb") as f:
-        response = client.post(
-            "/ingest/sitreps",
-            files={"file": ("sample_sitrep_small.csv", f, "text/csv")},
-        )
-
-    assert response.status_code == 400
-    assert "corporation" in response.json()["detail"].lower()
-
-
-def test_post_ingest_sitreps_with_corporation():
+def test_post_ingest_sitreps_is_retired_in_favour_of_submissions():
+    # Task 5 removed the CSV-ingest branch for sitreps entirely: sitreps data
+    # now arrives as a submission (see tests/test_api_submissions.py), not as a
+    # bare file upload with a free-text corporation field. This replaces two
+    # older tests that both exercised the old behaviour: one asserted a missing
+    # corporation was rejected (no longer meaningful — the whole path is
+    # rejected regardless of corporation), the other asserted a 200 with rows
+    # inserted, which no longer happens for any input.
     client = make_client()
 
     with open(SITREP_FIXTURE_PATH, "rb") as f:
@@ -70,10 +64,8 @@ def test_post_ingest_sitreps_with_corporation():
             data={"corporation": "Diego Martin"},
         )
 
-    assert response.status_code == 200, response.text
-    body = response.json()
-    assert body["rows_read"] > 0
-    assert body["rows_inserted"] > 0
+    assert response.status_code == 400
+    assert "/submissions" in response.json()["detail"]
 
 
 def test_post_ingest_unknown_module_returns_404():

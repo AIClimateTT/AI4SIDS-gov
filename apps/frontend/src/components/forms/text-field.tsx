@@ -5,7 +5,7 @@ import { FieldErrors } from '@/components/forms/field-error'
 
 type TextFieldProps = {
   label: string
-  type?: 'text' | 'email' | 'date'
+  type?: 'text' | 'email' | 'date' | 'datetime-local'
   required?: boolean
   placeholder?: string
   helpText?: string

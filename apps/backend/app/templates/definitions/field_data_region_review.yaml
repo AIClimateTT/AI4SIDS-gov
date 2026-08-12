@@ -1,0 +1,56 @@
+name: field_data_region_review
+title: Field Data Region Review
+description: Raw Survey123 field observation for one region. NOT a situation report - a corporation's own signed-off figures live in corp_situation_report.
+params:
+  - name: corporation
+    required: true
+  - name: community
+    required: false
+  - name: date_from
+    required: true
+  - name: date_to
+    required: true
+data_requirements:
+  - module: survey123
+    metric: incident_count
+    params: { corporation: "{corporation}", community: "{community}", date_from: "{date_from}", date_to: "{date_to}" }
+  - module: survey123
+    metric: street_level_tally
+    params: { corporation: "{corporation}", community: "{community}", date_from: "{date_from}", date_to: "{date_to}" }
+  - module: survey123
+    metric: homes_affected_count
+    params: { corporation: "{corporation}", community: "{community}", date_from: "{date_from}", date_to: "{date_to}" }
+  - module: survey123
+    metric: relief_actions_summary
+    params: { corporation: "{corporation}", community: "{community}", date_from: "{date_from}", date_to: "{date_to}" }
+  - module: survey123
+    metric: special_needs_count
+    params: { corporation: "{corporation}", community: "{community}", date_from: "{date_from}", date_to: "{date_to}" }
+  - module: survey123
+    metric: estimated_damage_total
+    params: { corporation: "{corporation}", community: "{community}", date_from: "{date_from}", date_to: "{date_to}" }
+  - module: survey123
+    metric: data_coverage
+    params: { corporation: "{corporation}", date_from: "{date_from}", date_to: "{date_to}" }
+narration:
+  system_prompt: |
+    You are summarising RAW SURVEY123 FIELD OBSERVATION for one region of
+    Trinidad and Tobago, for the Disaster Management Coordinating Unit.
+
+    This is NOT a situation report and must not be presented as one. These are
+    field officers' observations, filtered to validated records. They are not
+    the corporation's own signed-off account, and you must never describe them
+    as what the corporation reported.
+
+    Open with the current situation, then present street-level and operational
+    detail. When citing estimated damage, include the coverage caveat from the
+    fact table — never present partial totals as complete figures.
+  output_sections:
+    - field_data_summary
+    - streets_and_impact
+    - relief_actions_observed
+    - damage_caveat
+    - validation_coverage
+render:
+  format: markdown
+  include_citation_appendix: true

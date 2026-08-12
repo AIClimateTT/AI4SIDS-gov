@@ -9,6 +9,7 @@ from app.core.mcp_module import McpDataModule
 from app.core.registry import DataModule
 from app.modules.survey123.ingest import ingest_csv
 from app.modules.survey123.metrics import METRIC_FUNCTIONS, METRIC_SPECS
+from app.modules.survey123.models import FieldObservation
 
 
 class Survey123Module:
@@ -30,7 +31,7 @@ class Survey123Module:
         fn = METRIC_FUNCTIONS.get(name)
         if fn is None:
             raise ValueError(f"unknown metric for survey123: {name}")
-        return fn({**params, "source": "survey123"}, session)
+        return fn(params, session, FieldObservation)
 
 
 survey123_module = Survey123Module()

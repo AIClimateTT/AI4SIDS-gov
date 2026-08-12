@@ -20,7 +20,7 @@ def _reset_state():
         DEV_DB_PATH.unlink()
 
 
-def test_list_templates_shows_both_real_templates():
+def test_list_templates_shows_every_shipped_template():
     _reset_state()
     Base.metadata.create_all(db_engine)
 
@@ -30,13 +30,13 @@ def test_list_templates_shows_both_real_templates():
         result = runner.invoke(app, ["list-templates"])
 
         assert result.exit_code == 0, result.stdout
-        assert "minister_regional_comparison" in result.stdout
-        assert "single_region_report" in result.stdout
+        assert "minister_situation_report" in result.stdout
+        assert "field_data_region_review" in result.stdout
     finally:
         _reset_state()
 
 
-def test_generate_minister_regional_comparison_produces_markdown_report(monkeypatch):
+def test_generate_minister_situation_report_produces_markdown_report(monkeypatch):
     # Force the fake, network-free provider regardless of Settings.llm_provider's
     # real-world default ("ollama") — this test must stay testable without a
     # network connection or a running Ollama server, per PLAN.md's "everything
@@ -58,7 +58,7 @@ def test_generate_minister_regional_comparison_produces_markdown_report(monkeypa
             app,
             [
                 "generate",
-                "minister_regional_comparison",
+                "minister_situation_report",
                 "--date-from",
                 "2024-06-01",
                 "--date-to",
@@ -80,9 +80,116 @@ def test_generate_missing_required_param_errors():
     try:
         runner.invoke(app, ["templates", "import-all", str(Path(__file__).parent.parent / "app" / "templates" / "definitions")])
 
-        result = runner.invoke(app, ["generate", "minister_regional_comparison", "--date-from", "2024-06-01"])
+        result = runner.invoke(app, ["generate", "minister_situation_report", "--date-from", "2024-06-01"])
 
         assert result.exit_code == 1
+    finally:
+        _reset_state()
+
+
+SITREP_TEMPLATE_YAML = """
+name: corp_sitrep_only
+title: Corp SITREP Only
+description: A template whose data comes from the sitreps module.
+params: []
+data_requirements:
+  - module: sitreps
+    metric: incident_count
+narration:
+  system_prompt: Summarise the corporation's own situation reports.
+  output_sections: [situation_overview]
+render:
+  format: markdown
+  include_citation_appendix: true
+"""
+
+
+def test_generate_can_run_a_sitreps_template(monkeypatch, tmp_path):
+    # cli generate registered survey123 and nothing else, so a template naming
+    # a sitreps metric died with "unknown data module: sitreps" while the same
+    # template generated fine through the API.
+    #
+    # reset_registry() before the generate invocation on purpose: each CLI
+    # invocation is a fresh process in reality, and the import above happens to
+    # register every module as a side effect of template validation. Without
+    # the reset this test would exercise leaked state, not the command.
+    from app.core.registry import reset_registry as clear_modules
+
+    monkeypatch.setattr(llm_module.settings, "llm_provider", "fake")
+
+    _reset_state()
+    Base.metadata.create_all(db_engine)
+
+    try:
+        template_path = tmp_path / "corp_sitrep_only.yaml"
+        template_path.write_text(SITREP_TEMPLATE_YAML)
+        imported = runner.invoke(app, ["templates", "import", str(template_path)])
+        assert imported.exit_code == 0, imported.output
+
+        clear_modules()
+
+        result = runner.invoke(app, ["generate", "corp_sitrep_only"])
+
+        assert "unknown data module" not in result.output
+        assert result.exit_code == 0, result.output
+    finally:
+        _reset_state()
+
+
+def test_generate_rejects_a_corporation_that_is_not_one_of_the_fourteen():
+    # A typo matches no row, so every metric returns a confident zero and the
+    # report reads as an authoritative "nothing happened" for that region.
+    _reset_state()
+    Base.metadata.create_all(db_engine)
+
+    try:
+        runner.invoke(app, ["templates", "import-all", str(Path(__file__).parent.parent / "app" / "templates" / "definitions")])
+
+        result = runner.invoke(
+            app,
+            [
+                "generate",
+                "field_data_region_review",
+                "--corporation",
+                "Diego Martin",
+                "--date-from",
+                "2024-06-01",
+                "--date-to",
+                "2024-06-30",
+            ],
+        )
+
+        assert result.exit_code == 1
+        assert "unknown corporation" in result.output.lower()
+    finally:
+        _reset_state()
+
+
+def test_generate_accepts_a_canonical_corporation(monkeypatch):
+    monkeypatch.setattr(llm_module.settings, "llm_provider", "fake")
+
+    _reset_state()
+    Base.metadata.create_all(db_engine)
+
+    try:
+        runner.invoke(app, ["templates", "import-all", str(Path(__file__).parent.parent / "app" / "templates" / "definitions")])
+        runner.invoke(app, ["ingest", "survey123", str(FIXTURE_PATH)])
+
+        result = runner.invoke(
+            app,
+            [
+                "generate",
+                "field_data_region_review",
+                "--corporation",
+                "diego_martin_regional_corporati",
+                "--date-from",
+                "2024-06-01",
+                "--date-to",
+                "2024-06-30",
+            ],
+        )
+
+        assert result.exit_code == 0, result.stdout
     finally:
         _reset_state()
 

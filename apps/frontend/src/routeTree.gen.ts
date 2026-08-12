@@ -9,26 +9,27 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ModulesRouteImport } from './routes/modules'
-import { Route as IngestRouteImport } from './routes/ingest'
+import { Route as WhoAreYouRouteImport } from './routes/who-are-you'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as TemplatesIndexRouteImport } from './routes/templates/index'
-import { Route as ReportsIndexRouteImport } from './routes/reports/index'
-import { Route as ReportsNewRouteImport } from './routes/reports/new'
-import { Route as ReportsCorpRouteImport } from './routes/reports/corp'
-import { Route as ReportsReportIdRouteImport } from './routes/reports/$reportId'
-import { Route as TemplatesNameIndexRouteImport } from './routes/templates/$name/index'
-import { Route as TemplatesNameNewRouteImport } from './routes/templates/$name/new'
-import { Route as TemplatesNameVersionsVersionRouteImport } from './routes/templates/$name/versions/$version'
+import { Route as DmuIndexRouteImport } from './routes/dmu/index'
+import { Route as CorpIndexRouteImport } from './routes/corp/index'
+import { Route as DmuFieldDataRouteImport } from './routes/dmu/field-data'
+import { Route as CorpSubmissionsRouteImport } from './routes/corp/submissions'
+import { Route as DmuReportsIndexRouteImport } from './routes/dmu/reports/index'
+import { Route as DmuReportsNewRouteImport } from './routes/dmu/reports/new'
+import { Route as DmuReportsReportIdRouteImport } from './routes/dmu/reports/$reportId'
+import { Route as DmuAdminModulesRouteImport } from './routes/dmu/admin/modules'
+import { Route as CorpEventsNewRouteImport } from './routes/corp/events/new'
+import { Route as DmuAdminTemplatesIndexRouteImport } from './routes/dmu/admin/templates/index'
+import { Route as CorpEventsEventIdIndexRouteImport } from './routes/corp/events/$eventId/index'
+import { Route as CorpEventsEventIdFileRouteImport } from './routes/corp/events/$eventId/file'
+import { Route as DmuAdminTemplatesNameIndexRouteImport } from './routes/dmu/admin/templates/$name/index'
+import { Route as DmuAdminTemplatesNameNewRouteImport } from './routes/dmu/admin/templates/$name/new'
+import { Route as DmuAdminTemplatesNameVersionsVersionRouteImport } from './routes/dmu/admin/templates/$name/versions/$version'
 
-const ModulesRoute = ModulesRouteImport.update({
-  id: '/modules',
-  path: '/modules',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const IngestRoute = IngestRouteImport.update({
-  id: '/ingest',
-  path: '/ingest',
+const WhoAreYouRoute = WhoAreYouRouteImport.update({
+  id: '/who-are-you',
+  path: '/who-are-you',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -36,158 +37,230 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TemplatesIndexRoute = TemplatesIndexRouteImport.update({
-  id: '/templates/',
-  path: '/templates/',
+const DmuIndexRoute = DmuIndexRouteImport.update({
+  id: '/dmu/',
+  path: '/dmu/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ReportsIndexRoute = ReportsIndexRouteImport.update({
-  id: '/reports/',
-  path: '/reports/',
+const CorpIndexRoute = CorpIndexRouteImport.update({
+  id: '/corp/',
+  path: '/corp/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ReportsNewRoute = ReportsNewRouteImport.update({
-  id: '/reports/new',
-  path: '/reports/new',
+const DmuFieldDataRoute = DmuFieldDataRouteImport.update({
+  id: '/dmu/field-data',
+  path: '/dmu/field-data',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ReportsCorpRoute = ReportsCorpRouteImport.update({
-  id: '/reports/corp',
-  path: '/reports/corp',
+const CorpSubmissionsRoute = CorpSubmissionsRouteImport.update({
+  id: '/corp/submissions',
+  path: '/corp/submissions',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ReportsReportIdRoute = ReportsReportIdRouteImport.update({
-  id: '/reports/$reportId',
-  path: '/reports/$reportId',
+const DmuReportsIndexRoute = DmuReportsIndexRouteImport.update({
+  id: '/dmu/reports/',
+  path: '/dmu/reports/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TemplatesNameIndexRoute = TemplatesNameIndexRouteImport.update({
-  id: '/templates/$name/',
-  path: '/templates/$name/',
+const DmuReportsNewRoute = DmuReportsNewRouteImport.update({
+  id: '/dmu/reports/new',
+  path: '/dmu/reports/new',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TemplatesNameNewRoute = TemplatesNameNewRouteImport.update({
-  id: '/templates/$name/new',
-  path: '/templates/$name/new',
+const DmuReportsReportIdRoute = DmuReportsReportIdRouteImport.update({
+  id: '/dmu/reports/$reportId',
+  path: '/dmu/reports/$reportId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TemplatesNameVersionsVersionRoute =
-  TemplatesNameVersionsVersionRouteImport.update({
-    id: '/templates/$name/versions/$version',
-    path: '/templates/$name/versions/$version',
+const DmuAdminModulesRoute = DmuAdminModulesRouteImport.update({
+  id: '/dmu/admin/modules',
+  path: '/dmu/admin/modules',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CorpEventsNewRoute = CorpEventsNewRouteImport.update({
+  id: '/corp/events/new',
+  path: '/corp/events/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DmuAdminTemplatesIndexRoute = DmuAdminTemplatesIndexRouteImport.update({
+  id: '/dmu/admin/templates/',
+  path: '/dmu/admin/templates/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CorpEventsEventIdIndexRoute = CorpEventsEventIdIndexRouteImport.update({
+  id: '/corp/events/$eventId/',
+  path: '/corp/events/$eventId/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CorpEventsEventIdFileRoute = CorpEventsEventIdFileRouteImport.update({
+  id: '/corp/events/$eventId/file',
+  path: '/corp/events/$eventId/file',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DmuAdminTemplatesNameIndexRoute =
+  DmuAdminTemplatesNameIndexRouteImport.update({
+    id: '/dmu/admin/templates/$name/',
+    path: '/dmu/admin/templates/$name/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DmuAdminTemplatesNameNewRoute =
+  DmuAdminTemplatesNameNewRouteImport.update({
+    id: '/dmu/admin/templates/$name/new',
+    path: '/dmu/admin/templates/$name/new',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DmuAdminTemplatesNameVersionsVersionRoute =
+  DmuAdminTemplatesNameVersionsVersionRouteImport.update({
+    id: '/dmu/admin/templates/$name/versions/$version',
+    path: '/dmu/admin/templates/$name/versions/$version',
     getParentRoute: () => rootRouteImport,
   } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/ingest': typeof IngestRoute
-  '/modules': typeof ModulesRoute
-  '/reports/$reportId': typeof ReportsReportIdRoute
-  '/reports/corp': typeof ReportsCorpRoute
-  '/reports/new': typeof ReportsNewRoute
-  '/reports/': typeof ReportsIndexRoute
-  '/templates/': typeof TemplatesIndexRoute
-  '/templates/$name/new': typeof TemplatesNameNewRoute
-  '/templates/$name/': typeof TemplatesNameIndexRoute
-  '/templates/$name/versions/$version': typeof TemplatesNameVersionsVersionRoute
+  '/who-are-you': typeof WhoAreYouRoute
+  '/corp/submissions': typeof CorpSubmissionsRoute
+  '/dmu/field-data': typeof DmuFieldDataRoute
+  '/corp/': typeof CorpIndexRoute
+  '/dmu/': typeof DmuIndexRoute
+  '/corp/events/new': typeof CorpEventsNewRoute
+  '/dmu/admin/modules': typeof DmuAdminModulesRoute
+  '/dmu/reports/$reportId': typeof DmuReportsReportIdRoute
+  '/dmu/reports/new': typeof DmuReportsNewRoute
+  '/dmu/reports/': typeof DmuReportsIndexRoute
+  '/corp/events/$eventId/file': typeof CorpEventsEventIdFileRoute
+  '/corp/events/$eventId/': typeof CorpEventsEventIdIndexRoute
+  '/dmu/admin/templates/': typeof DmuAdminTemplatesIndexRoute
+  '/dmu/admin/templates/$name/new': typeof DmuAdminTemplatesNameNewRoute
+  '/dmu/admin/templates/$name/': typeof DmuAdminTemplatesNameIndexRoute
+  '/dmu/admin/templates/$name/versions/$version': typeof DmuAdminTemplatesNameVersionsVersionRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/ingest': typeof IngestRoute
-  '/modules': typeof ModulesRoute
-  '/reports/$reportId': typeof ReportsReportIdRoute
-  '/reports/corp': typeof ReportsCorpRoute
-  '/reports/new': typeof ReportsNewRoute
-  '/reports': typeof ReportsIndexRoute
-  '/templates': typeof TemplatesIndexRoute
-  '/templates/$name/new': typeof TemplatesNameNewRoute
-  '/templates/$name': typeof TemplatesNameIndexRoute
-  '/templates/$name/versions/$version': typeof TemplatesNameVersionsVersionRoute
+  '/who-are-you': typeof WhoAreYouRoute
+  '/corp/submissions': typeof CorpSubmissionsRoute
+  '/dmu/field-data': typeof DmuFieldDataRoute
+  '/corp': typeof CorpIndexRoute
+  '/dmu': typeof DmuIndexRoute
+  '/corp/events/new': typeof CorpEventsNewRoute
+  '/dmu/admin/modules': typeof DmuAdminModulesRoute
+  '/dmu/reports/$reportId': typeof DmuReportsReportIdRoute
+  '/dmu/reports/new': typeof DmuReportsNewRoute
+  '/dmu/reports': typeof DmuReportsIndexRoute
+  '/corp/events/$eventId/file': typeof CorpEventsEventIdFileRoute
+  '/corp/events/$eventId': typeof CorpEventsEventIdIndexRoute
+  '/dmu/admin/templates': typeof DmuAdminTemplatesIndexRoute
+  '/dmu/admin/templates/$name/new': typeof DmuAdminTemplatesNameNewRoute
+  '/dmu/admin/templates/$name': typeof DmuAdminTemplatesNameIndexRoute
+  '/dmu/admin/templates/$name/versions/$version': typeof DmuAdminTemplatesNameVersionsVersionRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/ingest': typeof IngestRoute
-  '/modules': typeof ModulesRoute
-  '/reports/$reportId': typeof ReportsReportIdRoute
-  '/reports/corp': typeof ReportsCorpRoute
-  '/reports/new': typeof ReportsNewRoute
-  '/reports/': typeof ReportsIndexRoute
-  '/templates/': typeof TemplatesIndexRoute
-  '/templates/$name/new': typeof TemplatesNameNewRoute
-  '/templates/$name/': typeof TemplatesNameIndexRoute
-  '/templates/$name/versions/$version': typeof TemplatesNameVersionsVersionRoute
+  '/who-are-you': typeof WhoAreYouRoute
+  '/corp/submissions': typeof CorpSubmissionsRoute
+  '/dmu/field-data': typeof DmuFieldDataRoute
+  '/corp/': typeof CorpIndexRoute
+  '/dmu/': typeof DmuIndexRoute
+  '/corp/events/new': typeof CorpEventsNewRoute
+  '/dmu/admin/modules': typeof DmuAdminModulesRoute
+  '/dmu/reports/$reportId': typeof DmuReportsReportIdRoute
+  '/dmu/reports/new': typeof DmuReportsNewRoute
+  '/dmu/reports/': typeof DmuReportsIndexRoute
+  '/corp/events/$eventId/file': typeof CorpEventsEventIdFileRoute
+  '/corp/events/$eventId/': typeof CorpEventsEventIdIndexRoute
+  '/dmu/admin/templates/': typeof DmuAdminTemplatesIndexRoute
+  '/dmu/admin/templates/$name/new': typeof DmuAdminTemplatesNameNewRoute
+  '/dmu/admin/templates/$name/': typeof DmuAdminTemplatesNameIndexRoute
+  '/dmu/admin/templates/$name/versions/$version': typeof DmuAdminTemplatesNameVersionsVersionRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/ingest'
-    | '/modules'
-    | '/reports/$reportId'
-    | '/reports/corp'
-    | '/reports/new'
-    | '/reports/'
-    | '/templates/'
-    | '/templates/$name/new'
-    | '/templates/$name/'
-    | '/templates/$name/versions/$version'
+    | '/who-are-you'
+    | '/corp/submissions'
+    | '/dmu/field-data'
+    | '/corp/'
+    | '/dmu/'
+    | '/corp/events/new'
+    | '/dmu/admin/modules'
+    | '/dmu/reports/$reportId'
+    | '/dmu/reports/new'
+    | '/dmu/reports/'
+    | '/corp/events/$eventId/file'
+    | '/corp/events/$eventId/'
+    | '/dmu/admin/templates/'
+    | '/dmu/admin/templates/$name/new'
+    | '/dmu/admin/templates/$name/'
+    | '/dmu/admin/templates/$name/versions/$version'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/ingest'
-    | '/modules'
-    | '/reports/$reportId'
-    | '/reports/corp'
-    | '/reports/new'
-    | '/reports'
-    | '/templates'
-    | '/templates/$name/new'
-    | '/templates/$name'
-    | '/templates/$name/versions/$version'
+    | '/who-are-you'
+    | '/corp/submissions'
+    | '/dmu/field-data'
+    | '/corp'
+    | '/dmu'
+    | '/corp/events/new'
+    | '/dmu/admin/modules'
+    | '/dmu/reports/$reportId'
+    | '/dmu/reports/new'
+    | '/dmu/reports'
+    | '/corp/events/$eventId/file'
+    | '/corp/events/$eventId'
+    | '/dmu/admin/templates'
+    | '/dmu/admin/templates/$name/new'
+    | '/dmu/admin/templates/$name'
+    | '/dmu/admin/templates/$name/versions/$version'
   id:
     | '__root__'
     | '/'
-    | '/ingest'
-    | '/modules'
-    | '/reports/$reportId'
-    | '/reports/corp'
-    | '/reports/new'
-    | '/reports/'
-    | '/templates/'
-    | '/templates/$name/new'
-    | '/templates/$name/'
-    | '/templates/$name/versions/$version'
+    | '/who-are-you'
+    | '/corp/submissions'
+    | '/dmu/field-data'
+    | '/corp/'
+    | '/dmu/'
+    | '/corp/events/new'
+    | '/dmu/admin/modules'
+    | '/dmu/reports/$reportId'
+    | '/dmu/reports/new'
+    | '/dmu/reports/'
+    | '/corp/events/$eventId/file'
+    | '/corp/events/$eventId/'
+    | '/dmu/admin/templates/'
+    | '/dmu/admin/templates/$name/new'
+    | '/dmu/admin/templates/$name/'
+    | '/dmu/admin/templates/$name/versions/$version'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  IngestRoute: typeof IngestRoute
-  ModulesRoute: typeof ModulesRoute
-  ReportsReportIdRoute: typeof ReportsReportIdRoute
-  ReportsCorpRoute: typeof ReportsCorpRoute
-  ReportsNewRoute: typeof ReportsNewRoute
-  ReportsIndexRoute: typeof ReportsIndexRoute
-  TemplatesIndexRoute: typeof TemplatesIndexRoute
-  TemplatesNameNewRoute: typeof TemplatesNameNewRoute
-  TemplatesNameIndexRoute: typeof TemplatesNameIndexRoute
-  TemplatesNameVersionsVersionRoute: typeof TemplatesNameVersionsVersionRoute
+  WhoAreYouRoute: typeof WhoAreYouRoute
+  CorpSubmissionsRoute: typeof CorpSubmissionsRoute
+  DmuFieldDataRoute: typeof DmuFieldDataRoute
+  CorpIndexRoute: typeof CorpIndexRoute
+  DmuIndexRoute: typeof DmuIndexRoute
+  CorpEventsNewRoute: typeof CorpEventsNewRoute
+  DmuAdminModulesRoute: typeof DmuAdminModulesRoute
+  DmuReportsReportIdRoute: typeof DmuReportsReportIdRoute
+  DmuReportsNewRoute: typeof DmuReportsNewRoute
+  DmuReportsIndexRoute: typeof DmuReportsIndexRoute
+  CorpEventsEventIdFileRoute: typeof CorpEventsEventIdFileRoute
+  CorpEventsEventIdIndexRoute: typeof CorpEventsEventIdIndexRoute
+  DmuAdminTemplatesIndexRoute: typeof DmuAdminTemplatesIndexRoute
+  DmuAdminTemplatesNameNewRoute: typeof DmuAdminTemplatesNameNewRoute
+  DmuAdminTemplatesNameIndexRoute: typeof DmuAdminTemplatesNameIndexRoute
+  DmuAdminTemplatesNameVersionsVersionRoute: typeof DmuAdminTemplatesNameVersionsVersionRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/modules': {
-      id: '/modules'
-      path: '/modules'
-      fullPath: '/modules'
-      preLoaderRoute: typeof ModulesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/ingest': {
-      id: '/ingest'
-      path: '/ingest'
-      fullPath: '/ingest'
-      preLoaderRoute: typeof IngestRouteImport
+    '/who-are-you': {
+      id: '/who-are-you'
+      path: '/who-are-you'
+      fullPath: '/who-are-you'
+      preLoaderRoute: typeof WhoAreYouRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -197,60 +270,109 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/templates/': {
-      id: '/templates/'
-      path: '/templates'
-      fullPath: '/templates/'
-      preLoaderRoute: typeof TemplatesIndexRouteImport
+    '/dmu/': {
+      id: '/dmu/'
+      path: '/dmu'
+      fullPath: '/dmu/'
+      preLoaderRoute: typeof DmuIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/reports/': {
-      id: '/reports/'
-      path: '/reports'
-      fullPath: '/reports/'
-      preLoaderRoute: typeof ReportsIndexRouteImport
+    '/corp/': {
+      id: '/corp/'
+      path: '/corp'
+      fullPath: '/corp/'
+      preLoaderRoute: typeof CorpIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/reports/new': {
-      id: '/reports/new'
-      path: '/reports/new'
-      fullPath: '/reports/new'
-      preLoaderRoute: typeof ReportsNewRouteImport
+    '/dmu/field-data': {
+      id: '/dmu/field-data'
+      path: '/dmu/field-data'
+      fullPath: '/dmu/field-data'
+      preLoaderRoute: typeof DmuFieldDataRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/reports/corp': {
-      id: '/reports/corp'
-      path: '/reports/corp'
-      fullPath: '/reports/corp'
-      preLoaderRoute: typeof ReportsCorpRouteImport
+    '/corp/submissions': {
+      id: '/corp/submissions'
+      path: '/corp/submissions'
+      fullPath: '/corp/submissions'
+      preLoaderRoute: typeof CorpSubmissionsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/reports/$reportId': {
-      id: '/reports/$reportId'
-      path: '/reports/$reportId'
-      fullPath: '/reports/$reportId'
-      preLoaderRoute: typeof ReportsReportIdRouteImport
+    '/dmu/reports/': {
+      id: '/dmu/reports/'
+      path: '/dmu/reports'
+      fullPath: '/dmu/reports/'
+      preLoaderRoute: typeof DmuReportsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/templates/$name/': {
-      id: '/templates/$name/'
-      path: '/templates/$name'
-      fullPath: '/templates/$name/'
-      preLoaderRoute: typeof TemplatesNameIndexRouteImport
+    '/dmu/reports/new': {
+      id: '/dmu/reports/new'
+      path: '/dmu/reports/new'
+      fullPath: '/dmu/reports/new'
+      preLoaderRoute: typeof DmuReportsNewRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/templates/$name/new': {
-      id: '/templates/$name/new'
-      path: '/templates/$name/new'
-      fullPath: '/templates/$name/new'
-      preLoaderRoute: typeof TemplatesNameNewRouteImport
+    '/dmu/reports/$reportId': {
+      id: '/dmu/reports/$reportId'
+      path: '/dmu/reports/$reportId'
+      fullPath: '/dmu/reports/$reportId'
+      preLoaderRoute: typeof DmuReportsReportIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/templates/$name/versions/$version': {
-      id: '/templates/$name/versions/$version'
-      path: '/templates/$name/versions/$version'
-      fullPath: '/templates/$name/versions/$version'
-      preLoaderRoute: typeof TemplatesNameVersionsVersionRouteImport
+    '/dmu/admin/modules': {
+      id: '/dmu/admin/modules'
+      path: '/dmu/admin/modules'
+      fullPath: '/dmu/admin/modules'
+      preLoaderRoute: typeof DmuAdminModulesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/corp/events/new': {
+      id: '/corp/events/new'
+      path: '/corp/events/new'
+      fullPath: '/corp/events/new'
+      preLoaderRoute: typeof CorpEventsNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dmu/admin/templates/': {
+      id: '/dmu/admin/templates/'
+      path: '/dmu/admin/templates'
+      fullPath: '/dmu/admin/templates/'
+      preLoaderRoute: typeof DmuAdminTemplatesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/corp/events/$eventId/': {
+      id: '/corp/events/$eventId/'
+      path: '/corp/events/$eventId'
+      fullPath: '/corp/events/$eventId/'
+      preLoaderRoute: typeof CorpEventsEventIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/corp/events/$eventId/file': {
+      id: '/corp/events/$eventId/file'
+      path: '/corp/events/$eventId/file'
+      fullPath: '/corp/events/$eventId/file'
+      preLoaderRoute: typeof CorpEventsEventIdFileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dmu/admin/templates/$name/': {
+      id: '/dmu/admin/templates/$name/'
+      path: '/dmu/admin/templates/$name'
+      fullPath: '/dmu/admin/templates/$name/'
+      preLoaderRoute: typeof DmuAdminTemplatesNameIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dmu/admin/templates/$name/new': {
+      id: '/dmu/admin/templates/$name/new'
+      path: '/dmu/admin/templates/$name/new'
+      fullPath: '/dmu/admin/templates/$name/new'
+      preLoaderRoute: typeof DmuAdminTemplatesNameNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dmu/admin/templates/$name/versions/$version': {
+      id: '/dmu/admin/templates/$name/versions/$version'
+      path: '/dmu/admin/templates/$name/versions/$version'
+      fullPath: '/dmu/admin/templates/$name/versions/$version'
+      preLoaderRoute: typeof DmuAdminTemplatesNameVersionsVersionRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -258,16 +380,23 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  IngestRoute: IngestRoute,
-  ModulesRoute: ModulesRoute,
-  ReportsReportIdRoute: ReportsReportIdRoute,
-  ReportsCorpRoute: ReportsCorpRoute,
-  ReportsNewRoute: ReportsNewRoute,
-  ReportsIndexRoute: ReportsIndexRoute,
-  TemplatesIndexRoute: TemplatesIndexRoute,
-  TemplatesNameNewRoute: TemplatesNameNewRoute,
-  TemplatesNameIndexRoute: TemplatesNameIndexRoute,
-  TemplatesNameVersionsVersionRoute: TemplatesNameVersionsVersionRoute,
+  WhoAreYouRoute: WhoAreYouRoute,
+  CorpSubmissionsRoute: CorpSubmissionsRoute,
+  DmuFieldDataRoute: DmuFieldDataRoute,
+  CorpIndexRoute: CorpIndexRoute,
+  DmuIndexRoute: DmuIndexRoute,
+  CorpEventsNewRoute: CorpEventsNewRoute,
+  DmuAdminModulesRoute: DmuAdminModulesRoute,
+  DmuReportsReportIdRoute: DmuReportsReportIdRoute,
+  DmuReportsNewRoute: DmuReportsNewRoute,
+  DmuReportsIndexRoute: DmuReportsIndexRoute,
+  CorpEventsEventIdFileRoute: CorpEventsEventIdFileRoute,
+  CorpEventsEventIdIndexRoute: CorpEventsEventIdIndexRoute,
+  DmuAdminTemplatesIndexRoute: DmuAdminTemplatesIndexRoute,
+  DmuAdminTemplatesNameNewRoute: DmuAdminTemplatesNameNewRoute,
+  DmuAdminTemplatesNameIndexRoute: DmuAdminTemplatesNameIndexRoute,
+  DmuAdminTemplatesNameVersionsVersionRoute:
+    DmuAdminTemplatesNameVersionsVersionRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

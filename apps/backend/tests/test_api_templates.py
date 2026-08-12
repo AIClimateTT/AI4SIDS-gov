@@ -38,7 +38,7 @@ def make_client() -> TestClient:
     return TestClient(app)
 
 
-def test_get_templates_returns_both_real_templates():
+def test_get_templates_returns_every_shipped_template():
     client = make_client()
 
     response = client.get("/templates")
@@ -46,7 +46,11 @@ def test_get_templates_returns_both_real_templates():
     assert response.status_code == 200
     body = response.json()
     names = {t["name"] for t in body}
-    assert names == {"minister_regional_comparison", "single_region_report"}
+    assert names == {
+        "corp_situation_report",
+        "minister_situation_report",
+        "field_data_region_review",
+    }
     assert all(t["version"] == 1 for t in body)
 
 
@@ -56,7 +60,7 @@ def test_get_templates_includes_full_template_fields():
     response = client.get("/templates")
 
     body = response.json()
-    minister = next(t for t in body if t["name"] == "minister_regional_comparison")
+    minister = next(t for t in body if t["name"] == "minister_situation_report")
     param_names = {p["name"] for p in minister["params"]}
     assert param_names == {"date_from", "date_to"}
     assert all(p["required"] for p in minister["params"])

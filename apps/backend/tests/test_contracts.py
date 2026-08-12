@@ -64,7 +64,7 @@ def test_fact_rejects_invalid_verification_literal():
 def test_fact_table_collects_facts_and_gaps():
     table = FactTable(
         request_id="req-001",
-        template="minister_regional_comparison",
+        template="minister_situation_report",
         params={"date_from": "2026-01-01", "date_to": "2026-01-31"},
         generated_at=datetime(2026, 2, 1, tzinfo=timezone.utc),
         facts=[
@@ -128,7 +128,7 @@ def test_ingest_result_reports_unmapped_values_and_dropped_pii_columns():
 def test_fact_table_template_version_defaults_to_one():
     table = FactTable(
         request_id="req-001",
-        template="minister_regional_comparison",
+        template="minister_situation_report",
         params={},
         generated_at=datetime(2026, 2, 1, tzinfo=timezone.utc),
         facts=[],
