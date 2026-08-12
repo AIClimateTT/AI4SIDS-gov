@@ -4,8 +4,8 @@ version: "3"
 vars:
   BACKEND_DIR: ./apps/backend
   FRONTEND_DIR: ./apps/frontend
-  DATABASE_URL: "postgres://dmcu:dmcu_local@localhost:5434/dmcu"
-  COMPOSE_FILE: docker-compose.local.yml
+  DATABASE_URL: "postgresql+psycopg://dmcu:dmcu_local@localhost:5434/dmcu"
+  COMPOSE_FILE: docker-compose.yml
 
 tasks:
   default:
@@ -89,11 +89,12 @@ tasks:
   db:start:
     desc: Start the PostgreSQL database
     cmds:
-      - docker compose -f {{.SERVICES_COMPOSE_FILE}} up -d postgres
+      - docker network inspect dokploy-network >/dev/null 2>&1 || docker network create dokploy-network
+      - docker compose -f {{.COMPOSE_FILE}} up -d postgres-prod
       - |
         echo "Waiting for PostgreSQL to be ready..."
         for i in $(seq 1 30); do
-          if docker compose -f {{.SERVICES_COMPOSE_FILE}} exec postgres pg_isready -U dith -d dith_local -q 2>/dev/null; then
+          if docker compose -f {{.COMPOSE_FILE}} exec postgres-prod pg_isready -U dmcu -d dmcu -q 2>/dev/null; then
             echo "PostgreSQL is ready."
             exit 0
           fi

@@ -40,6 +40,15 @@ class FakeModule:
         return []
 
 
+def test_healthcheck():
+    client = TestClient(app)
+
+    response = client.get("/healthcheck")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
 def test_list_modules_empty():
     client = TestClient(app)
 

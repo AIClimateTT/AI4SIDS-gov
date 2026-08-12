@@ -12,6 +12,11 @@ class ModuleInfo(BaseModel):
     metrics: list[MetricSpec]
 
 
+@router.get("/healthcheck")
+def healthcheck() -> dict[str, str]:
+    return {"status": "ok"}
+
+
 @router.get("/modules", response_model=list[ModuleInfo])
 def get_modules() -> list[ModuleInfo]:
     return [ModuleInfo(name=module.name, metrics=module.list_metrics()) for module in list_modules()]

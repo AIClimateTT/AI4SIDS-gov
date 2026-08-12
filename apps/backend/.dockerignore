@@ -4,3 +4,5 @@ __pycache__/
 dev.db
 tests/
 .git
+.env
+*.md

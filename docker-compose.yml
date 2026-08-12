@@ -1,0 +1,89 @@
+name: dmcu-prod
+
+services:
+  postgres-prod:
+    image: postgres:16-alpine
+    container_name: dmcu-prod-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-dmcu}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dmcu_local}
+      POSTGRES_DB: ${POSTGRES_DB:-dmcu}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  backend-prod:
+    container_name: dmcu-prod-backend
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    depends_on:
+      postgres-prod:
+        condition: service_healthy
+    expose:
+      - "8082"
+    ports:
+      - "127.0.0.1:8000:8082"
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://dmcu:dmcu_local@postgres-prod:5432/dmcu}
+      DEDUP_SALT: ${DEDUP_SALT:-dev-salt-change-in-production}
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-gpt-oss:20b}
+      OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-8192}
+      REPORT_TIMEZONE: ${REPORT_TIMEZONE:-America/Port_of_Spain}
+      SURVEY123_TRANSPORT: ${SURVEY123_TRANSPORT:-inprocess}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8082/healthcheck')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    networks:
+      - app-network
+      - dokploy-network
+
+  frontend-prod:
+    container_name: dmcu-prod-frontend
+    build:
+      context: ./apps/frontend
+      dockerfile: frontend.Dockerfile
+      args:
+        VITE_API_URL: /api
+    expose:
+      - "8081"
+    depends_on:
+      backend-prod:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+      - dokploy-network
+
+networks:
+  app-network:
+  dokploy-network:
+    external: true
+
+volumes:
+  postgres_data:
