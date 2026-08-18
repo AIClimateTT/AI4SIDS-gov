@@ -9,6 +9,7 @@ from app.modules.survey123 import models as survey123_models  # noqa: F401
 from app.core import report_models as report_models  # noqa: F401
 from app.core import template_models as template_models  # noqa: F401
 from app.modules.sitreps import models as sitreps_models  # noqa: F401
+from app.modules.whatsapp import models as whatsapp_models  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)

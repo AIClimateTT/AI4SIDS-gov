@@ -239,3 +239,78 @@ export type FileSubmissionInput = {
   incidentsFile?: File
   logsFile?: File
 }
+
+export type ProposedIncident = {
+  corporation: string | null
+  community: string | null
+  street: string | null
+  incident_type: string | null
+  incident_summary: string
+  event_date: string | null
+  injuries_count: number | null
+  deaths_count: number | null
+  source_index: number
+  source_quote: string
+}
+
+export type ProposedLog = {
+  corporation: string | null
+  category: string
+  statement: string
+  item: string | null
+  quantity: number | null
+  unit: string | null
+  status: string | null
+  source_index: number
+  source_quote: string
+}
+
+export type DraftIncident = ProposedIncident & { included: boolean }
+export type DraftLog = ProposedLog & { included: boolean }
+
+export type WhatsAppDraft = {
+  id: number
+  draft_id: number
+  filename: string
+  as_at: string
+  message_count: number
+  pii_redacted: boolean
+  incidents: DraftIncident[]
+  logs: DraftLog[]
+  created_at: string
+  updated_at: string
+}
+
+export type WhatsAppDraftSummary = {
+  id: number
+  filename: string
+  as_at: string
+  updated_at: string
+  incident_count: number
+  log_count: number
+}
+
+export type WhatsAppDraftUpdate = {
+  as_at?: string
+  incidents: DraftIncident[]
+  logs: DraftLog[]
+}
+
+export type WhatsAppExtractResult = WhatsAppDraft
+
+export type WhatsAppConfirmInput = {
+  as_at: string
+  filename: string
+  incidents: ProposedIncident[]
+  logs: ProposedLog[]
+}
+
+export type WhatsAppConfirmResult = {
+  submissions: SubmissionIngestResult[]
+}
+
+export type WhatsAppBriefingResult = {
+  id: string
+  status: string
+  markdown: string
+}

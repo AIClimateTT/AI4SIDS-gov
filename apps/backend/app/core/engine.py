@@ -157,7 +157,15 @@ def generate_report(
     request_id = str(uuid.uuid4())
     effective_requirements = resolve_effective_requirements(template, data_requirements)
     fact_table = assemble_fact_table(template, params, session, request_id, effective_requirements)
+    return narrate_fact_table(template, fact_table, llm_client, effective_requirements)
 
+
+def narrate_fact_table(
+    template: Template,
+    fact_table: FactTable,
+    llm_client: LLMClient,
+    data_requirements: list[DataRequirement] | None = None,
+) -> GeneratedReport:
     system_prompt = compose_system_prompt(template)
     user_content = _fact_table_for_llm(fact_table).model_dump_json()
     narrative = llm_client.generate(system_prompt, user_content)
@@ -172,11 +180,11 @@ def generate_report(
     markdown = render_report(template, fact_table, narrative)
 
     return GeneratedReport(
-        request_id=request_id,
+        request_id=fact_table.request_id,
         template=template.name,
         template_version=template.version,
-        params=params,
-        data_requirements=effective_requirements,
+        params=fact_table.params,
+        data_requirements=data_requirements or [],
         fact_table=fact_table,
         narrative=narrative,
         status=status,

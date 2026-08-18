@@ -6,6 +6,7 @@ import {
   LayoutDashboardIcon,
   LibraryIcon,
   BoxesIcon,
+  MessageSquareIcon,
   UploadIcon,
 } from 'lucide-react'
 
@@ -34,6 +35,7 @@ const CORP_NAV = [
 const DMU_NAV = [
   { title: 'Dashboard', to: '/dmu', icon: LayoutDashboardIcon },
   { title: 'Field data', to: '/dmu/field-data', icon: UploadIcon },
+  { title: 'WhatsApp', to: '/dmu/whatsapp', icon: MessageSquareIcon },
   { title: 'Reports', to: '/dmu/reports', icon: FileTextIcon },
   { title: 'Templates', to: '/dmu/admin/templates', icon: LibraryIcon },
   { title: 'Modules', to: '/dmu/admin/modules', icon: BoxesIcon },
