@@ -7,6 +7,7 @@ from app.api.overview import router as overview_router
 from app.api.reports import router as reports_router
 from app.api.submissions import router as submissions_router
 from app.api.templates import router as templates_router
+from app.api.whatsapp import router as whatsapp_router
 from app.core.registry import ensure_default_modules_registered
 
 CORS_ORIGINS = [
@@ -30,6 +31,7 @@ def create_app() -> FastAPI:
     app.include_router(reports_router)
     app.include_router(ingest_router)
     app.include_router(submissions_router)
+    app.include_router(whatsapp_router)
     ensure_default_modules_registered()
     return app
 
