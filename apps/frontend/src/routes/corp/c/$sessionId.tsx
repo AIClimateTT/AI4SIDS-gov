@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { CaptureRecord } from '@/components/capture/capture-record'
+import { ReviewFileSheet } from '@/components/capture/review-file-sheet'
 import { ChatThread } from '@/components/chat/chat-thread'
 import { toChatMessages } from '@/components/chat/messages'
 import {
@@ -11,8 +12,6 @@ import {
 } from '@/components/chat/use-app-chat'
 import { CorpRoleNotice } from '@/components/identity/corp-role-notice'
 import { EmptyState, LoadingBlock } from '@/components/shared'
-import { ContentCard } from '@/components/shared/content-card'
-import { SubmissionResult } from '@/components/submissions/submission-result'
 import {
   Sheet,
   SheetContent,
@@ -29,7 +28,6 @@ import {
 } from '@/lib/queries/capture'
 import { eventQueries } from '@/lib/queries/submissions'
 import type {
-  CaptureFileResult,
   CaptureSession,
   CaptureSessionUpdate,
   EventSummary,
@@ -92,8 +90,8 @@ function CaptureChatSession({
   const fileSession = useFileCaptureSession()
   const navigate = useNavigate()
   const search = Route.useSearch()
-  const [filed, setFiled] = useState<CaptureFileResult | null>(null)
   const [sheetOpen, setSheetOpen] = useState(search.open === 'record')
+  const [reviewOpen, setReviewOpen] = useState(false)
 
   // Captured once on mount, then the search param is stripped so a reload
   // never resends the opening turn (F6's handoff from the home composer).
@@ -112,9 +110,9 @@ function CaptureChatSession({
   }, [])
 
   const session = sessionQuery.data
-  const filedSession = filed?.session ?? session
-  const isFiled = filedSession?.status === 'filed'
+  const isFiled = session?.status === 'filed'
   const busy = update.isPending || fileSession.isPending
+  const eventTitle = events.find((event) => event.id === session?.event_id)?.title
 
   const connection = useMemo(
     () =>
@@ -137,14 +135,21 @@ function CaptureChatSession({
     },
     [queryClient, sessionId],
   )
+  // On success, close the review sheet and navigate to the durable filed
+  // report rather than leaving the officer on a dead disabled chat --
+  // sequence_no is backend-assigned, so it's only knowable from this
+  // response, never named before it.
   const handleFile = useCallback(() => {
     fileSession.mutate(sessionId, {
       onSuccess: (result) => {
-        setFiled(result)
-        setSheetOpen(false)
+        setReviewOpen(false)
+        void navigate({
+          to: '/corp/filings/$submissionId',
+          params: { submissionId: String(result.ingest.submission_id) },
+        })
       },
     })
-  }, [fileSession, sessionId])
+  }, [fileSession, sessionId, navigate])
   const handleSave = useCallback(
     (payload: CaptureSessionUpdate) => update.mutate({ id: sessionId, payload }),
     [update, sessionId],
@@ -167,11 +172,6 @@ function CaptureChatSession({
     <div className="-m-4 flex min-h-0 flex-1 flex-col md:-m-6 md:flex-row">
       <main className="order-2 flex min-h-0 flex-1 flex-col px-4 py-4 pb-20 md:order-1 md:px-6 md:pb-4">
         <div className="mx-auto flex w-full min-w-0 max-w-[46rem] flex-1 flex-col gap-4">
-          {filed ? (
-            <ContentCard title={`Situation Report #${filed.ingest.sequence_no} filed`}>
-              <SubmissionResult result={filed.ingest} />
-            </ContentCard>
-          ) : null}
           <ChatThread
             key={session.id}
             connection={connection}
@@ -191,7 +191,7 @@ function CaptureChatSession({
           disabled={isFiled || busy}
           pending={update.isPending}
           onSave={handleSave}
-          onReview={handleFile}
+          onReview={() => setReviewOpen(true)}
         />
       </aside>
 
@@ -217,11 +217,20 @@ function CaptureChatSession({
               disabled={isFiled || busy}
               pending={update.isPending}
               onSave={handleSave}
-              onReview={handleFile}
+              onReview={() => setReviewOpen(true)}
             />
           </div>
         </SheetContent>
       </Sheet>
+
+      <ReviewFileSheet
+        open={reviewOpen}
+        onOpenChange={setReviewOpen}
+        session={session}
+        filing={fileSession.isPending}
+        onFile={handleFile}
+        eventTitle={eventTitle}
+      />
     </div>
   )
 }
