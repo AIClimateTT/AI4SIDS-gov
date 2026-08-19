@@ -91,7 +91,11 @@ export function CapturePane({ session, disabled, pending, onSave }: CapturePaneP
     },
   })
 
+  // A chat turn must never overwrite what the officer is typing. Only adopt
+  // server values into fields the officer has not touched since the last save.
   useEffect(() => {
+    const dirty = situationForm.state.isDirty
+    if (dirty) return
     situationForm.reset({
       as_at: toDatetimeLocal(session.as_at),
       alert_level: session.alert_level,

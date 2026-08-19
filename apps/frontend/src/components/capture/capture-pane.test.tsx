@@ -60,4 +60,27 @@ describe('CapturePane add forms', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add log' }))
     expect(screen.getByText('Statement')).not.toBeNull()
   })
+
+  it('keeps in-progress typing when the session updates from a chat turn', () => {
+    const { rerender } = render(
+      <CapturePane session={session} onSave={vi.fn()} />,
+    )
+    const overview = screen.getByLabelText('Situation overview')
+    fireEvent.change(overview, { target: { value: 'Water rising on Diego Martin Main Rd' } })
+
+    // An LLM turn lands: same session id, new updated_at, model-written fields.
+    rerender(
+      <CapturePane
+        session={{
+          ...session,
+          updated_at: '2026-08-18T14:05:00',
+          present_activity: 'Heavy rainfall',
+        }}
+        onSave={vi.fn()}
+      />,
+    )
+
+    const after = screen.getByLabelText('Situation overview') as HTMLTextAreaElement
+    expect(after.value).toBe('Water rising on Diego Martin Main Rd')
+  })
 })
