@@ -88,7 +88,7 @@ class UpdateSessionRequest(BaseModel):
     situation_overview: str | None = None
     incidents: list[CaptureIncident]
     logs: list[CaptureLog]
-    manual_fields: list[str] = Field(default_factory=list)
+    manual_fields: list[str] | None = None
 
 
 class FileSessionResponse(BaseModel):
@@ -332,7 +332,11 @@ def put_session(
         ),
         incidents=request.incidents,
         logs=request.logs,
-        manual_fields=request.manual_fields,
+        manual_fields=(
+            request.manual_fields
+            if request.manual_fields is not None
+            else list(row.manual_fields or [])
+        ),
     )
     apply_working_set(row, working)
     save_session(db, row)

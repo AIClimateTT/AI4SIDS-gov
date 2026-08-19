@@ -514,3 +514,102 @@ def test_manual_edit_survives_a_model_turn_end_to_end(monkeypatch):
     reread = client.get(f"/capture/sessions/{session_id}")
     assert reread.json()["alert_level"] == "red"
     assert reread.json()["manual_fields"] == ["alert_level"]
+
+
+def test_put_omitting_manual_fields_leaves_provenance_unchanged(monkeypatch):
+    client = make_client(monkeypatch)
+    event_id = create_event(client)
+    session_id = create_capture(client, event_id)["id"]
+
+    first = client.put(
+        f"/capture/sessions/{session_id}",
+        json={
+            "alert_level": "red",
+            "incidents": [],
+            "logs": [],
+            "manual_fields": ["alert_level"],
+        },
+    )
+    assert first.status_code == 200, first.text
+    assert first.json()["manual_fields"] == ["alert_level"]
+
+    # No manual_fields key at all in this body — omission, not an empty list.
+    second = client.put(
+        f"/capture/sessions/{session_id}",
+        json={"alert_level": "red", "incidents": [], "logs": []},
+    )
+    assert second.status_code == 200, second.text
+    assert second.json()["manual_fields"] == ["alert_level"]
+
+    reread = client.get(f"/capture/sessions/{session_id}")
+    assert reread.json()["manual_fields"] == ["alert_level"]
+
+
+def test_put_explicit_empty_manual_fields_clears_provenance(monkeypatch):
+    client = make_client(monkeypatch)
+    event_id = create_event(client)
+    session_id = create_capture(client, event_id)["id"]
+
+    first = client.put(
+        f"/capture/sessions/{session_id}",
+        json={
+            "alert_level": "red",
+            "incidents": [],
+            "logs": [],
+            "manual_fields": ["alert_level"],
+        },
+    )
+    assert first.status_code == 200, first.text
+    assert first.json()["manual_fields"] == ["alert_level"]
+
+    # An explicit empty list is a deliberate clear, e.g. the officer reverted
+    # their edit — this must NOT be treated the same as omission.
+    second = client.put(
+        f"/capture/sessions/{session_id}",
+        json={"alert_level": "red", "incidents": [], "logs": [], "manual_fields": []},
+    )
+    assert second.status_code == 200, second.text
+    assert second.json()["manual_fields"] == []
+
+    reread = client.get(f"/capture/sessions/{session_id}")
+    assert reread.json()["manual_fields"] == []
+
+
+def test_omitting_manual_fields_on_put_still_protects_a_later_model_turn(monkeypatch):
+    """The scenario that matters: an officer marks a field manual, later PUTs
+    an update that doesn't mention manual_fields at all (e.g. a client that
+    only patches incidents/logs), and a subsequent model turn must still be
+    unable to clobber the officer's earlier value."""
+    client = make_client(monkeypatch, llm_responses=[EXTRACT_JSON])
+    event_id = create_event(client)
+    session_id = create_capture(client, event_id)["id"]
+
+    first = client.put(
+        f"/capture/sessions/{session_id}",
+        json={
+            "alert_level": "red",
+            "incidents": [],
+            "logs": [],
+            "manual_fields": ["alert_level"],
+        },
+    )
+    assert first.status_code == 200, first.text
+    assert first.json()["manual_fields"] == ["alert_level"]
+
+    # Second PUT omits manual_fields entirely.
+    second = client.put(
+        f"/capture/sessions/{session_id}",
+        json={"alert_level": "red", "incidents": [], "logs": []},
+    )
+    assert second.status_code == 200, second.text
+    assert second.json()["manual_fields"] == ["alert_level"]
+
+    # EXTRACT_JSON sets alert_level to "yellow" — must not win against the
+    # still-active manual pin on "alert_level".
+    turn_response = client.post(
+        f"/capture/sessions/{session_id}/turns",
+        json={"message": "5 houses flooded in Petit Valley, no injuries."},
+    )
+    assert turn_response.status_code == 200, turn_response.text
+    assert turn_response.json()["alert_level"] == "red"
+    assert turn_response.json()["manual_fields"] == ["alert_level"]
