@@ -32,6 +32,7 @@ def working_set_from_session(row: CaptureSession) -> CaptureWorkingSet:
         situation_overview=row.situation_overview,
         incidents=[CaptureIncident.model_validate(item) for item in (row.incidents or [])],
         logs=[CaptureLog.model_validate(item) for item in (row.logs or [])],
+        manual_fields=list(row.manual_fields or []),
     )
 
 
@@ -43,6 +44,7 @@ def apply_working_set(row: CaptureSession, working: CaptureWorkingSet) -> None:
     row.situation_overview = working.situation_overview
     row.incidents = [item.model_dump(mode="json") for item in working.incidents]
     row.logs = [item.model_dump(mode="json") for item in working.logs]
+    row.manual_fields = list(working.manual_fields)
 
 
 def session_messages(row: CaptureSession) -> list[CaptureMessage]:
@@ -74,6 +76,7 @@ def create_session(
         situation_overview=None,
         incidents=[],
         logs=[],
+        manual_fields=[],
         messages=[opening.model_dump(mode="json")],
         created_at=now,
         updated_at=now,

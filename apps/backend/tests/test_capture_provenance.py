@@ -1,3 +1,4 @@
+from app.modules.capture.missing import missing_fields
 from app.modules.capture.provenance import (
     SESSION_FIELDS,
     incident_path,
@@ -226,3 +227,14 @@ def test_a_dropped_row_with_no_manual_paths_is_not_restored():
     model_said = CaptureWorkingSet(alert_level="yellow", incidents=[])
     pinned = pin_manual_fields(model_said, previous)
     assert pinned.incidents == []
+
+
+def test_unset_alert_level_is_reported_missing():
+    paths = {item.path for item in missing_fields(CaptureWorkingSet())}
+    assert "alert_level" in paths
+
+
+def test_alert_level_set_by_hand_is_not_reported_missing():
+    working = CaptureWorkingSet(alert_level="none", manual_fields=["alert_level"])
+    paths = {item.path for item in missing_fields(working)}
+    assert "alert_level" not in paths

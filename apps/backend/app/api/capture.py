@@ -59,6 +59,7 @@ class CaptureSessionResponse(BaseModel):
     situation_overview: str | None
     incidents: list[CaptureIncident]
     logs: list[CaptureLog]
+    manual_fields: list[str]
     messages: list[CaptureMessageOut]
     missing: list[MissingField]
     submission_id: int | None
@@ -87,6 +88,7 @@ class UpdateSessionRequest(BaseModel):
     situation_overview: str | None = None
     incidents: list[CaptureIncident]
     logs: list[CaptureLog]
+    manual_fields: list[str] = Field(default_factory=list)
 
 
 class FileSessionResponse(BaseModel):
@@ -113,6 +115,7 @@ def _to_response(row: CaptureSession) -> CaptureSessionResponse:
         situation_overview=row.situation_overview,
         incidents=working.incidents,
         logs=working.logs,
+        manual_fields=working.manual_fields,
         messages=[
             CaptureMessageOut.model_validate(item) for item in (row.messages or [])
         ],
@@ -329,6 +332,7 @@ def put_session(
         ),
         incidents=request.incidents,
         logs=request.logs,
+        manual_fields=request.manual_fields,
     )
     apply_working_set(row, working)
     save_session(db, row)

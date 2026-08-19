@@ -3,6 +3,17 @@ from app.modules.capture.schemas import CaptureWorkingSet, MissingField
 
 def missing_fields(working: CaptureWorkingSet) -> list[MissingField]:
     missing: list[MissingField] = []
+    manual = set(working.manual_fields)
+    # "none" is both the default and a legal answer. Provenance is what tells
+    # the two apart: an officer who chose it has a manual_fields entry.
+    if working.alert_level == "none" and "alert_level" not in manual:
+        missing.append(
+            MissingField(path="alert_level", message="Current alert level for the region")
+        )
+    if working.as_at is None:
+        missing.append(
+            MissingField(path="as_at", message="Time this report is accurate as at")
+        )
     for index, incident in enumerate(working.incidents):
         prefix = f"incidents[{index}]"
         if not incident.event_date:

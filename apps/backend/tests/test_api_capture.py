@@ -457,3 +457,60 @@ def test_non_stream_turn_still_works_after_stream_endpoint(monkeypatch):
     )
     assert response.status_code == 200
     assert response.json()["incidents"][0]["community"] == "Petit Valley"
+
+
+def test_put_session_records_manual_fields(monkeypatch):
+    client = make_client(monkeypatch)
+    event_id = create_event(client)
+    session_id = create_capture(client, event_id)["id"]
+
+    response = client.put(
+        f"/capture/sessions/{session_id}",
+        json={
+            "alert_level": "red",
+            "incidents": [],
+            "logs": [],
+            "manual_fields": ["alert_level"],
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["manual_fields"] == ["alert_level"]
+
+    reread = client.get(f"/capture/sessions/{session_id}")
+    assert reread.json()["manual_fields"] == ["alert_level"]
+
+
+def test_manual_edit_survives_a_model_turn_end_to_end(monkeypatch):
+    """The whole point of this task: an officer's hand-edit, persisted through
+    the HTTP PUT, must survive a subsequent model turn that tries to
+    overwrite it, and must still be readable (with provenance) after that."""
+    client = make_client(monkeypatch, llm_responses=[EXTRACT_JSON])
+    event_id = create_event(client)
+    session_id = create_capture(client, event_id)["id"]
+
+    put_response = client.put(
+        f"/capture/sessions/{session_id}",
+        json={
+            "alert_level": "red",
+            "incidents": [],
+            "logs": [],
+            "manual_fields": ["alert_level"],
+        },
+    )
+    assert put_response.status_code == 200, put_response.text
+    assert put_response.json()["alert_level"] == "red"
+    assert put_response.json()["manual_fields"] == ["alert_level"]
+
+    # EXTRACT_JSON's capture payload sets alert_level to "yellow" — a model
+    # turn that would normally clobber the officer's manual "red" choice.
+    turn_response = client.post(
+        f"/capture/sessions/{session_id}/turns",
+        json={"message": "5 houses flooded in Petit Valley, no injuries."},
+    )
+    assert turn_response.status_code == 200, turn_response.text
+    assert turn_response.json()["alert_level"] == "red"
+    assert turn_response.json()["manual_fields"] == ["alert_level"]
+
+    reread = client.get(f"/capture/sessions/{session_id}")
+    assert reread.json()["alert_level"] == "red"
+    assert reread.json()["manual_fields"] == ["alert_level"]
