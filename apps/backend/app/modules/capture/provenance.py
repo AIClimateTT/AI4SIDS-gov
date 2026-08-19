@@ -48,20 +48,55 @@ def _pin_rows(
         pinned.append(row.model_copy(update={f: getattr(prior, f) for f in fields}))
 
     # A row the officer created or corrected must not vanish because the model
-    # forgot to echo it back.
+    # forgot to echo it back. Same field-name intersection as the pin branch
+    # above, so a manual path naming a field the row doesn't have cannot
+    # resurrect a row the model legitimately dropped.
     returned = {row.row_id for row in pinned}
     for row_id, prior in prior_by_id.items():
-        if row_id not in returned and row_paths(manual, kind, row_id):
+        if row_id not in returned and (
+            row_paths(manual, kind, row_id) & set(model.model_fields)
+        ):
             pinned.append(prior)
     return pinned
+
+
+def _live_manual_fields(
+    manual_fields: Iterable[str], previous: CaptureWorkingSet
+) -> list[str]:
+    """Drop row-scoped manual paths whose row no longer exists in `previous`.
+
+    Restoration only ever sources a value from `previous`'s own rows, so a
+    path pointing at a row `previous` does not have can protect nothing.
+    Left in the carried-forward list, such a path would sit dormant until
+    `_assign_row_ids` happened to hand its row_id to a later, unrelated row
+    (ids are recycled from the lowest free integer) — at which point the
+    stale path would silently pin that unrelated row's field forever.
+    Session-field paths (no row_id, e.g. "alert_level") are never row-scoped
+    and always carry forward.
+    """
+    incident_ids = {row.row_id for row in previous.incidents}
+    log_ids = {row.row_id for row in previous.logs}
+    live: list[str] = []
+    for path in manual_fields:
+        if path.startswith("incident:"):
+            row_id = path[len("incident:") :].split(".", 1)[0]
+            if row_id not in incident_ids:
+                continue
+        elif path.startswith("log:"):
+            row_id = path[len("log:") :].split(".", 1)[0]
+            if row_id not in log_ids:
+                continue
+        live.append(path)
+    return live
 
 
 def pin_manual_fields(
     next_working: CaptureWorkingSet, previous: CaptureWorkingSet
 ) -> CaptureWorkingSet:
     """Restore every hand-written value onto the model's fresh working set."""
-    manual = set(previous.manual_fields)
-    patch: dict = {"manual_fields": list(previous.manual_fields)}
+    live_fields = _live_manual_fields(previous.manual_fields, previous)
+    manual = set(live_fields)
+    patch: dict = {"manual_fields": live_fields}
     if not manual:
         return next_working.model_copy(update=patch)
 
