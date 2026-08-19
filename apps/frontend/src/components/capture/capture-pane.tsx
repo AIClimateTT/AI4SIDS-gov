@@ -11,8 +11,7 @@ import {
   LOG_STATUS_OPTIONS,
   formToCaptureIncident,
   formToCaptureLog,
-  nextIncidentRowId,
-  nextLogRowId,
+  nextRowId,
   toDatetimeLocal,
   toIsoDateTime,
 } from '@/lib/capture-mapping'
@@ -124,7 +123,7 @@ export function CapturePane({ session, disabled, pending, onSave }: CapturePaneP
     onSubmit: ({ value }) => {
       const next = formToCaptureIncident(
         value,
-        nextIncidentRowId(session.incidents),
+        nextRowId(session.incidents),
       )
       onSave(payloadOf(session, { incidents: [...session.incidents, next] }))
       incidentForm.reset()
@@ -143,7 +142,7 @@ export function CapturePane({ session, disabled, pending, onSave }: CapturePaneP
     },
     validators: { onSubmit: logSchema },
     onSubmit: ({ value }) => {
-      const next = formToCaptureLog(value, nextLogRowId(session.logs))
+      const next = formToCaptureLog(value, nextRowId(session.logs))
       onSave(payloadOf(session, { logs: [...session.logs, next] }))
       logForm.reset()
       setAddingLog(false)

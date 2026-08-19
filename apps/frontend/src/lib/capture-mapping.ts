@@ -58,15 +58,8 @@ export type LogFormValues = {
   status: string
 }
 
-export function nextIncidentRowId(incidents: { row_id: string }[]): string {
-  const nums = incidents
-    .map((item) => Number.parseInt(item.row_id, 10))
-    .filter((value) => Number.isFinite(value) && value > 0)
-  return String((nums.length > 0 ? Math.max(...nums) : 0) + 1)
-}
-
-export function nextLogRowId(logs: { row_id: string }[]): string {
-  const nums = logs
+export function nextRowId(rows: { row_id: string }[]): string {
+  const nums = rows
     .map((item) => Number.parseInt(item.row_id, 10))
     .filter((value) => Number.isFinite(value) && value > 0)
   return String((nums.length > 0 ? Math.max(...nums) : 0) + 1)
