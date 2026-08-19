@@ -37,6 +37,11 @@ export type CaptureRecordProps = {
   onReview: () => void
 }
 
+// A literal [] default prop allocates a brand-new array every render,
+// which defeats memoization on anything downstream that compares `events`
+// by reference. Module-scope keeps identity stable across renders.
+const EMPTY_EVENTS: EventSummary[] = []
+
 // Every edit saves immediately -- one contract, replacing the old form
 // pane's separate "Save" button for the situation header. payloadOf keeps
 // whatever the patch does not touch, so a single-field edit (e.g. alert
@@ -81,7 +86,7 @@ function withManualPaths(manual: string[], paths: string[]): string[] {
 
 export function CaptureRecord({
   session,
-  events = [],
+  events = EMPTY_EVENTS,
   disabled,
   pending,
   onSave,

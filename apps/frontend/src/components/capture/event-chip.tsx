@@ -147,7 +147,7 @@ function NewEventForm({
 }) {
   const [title, setTitle] = useState('')
   const [hazardType, setHazardType] = useState<string>(HAZARD_TYPES[0])
-  const [startedAt, setStartedAt] = useState(todayIsoDate())
+  const [startedAt, setStartedAt] = useState(() => todayIsoDate())
 
   return (
     <form
