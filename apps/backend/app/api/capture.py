@@ -39,7 +39,7 @@ router = APIRouter()
 
 class CreateSessionRequest(BaseModel):
     corporation: str
-    event_id: int
+    event_id: int | None = None
 
 
 class CaptureMessageOut(BaseModel):
@@ -51,7 +51,7 @@ class CaptureMessageOut(BaseModel):
 class CaptureSessionResponse(BaseModel):
     id: int
     corporation: str
-    event_id: int
+    event_id: int | None
     status: str
     as_at: datetime
     alert_level: str
@@ -184,12 +184,13 @@ def post_session(
     request: CreateSessionRequest, db: Session = Depends(get_session)
 ) -> CaptureSessionResponse:
     corporation = _require_corporation(request.corporation)
-    event = get_event(db, request.event_id)
-    if event is None or event.corporation != corporation:
-        raise HTTPException(
-            status_code=404,
-            detail=f"event not found for this corporation: {request.event_id}",
-        )
+    if request.event_id is not None:
+        event = get_event(db, request.event_id)
+        if event is None or event.corporation != corporation:
+            raise HTTPException(
+                status_code=404,
+                detail=f"event not found for this corporation: {request.event_id}",
+            )
     row = create_session(db, corporation=corporation, event_id=request.event_id)
     return _to_response(row)
 
@@ -197,7 +198,7 @@ def post_session(
 @router.get("/capture/sessions", response_model=list[CaptureSessionResponse])
 def get_sessions(
     corporation: str,
-    event_id: int,
+    event_id: int | None = None,
     db: Session = Depends(get_session),
 ) -> list[CaptureSessionResponse]:
     _require_corporation(corporation)
@@ -354,6 +355,14 @@ def file_session(
     row = _load_owned(db, session_id)
     _require_draft(row)
     working = working_set_from_session(row)
+    if row.event_id is None and working.incidents:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "a filing carrying incidents must be attached to an event; "
+                "attach one before filing. Situation logs may be filed without one."
+            ),
+        )
     incident_rows, log_rows = working_set_to_ingest_rows(working)
     ingest = ingest_submission(
         db,

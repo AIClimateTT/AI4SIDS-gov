@@ -55,12 +55,12 @@ def create_session(
     db: Session,
     *,
     corporation: str,
-    event_id: int,
+    event_id: int | None = None,
 ) -> CaptureSession:
     existing = [
         row
         for row in list_sessions(db, corporation=corporation, event_id=event_id)
-        if row.status == "draft"
+        if row.status == "draft" and row.event_id == event_id
     ]
     if existing:
         return existing[0]
@@ -92,16 +92,12 @@ def get_session_row(db: Session, session_id: int) -> CaptureSession | None:
 
 
 def list_sessions(
-    db: Session, *, corporation: str, event_id: int
+    db: Session, *, corporation: str, event_id: int | None = None
 ) -> list[CaptureSession]:
-    stmt = (
-        select(CaptureSession)
-        .where(
-            CaptureSession.corporation == corporation,
-            CaptureSession.event_id == event_id,
-        )
-        .order_by(CaptureSession.updated_at.desc(), CaptureSession.id.desc())
-    )
+    stmt = select(CaptureSession).where(CaptureSession.corporation == corporation)
+    if event_id is not None:
+        stmt = stmt.where(CaptureSession.event_id == event_id)
+    stmt = stmt.order_by(CaptureSession.updated_at.desc(), CaptureSession.id.desc())
     return list(db.scalars(stmt).all())
 
 

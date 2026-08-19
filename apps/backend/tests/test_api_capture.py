@@ -141,11 +141,11 @@ def create_event(client: TestClient) -> int:
     return created.json()["id"]
 
 
-def create_capture(client: TestClient, event_id: int) -> dict:
-    response = client.post(
-        "/capture/sessions",
-        json={"corporation": CORP, "event_id": event_id},
-    )
+def create_capture(client: TestClient, event_id: int | None = None) -> dict:
+    payload: dict = {"corporation": CORP}
+    if event_id is not None:
+        payload["event_id"] = event_id
+    response = client.post("/capture/sessions", json=payload)
     assert response.status_code == 201, response.text
     return response.json()
 
@@ -613,3 +613,76 @@ def test_omitting_manual_fields_on_put_still_protects_a_later_model_turn(monkeyp
     assert turn_response.status_code == 200, turn_response.text
     assert turn_response.json()["alert_level"] == "red"
     assert turn_response.json()["manual_fields"] == ["alert_level"]
+
+
+def test_session_can_start_with_no_event(monkeypatch):
+    client = make_client(monkeypatch)
+    assert create_capture(client)["event_id"] is None
+
+
+def test_sessions_list_without_event_filter(monkeypatch):
+    client = make_client(monkeypatch)
+    create_capture(client)
+    response = client.get("/capture/sessions", params={"corporation": CORP})
+    assert response.status_code == 200
+    assert len(response.json()) >= 1
+
+
+def test_filing_incidents_without_an_event_is_rejected(monkeypatch):
+    client = make_client(monkeypatch)
+    session_id = create_capture(client)["id"]
+    client.put(
+        f"/capture/sessions/{session_id}",
+        json={
+            "incidents": [{"row_id": "1", "incident_summary": "5 houses flooded"}],
+            "logs": [],
+        },
+    )
+    response = client.post(f"/capture/sessions/{session_id}/file")
+    assert response.status_code == 400
+    assert "event" in response.json()["detail"]
+
+
+def test_filing_logs_only_without_an_event_is_allowed(monkeypatch):
+    client = make_client(monkeypatch)
+    session_id = create_capture(client)["id"]
+    client.put(
+        f"/capture/sessions/{session_id}",
+        json={
+            "incidents": [],
+            "logs": [
+                {"row_id": "1", "statement": "200 sandbags in stock", "category": "resource"}
+            ],
+        },
+    )
+    assert client.post(f"/capture/sessions/{session_id}/file").status_code == 201
+
+
+def test_event_less_create_reuses_the_same_draft(monkeypatch):
+    """Design decision: a second event-less create for the same corporation
+    must hand back the SAME draft, not start a fresh conversation. This is
+    intended to stop abandoned drafts piling up during a storm; the UI offers
+    a 'resume' affordance for it. Pinned explicitly so it cannot regress."""
+    client = make_client(monkeypatch)
+    first = create_capture(client)
+    second = create_capture(client)
+    assert first["id"] == second["id"]
+
+
+def test_event_less_draft_and_event_attached_draft_do_not_collide(monkeypatch):
+    client = make_client(monkeypatch)
+    event_id = create_event(client)
+
+    event_less = create_capture(client)
+    with_event = create_capture(client, event_id)
+    assert event_less["id"] != with_event["id"]
+
+    # Creating again with no event must return the event-less draft, not the
+    # one attached to an event.
+    again_event_less = create_capture(client)
+    assert again_event_less["id"] == event_less["id"]
+
+    # Creating again with the event must return the event-attached draft, not
+    # the event-less one.
+    again_with_event = create_capture(client, event_id)
+    assert again_with_event["id"] == with_event["id"]
