@@ -167,7 +167,7 @@ def test_generate_with_metric_override_stores_effective_requirements(monkeypatch
             ],
         },
     )
-    assert create.status_code == 200, create.text
+    assert create.status_code == 202, create.text
     report_id = create.json()["id"]
 
     detail = client.get(f"/reports/{report_id}")

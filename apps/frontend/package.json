@@ -19,6 +19,8 @@
     "@base-ui/react": "^1.6.0",
     "@fontsource-variable/inter": "^5.2.8",
     "@tailwindcss/vite": "^4.1.18",
+    "@tanstack/ai": "^0.45.1",
+    "@tanstack/ai-react": "^0.19.3",
     "@tanstack/react-devtools": "latest",
     "@tanstack/react-form": "^1.33.2",
     "@tanstack/react-query": "^5.101.2",

@@ -31,7 +31,7 @@ function RootComponent() {
       <TooltipProvider>
         <SidebarProvider>
           <AppSidebar />
-          <SidebarInset>
+          <SidebarInset className="min-h-0 overflow-hidden">
             <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
               <SidebarTrigger className="-ml-1" />
               <Separator orientation="vertical" className="mr-2 h-4" />
@@ -40,7 +40,7 @@ function RootComponent() {
                   name twice. */}
               <IdentityBadge />
             </header>
-            <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
+            <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-4 md:p-6">
               <Outlet />
             </div>
           </SidebarInset>

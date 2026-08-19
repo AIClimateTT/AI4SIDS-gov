@@ -1,4 +1,4 @@
-export type ReportStatus = 'ok' | 'needs_review'
+export type ReportStatus = 'ok' | 'needs_review' | 'queued' | 'running' | 'failed'
 
 export type TemplateParamInfo = {
   name: string
@@ -123,6 +123,7 @@ export type ReportDetail = {
   markdown: string
   status: ReportStatus
   violations: CitationViolation[]
+  error?: string | null
   created_at: string
 }
 
@@ -137,6 +138,7 @@ export type GenerateReportResult = {
   id: string
   status: ReportStatus
   markdown: string
+  error?: string | null
 }
 
 export type ReportListParams = {
@@ -277,6 +279,8 @@ export type WhatsAppDraft = {
   pii_redacted: boolean
   incidents: DraftIncident[]
   logs: DraftLog[]
+  status?: string
+  error?: string | null
   created_at: string
   updated_at: string
 }
@@ -311,6 +315,81 @@ export type WhatsAppConfirmResult = {
 
 export type WhatsAppBriefingResult = {
   id: string
-  status: string
+  status: ReportStatus
   markdown: string
+  error?: string | null
+}
+
+export type CaptureIncident = {
+  row_id: string
+  community: string | null
+  street: string | null
+  incident_type: string | null
+  raw_incident_type: string | null
+  incident_summary: string | null
+  event_date: string | null
+  injuries_occurred: boolean | null
+  injuries_count: number | null
+  deaths_occurred: boolean | null
+  deaths_count: number | null
+  building_damage: string | null
+  special_needs_occupants: number | null
+  estimated_damage_cost: number | null
+  action_taken: string | null
+  relief_supplied: boolean | null
+  forwarded_to_agency: boolean | null
+  further_assessment_required: boolean | null
+  other_follow_up: boolean | null
+}
+
+export type CaptureLog = {
+  category: string
+  statement: string
+  item: string | null
+  quantity: number | null
+  unit: string | null
+  status: string | null
+}
+
+export type CaptureMessage = {
+  role: string
+  content: string
+  created_at: string
+}
+
+export type CaptureMissingField = {
+  path: string
+  message: string
+}
+
+export type CaptureSession = {
+  id: number
+  corporation: string
+  event_id: number
+  status: 'draft' | 'filed' | string
+  as_at: string
+  alert_level: string
+  present_activity: string | null
+  situation_overview: string | null
+  incidents: CaptureIncident[]
+  logs: CaptureLog[]
+  messages: CaptureMessage[]
+  missing: CaptureMissingField[]
+  submission_id: number | null
+  created_at: string
+  updated_at: string
+}
+
+export type CaptureSessionUpdate = {
+  as_at?: string
+  alert_level?: string
+  present_activity?: string | null
+  situation_overview?: string | null
+  incidents: CaptureIncident[]
+  logs: CaptureLog[]
+}
+
+export type CaptureFileResult = {
+  session: CaptureSession
+  ingest: SubmissionIngestResult
 }

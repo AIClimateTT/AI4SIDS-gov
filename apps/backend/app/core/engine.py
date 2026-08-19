@@ -153,8 +153,9 @@ def generate_report(
     session: Session,
     llm_client: LLMClient,
     data_requirements: list[DataRequirement] | None = None,
+    request_id: str | None = None,
 ) -> GeneratedReport:
-    request_id = str(uuid.uuid4())
+    request_id = request_id or str(uuid.uuid4())
     effective_requirements = resolve_effective_requirements(template, data_requirements)
     fact_table = assemble_fact_table(template, params, session, request_id, effective_requirements)
     return narrate_fact_table(template, fact_table, llm_client, effective_requirements)

@@ -14,6 +14,7 @@ import {
 import { ContentCard } from '@/components/shared/content-card'
 import { Label } from '@/components/ui/label'
 import { useAppForm } from '@/hooks/form'
+import { CORPORATION_OPTIONS } from '@/lib/corporations'
 import { formatConstant } from '@/lib/format-constant'
 import { moduleQueries } from '@/lib/queries/modules'
 import { useCreateReport } from '@/lib/queries/reports'
@@ -194,12 +195,27 @@ function AdminGeneratePage() {
                     key={param.name}
                     name={`params.${param.name}`}
                   >
-                    {(field) => (
-                      <field.TextField
-                        label={formatConstant(param.name)}
-                        required={param.required}
-                      />
-                    )}
+                    {(field) =>
+                      param.name === 'corporation' ? (
+                        <field.SelectField
+                          label={formatConstant(param.name)}
+                          required={param.required}
+                          options={CORPORATION_OPTIONS}
+                        />
+                      ) : param.name === 'date_from' ||
+                        param.name === 'date_to' ? (
+                        <field.TextField
+                          label={formatConstant(param.name)}
+                          type="date"
+                          required={param.required}
+                        />
+                      ) : (
+                        <field.TextField
+                          label={formatConstant(param.name)}
+                          required={param.required}
+                        />
+                      )
+                    }
                   </form.AppField>
                 ))}
               </div>

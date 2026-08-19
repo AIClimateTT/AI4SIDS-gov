@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 from app.core.contracts import Citation, Fact, FactTable
-from app.core.llm import FakeLLMClient, OllamaLLMClient, get_default_llm_client
+from app.core.llm import FakeLLMClient, OllamaLLMClient, get_default_llm_client, get_llm_client
 
 
 def make_fact_table() -> FactTable:
@@ -76,7 +76,7 @@ def test_get_default_llm_client_returns_ollama_by_default(monkeypatch):
         type(
             "S",
             (),
-            {"llm_provider": "ollama", "ollama_base_url": "http://localhost:11434", "ollama_model": "gemma3:4b", "ollama_num_ctx": 8192},
+            {"llm_provider": "ollama", "ollama_base_url": "http://localhost:11434", "ollama_model": "gpt-oss:20b", "ollama_chat_model": "gemma3:4b", "ollama_num_ctx": 8192},
         )(),
     )
 
@@ -91,7 +91,7 @@ def test_get_default_llm_client_returns_fake_when_provider_is_fake(monkeypatch):
         type(
             "S",
             (),
-            {"llm_provider": "fake", "ollama_base_url": "http://localhost:11434", "ollama_model": "gemma3:4b", "ollama_num_ctx": 8192},
+            {"llm_provider": "fake", "ollama_base_url": "http://localhost:11434", "ollama_model": "gemma3:4b", "ollama_chat_model": "gemma3:4b", "ollama_num_ctx": 8192},
         )(),
     )
 
@@ -115,3 +115,70 @@ def test_default_context_window_is_large_enough_for_a_real_fact_table():
     from app.config import Settings
 
     assert Settings().ollama_num_ctx >= 8192
+
+
+def _ollama_settings():
+    return type(
+        "S",
+        (),
+        {
+            "llm_provider": "ollama",
+            "ollama_base_url": "http://localhost:11434",
+            "ollama_model": "gpt-oss:20b",
+            "ollama_chat_model": "gemma3:4b",
+            "ollama_num_ctx": 8192,
+        },
+    )()
+
+
+def test_get_llm_client_batch_uses_the_report_model(monkeypatch):
+    monkeypatch.setattr("app.core.llm.settings", _ollama_settings())
+
+    client = get_llm_client("batch")
+
+    assert isinstance(client, OllamaLLMClient)
+    assert client._model == "gpt-oss:20b"
+
+
+def test_get_llm_client_chat_uses_the_chat_model(monkeypatch):
+    monkeypatch.setattr("app.core.llm.settings", _ollama_settings())
+
+    client = get_llm_client("chat")
+
+    assert isinstance(client, OllamaLLMClient)
+    assert client._model == "gemma3:4b"
+
+
+def test_fake_llm_client_generate_stream_yields_the_response_in_chunks():
+    client = FakeLLMClient(responses=['{"assistant_message": "hello"}'])
+
+    chunks = list(client.generate_stream("p", "u"))
+
+    assert "".join(chunks) == '{"assistant_message": "hello"}'
+    assert len(chunks) > 1
+
+
+def test_ollama_client_generate_stream_yields_chat_chunks():
+    mock_chat = MagicMock()
+    first = MagicMock()
+    first.content = '{"assistant'
+    second = MagicMock()
+    second.content = '_message": "hi"}'
+    mock_chat.stream.return_value = [first, second]
+
+    client = OllamaLLMClient(base_url="http://localhost:11434", model="gemma3:4b", chat=mock_chat)
+    chunks = list(client.generate_stream("system prompt", "user content"))
+
+    assert chunks == ['{"assistant', '_message": "hi"}']
+    mock_chat.stream.assert_called_once_with(
+        [("system", "system prompt"), ("human", "user content")]
+    )
+
+
+def test_get_default_llm_client_is_the_batch_client(monkeypatch):
+    monkeypatch.setattr("app.core.llm.settings", _ollama_settings())
+
+    client = get_default_llm_client()
+
+    assert isinstance(client, OllamaLLMClient)
+    assert client._model == "gpt-oss:20b"

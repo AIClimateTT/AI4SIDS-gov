@@ -6,7 +6,8 @@ def test_settings_defaults(monkeypatch):
     monkeypatch.delenv("LLM_PROVIDER", raising=False)
     monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
     monkeypatch.delenv("OLLAMA_MODEL", raising=False)
-    monkeypatch.delenv("REPORT_TIMEZONE", raising=False)
+    monkeypatch.delenv("OLLAMA_CHAT_MODEL", raising=False)
+    monkeypatch.delenv("JOB_BACKEND", raising=False)
     monkeypatch.delenv("APP_ENV", raising=False)
     monkeypatch.delenv("DEDUP_SALT", raising=False)
 
@@ -16,6 +17,8 @@ def test_settings_defaults(monkeypatch):
     assert settings.llm_provider == "ollama"
     assert settings.ollama_base_url == "http://localhost:11434"
     assert settings.ollama_model == "gemma3:4b"
+    assert settings.ollama_chat_model == "gemma3:4b"
+    assert settings.job_backend is None
     assert settings.report_timezone == "America/Port_of_Spain"
     assert settings.app_env == "development"
     assert settings.dedup_salt == "dev-salt-change-in-production"
@@ -26,6 +29,8 @@ def test_settings_env_override(monkeypatch):
     monkeypatch.setenv("LLM_PROVIDER", "fake")
     monkeypatch.setenv("OLLAMA_BASE_URL", "http://ollama-host:11434")
     monkeypatch.setenv("OLLAMA_MODEL", "gpt-oss:20b")
+    monkeypatch.setenv("OLLAMA_CHAT_MODEL", "gemma3:4b")
+    monkeypatch.setenv("JOB_BACKEND", "procrastinate")
     monkeypatch.setenv("APP_ENV", "production")
     monkeypatch.setenv("DEDUP_SALT", "prod-salt-xyz")
 
@@ -35,5 +40,7 @@ def test_settings_env_override(monkeypatch):
     assert settings.llm_provider == "fake"
     assert settings.ollama_base_url == "http://ollama-host:11434"
     assert settings.ollama_model == "gpt-oss:20b"
+    assert settings.ollama_chat_model == "gemma3:4b"
+    assert settings.job_backend == "procrastinate"
     assert settings.app_env == "production"
     assert settings.dedup_salt == "prod-salt-xyz"

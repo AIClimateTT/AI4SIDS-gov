@@ -19,3 +19,6 @@ todos.json
 *.xlsx
 # local sqlite databases
 *.db
+
+# pnpm content-addressable store
+.pnpm-store/

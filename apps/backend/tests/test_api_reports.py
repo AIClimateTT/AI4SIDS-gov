@@ -62,7 +62,7 @@ def test_post_reports_returns_id_status_markdown(monkeypatch):
         },
     )
 
-    assert response.status_code == 200, response.text
+    assert response.status_code == 202, response.text
     body = response.json()
     assert body["id"]
     assert body["status"] == "ok"
@@ -126,7 +126,7 @@ def test_post_reports_blank_optional_param_counts_the_same_as_an_omitted_one(mon
         response = client.post(
             "/reports", json={"template": "field_data_region_review", "params": params}
         )
-        assert response.status_code == 200, response.text
+        assert response.status_code == 202, response.text
         detail = client.get(f"/reports/{response.json()['id']}")
         assert detail.status_code == 200, detail.text
         return {
@@ -160,7 +160,7 @@ def test_post_reports_blank_date_param_does_not_400(monkeypatch):
         },
     )
 
-    assert response.status_code == 200, response.text
+    assert response.status_code == 202, response.text
 
 
 def test_post_reports_unknown_corporation_returns_400(monkeypatch):
@@ -237,7 +237,7 @@ def test_post_reports_still_accepts_a_placeholder_corporation_in_a_requirement(
         },
     )
 
-    assert response.status_code == 200, response.text
+    assert response.status_code == 202, response.text
 
 
 def test_get_reports_list_returns_paginated_items(monkeypatch):
@@ -262,8 +262,8 @@ def test_get_reports_list_returns_paginated_items(monkeypatch):
             },
         },
     )
-    assert first.status_code == 200, first.text
-    assert second.status_code == 200, second.text
+    assert first.status_code == 202, first.text
+    assert second.status_code == 202, second.text
 
     response = client.get("/reports", params={"page": 1, "page_size": 10})
     assert response.status_code == 200
@@ -314,3 +314,25 @@ def test_get_reports_unknown_id_returns_404(monkeypatch):
     response = client.get("/reports/does-not-exist")
 
     assert response.status_code == 404
+
+
+def test_post_reports_stays_queued_when_the_runner_does_not_execute(monkeypatch):
+    client = make_client(monkeypatch)
+    _ingest_fixture()
+    monkeypatch.setattr("app.api.reports.enqueue", lambda *args, **kwargs: None)
+
+    response = client.post(
+        "/reports",
+        json={
+            "template": "minister_situation_report",
+            "params": {"date_from": "2024-06-01", "date_to": "2024-06-30"},
+        },
+    )
+
+    assert response.status_code == 202, response.text
+    assert response.json()["status"] == "queued"
+    assert response.json()["markdown"] == ""
+
+    detail = client.get(f"/reports/{response.json()['id']}")
+    assert detail.status_code == 200
+    assert detail.json()["status"] == "queued"

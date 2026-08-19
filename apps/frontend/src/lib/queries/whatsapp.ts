@@ -132,7 +132,7 @@ export function useGenerateWhatsAppBriefing() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: reportKeys.lists() })
       void queryClient.invalidateQueries({ queryKey: overviewKeys.summary() })
-      toast.success('Briefing generated')
+      toast.success('Briefing started')
     },
     onError: (error: Error) =>
       toast.error('Failed to generate briefing', {

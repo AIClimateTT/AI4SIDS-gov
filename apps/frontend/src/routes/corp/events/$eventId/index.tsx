@@ -1,6 +1,6 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { PlusIcon } from 'lucide-react'
+import { MessageSquareIcon, PlusIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { EmptyState, LoadingBlock, PageHeader } from '@/components/shared'
@@ -100,17 +100,31 @@ function EventPageContent({ identity }: { identity: CorpIdentity }) {
             {/* sequence_no is backend-assigned; showing a number before the
                 filings list has actually loaded would name the wrong report. */}
             {submissionsQuery.isSuccess ? (
-              <Button
-                render={
-                  <Link
-                    to="/corp/events/$eventId/file"
-                    params={{ eventId }}
-                  />
-                }
-              >
-                <PlusIcon />
-                File report #{nextSequence}
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  render={
+                    <Link
+                      to="/corp/events/$eventId/file"
+                      params={{ eventId }}
+                    />
+                  }
+                >
+                  <PlusIcon />
+                  File CSV #{nextSequence}
+                </Button>
+                <Button
+                  render={
+                    <Link
+                      to="/corp/events/$eventId/chat"
+                      params={{ eventId }}
+                    />
+                  }
+                >
+                  <MessageSquareIcon />
+                  File by conversation
+                </Button>
+              </>
             ) : null}
           </div>
         }
@@ -153,14 +167,25 @@ function EventPageContent({ identity }: { identity: CorpIdentity }) {
             title="No filings yet"
             description="File the first situation report for this event."
             action={
-              <Button
-                render={
-                  <Link to="/corp/events/$eventId/file" params={{ eventId }} />
-                }
-              >
-                <PlusIcon />
-                File report #1
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  render={
+                    <Link to="/corp/events/$eventId/file" params={{ eventId }} />
+                  }
+                >
+                  <PlusIcon />
+                  File CSV #1
+                </Button>
+                <Button
+                  render={
+                    <Link to="/corp/events/$eventId/chat" params={{ eventId }} />
+                  }
+                >
+                  <MessageSquareIcon />
+                  File by conversation
+                </Button>
+              </div>
             }
           />
         ) : null}

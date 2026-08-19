@@ -28,10 +28,12 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     environment:
+      # Default bind is 127.0.0.1, which other containers cannot reach.
+      OLLAMA_HOST: 0.0.0.0:11434
       OLLAMA_KEEP_ALIVE: "-1"
     expose:
       - "11434"
-    # Serve first, then pull gpt-oss:20b (no-op if already cached).
+    # Serve first, then pull models (no-op if already cached).
     # First pull is large; later restarts only check the local blob.
     entrypoint: ["/bin/sh", "-c"]
     command:
@@ -40,6 +42,7 @@ services:
         pid=$$!
         until ollama list >/dev/null 2>&1; do sleep 1; done
         ollama pull gpt-oss:20b
+        ollama pull gemma3:4b
         wait $$pid
     healthcheck:
       test: ["CMD", "ollama", "list"]
@@ -60,7 +63,7 @@ services:
       postgres-prod:
         condition: service_healthy
       ollama-prod:
-        condition: service_started
+        condition: service_healthy
     expose:
       - "8082"
     ports:
@@ -72,7 +75,9 @@ services:
       LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama-prod:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-gpt-oss:20b}
+      OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-gemma3:4b}
       OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-8192}
+      JOB_BACKEND: ${JOB_BACKEND:-procrastinate}
       REPORT_TIMEZONE: ${REPORT_TIMEZONE:-America/Port_of_Spain}
       SURVEY123_TRANSPORT: ${SURVEY123_TRANSPORT:-inprocess}
     extra_hosts:
@@ -93,6 +98,35 @@ services:
     networks:
       - app-network
       - dokploy-network
+
+  worker-prod:
+    container_name: dmcu-prod-worker
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    command: ["worker"]
+    depends_on:
+      postgres-prod:
+        condition: service_healthy
+      backend-prod:
+        condition: service_healthy
+      ollama-prod:
+        condition: service_healthy
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://dmcu:dmcu_local@postgres-prod:5432/dmcu}
+      DEDUP_SALT: ${DEDUP_SALT:-dev-salt-change-in-production}
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama-prod:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-gpt-oss:20b}
+      OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-gemma3:4b}
+      OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-8192}
+      JOB_BACKEND: ${JOB_BACKEND:-procrastinate}
+      REPORT_TIMEZONE: ${REPORT_TIMEZONE:-America/Port_of_Spain}
+      SURVEY123_TRANSPORT: ${SURVEY123_TRANSPORT:-inprocess}
+    restart: unless-stopped
+    networks:
+      - app-network
 
   frontend-prod:
     container_name: dmcu-prod-frontend

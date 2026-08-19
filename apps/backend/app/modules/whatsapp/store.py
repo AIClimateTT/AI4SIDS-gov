@@ -25,6 +25,9 @@ def create_draft(
     pii_redacted: bool,
     incidents: list[DraftIncident],
     logs: list[DraftLog],
+    status: str = "ready",
+    source_text: str | None = None,
+    error: str | None = None,
 ) -> WhatsAppDraft:
     now = _now()
     draft = WhatsAppDraft(
@@ -36,6 +39,9 @@ def create_draft(
             row.model_dump() for row in redact_draft_incidents(incidents)
         ],
         logs=[row.model_dump() for row in redact_draft_logs(logs)],
+        status=status,
+        error=error,
+        source_text=source_text,
         created_at=now,
         updated_at=now,
     )
@@ -86,3 +92,61 @@ def draft_incidents(draft: WhatsAppDraft) -> list[DraftIncident]:
 
 def draft_logs(draft: WhatsAppDraft) -> list[DraftLog]:
     return [DraftLog.model_validate(row) for row in draft.logs]
+
+
+def mark_draft_running(draft: WhatsAppDraft, session: Session) -> WhatsAppDraft:
+    draft.status = "running"
+    draft.error = None
+    draft.updated_at = _now()
+    session.commit()
+    session.refresh(draft)
+    return draft
+
+
+def mark_draft_failed(draft: WhatsAppDraft, session: Session, error: str) -> WhatsAppDraft:
+    draft.status = "failed"
+    draft.error = error[:2000]
+    draft.updated_at = _now()
+    session.commit()
+    session.refresh(draft)
+    return draft
+
+
+def mark_draft_ready(
+    draft: WhatsAppDraft,
+    session: Session,
+    *,
+    incidents: list[DraftIncident],
+    logs: list[DraftLog],
+) -> WhatsAppDraft:
+    return update_draft_status(
+        session,
+        draft,
+        status="ready",
+        incidents=incidents,
+        logs=logs,
+        error=None,
+    )
+
+
+def update_draft_status(
+    session: Session,
+    draft: WhatsAppDraft,
+    *,
+    status: str,
+    incidents: list[DraftIncident] | None = None,
+    logs: list[DraftLog] | None = None,
+    error: str | None = None,
+) -> WhatsAppDraft:
+    draft.status = status
+    draft.error = error
+    if incidents is not None:
+        draft.incidents = [
+            row.model_dump() for row in redact_draft_incidents(incidents)
+        ]
+    if logs is not None:
+        draft.logs = [row.model_dump() for row in redact_draft_logs(logs)]
+    draft.updated_at = _now()
+    session.commit()
+    session.refresh(draft)
+    return draft

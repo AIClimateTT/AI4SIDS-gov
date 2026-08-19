@@ -60,6 +60,8 @@ def test_every_table_exists_after_upgrade_head(tmp_path):
         "submissions",
         "sitrep_incidents",
         "situation_logs",
+        "whatsapp_drafts",
+        "capture_sessions",
     } <= names
 
 
@@ -79,6 +81,13 @@ def test_the_backfilled_columns_keep_their_shape(tmp_path):
         assert column in reports, f"{column} missing from reports"
         assert reports[column][3] == 1, f"{column} should be NOT NULL"
         assert reports[column][4] is None, f"{column} should have no server default"
+
+    assert "error" in reports
+    assert reports["error"][3] == 0
+
+    drafts = {r[1]: r for r in conn.execute("PRAGMA table_info(whatsapp_drafts)")}
+    assert "status" in drafts
+    assert "source_text" in drafts
 
 
 def test_downgrade_base_succeeds_from_head(tmp_path):
