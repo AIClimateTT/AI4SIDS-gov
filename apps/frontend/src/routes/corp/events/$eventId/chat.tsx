@@ -2,7 +2,7 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { CapturePane } from '@/components/capture/capture-pane'
+import { CaptureRecord } from '@/components/capture/capture-record'
 import { ChatThread } from '@/components/chat/chat-thread'
 import { toChatMessages } from '@/components/chat/messages'
 import {
@@ -26,7 +26,7 @@ import {
 } from '@/lib/queries/capture'
 import { eventQueries } from '@/lib/queries/submissions'
 import { isReportJobPending, reportQueries, useCreateReport } from '@/lib/queries/reports'
-import type { CaptureFileResult, CaptureSession } from '@/types/dmcu'
+import type { CaptureFileResult, CaptureSession, EventSummary } from '@/types/dmcu'
 
 type CorpIdentity = Extract<Identity, { role: 'corp' }>
 
@@ -103,6 +103,7 @@ function CaptureChatWorkspace({ identity }: { identity: CorpIdentity }) {
       dateFrom={event?.started_at?.slice(0, 10)}
       corporation={identity.corporation}
       sessionId={sessionId}
+      events={eventsQuery.data ?? []}
     />
   )
 }
@@ -113,12 +114,14 @@ function CaptureChatSession({
   dateFrom,
   corporation,
   sessionId,
+  events,
 }: {
   eventId: string
   eventTitle?: string
   dateFrom?: string
   corporation: string
   sessionId: number
+  events: EventSummary[]
 }) {
   const sessionQuery = useQuery(captureQueries.detail(sessionId))
   const queryClient = useQueryClient()
@@ -157,6 +160,11 @@ function CaptureChatSession({
     },
     [queryClient, sessionId],
   )
+  const handleFile = useCallback(() => {
+    fileSession.mutate(sessionId, {
+      onSuccess: (result) => setFiled(result),
+    })
+  }, [fileSession, sessionId])
 
   if (sessionQuery.isError) {
     return (
@@ -188,15 +196,7 @@ function CaptureChatSession({
                 Back to event
               </Button>
               {!isFiled ? (
-                <Button
-                  size="sm"
-                  disabled={busy}
-                  onClick={() => {
-                    fileSession.mutate(session.id, {
-                      onSuccess: (result) => setFiled(result),
-                    })
-                  }}
-                >
+                <Button size="sm" disabled={busy} onClick={handleFile}>
                   File this report
                 </Button>
               ) : (
@@ -260,11 +260,13 @@ function CaptureChatSession({
             </ContentCard>
           ) : null}
 
-          <CapturePane
+          <CaptureRecord
             session={session}
+            events={events}
             disabled={isFiled || busy}
             pending={update.isPending}
             onSave={(payload) => update.mutate({ id: session.id, payload })}
+            onReview={handleFile}
           />
         </div>
       </div>
