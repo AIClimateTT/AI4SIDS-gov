@@ -77,6 +77,7 @@ class CaptureWorkingSet(BaseModel):
     situation_overview: str | None = None
     incidents: list[CaptureIncident] = Field(default_factory=list)
     logs: list[CaptureLog] = Field(default_factory=list)
+    manual_fields: list[str] = Field(default_factory=list)
 
     @field_validator("alert_level", mode="before")
     @classmethod

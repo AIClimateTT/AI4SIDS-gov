@@ -70,4 +70,6 @@ RULES:
 - Preserve row_id on existing incidents AND logs. Assign a new integer row_id as a string for new rows.
 - Do not copy phone numbers or personal names.
 - A filing with zero incidents and zero logs is valid ("nothing to report").
+- Field paths listed under "manual" were typed by the officer. Treat them as
+  settled: you may refer to them, never restate them with a different value.
 """

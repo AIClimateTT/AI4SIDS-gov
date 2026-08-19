@@ -14,6 +14,7 @@ from app.modules.capture.numbers import (
     strip_invented_numbers,
 )
 from app.modules.capture.prompt import SYSTEM_PROMPT
+from app.modules.capture.provenance import pin_manual_fields
 from app.modules.capture.schemas import (
     CaptureIncident,
     CaptureLog,
@@ -178,6 +179,7 @@ def _prompt_payload(
     payload = {
         "capture": working.model_dump(mode="json"),
         "missing": [item.model_dump() for item in gaps],
+        "manual": list(working.manual_fields),
         "messages": [
             {"role": msg.role, "content": msg.content} for msg in history[-12:]
         ],
@@ -211,7 +213,7 @@ def _finish_turn(
         working.model_dump(mode="json")
     )
     parsed = strip_invented_numbers(parsed, allowed)
-    next_working = coerce_working_set(parsed, working)
+    next_working = pin_manual_fields(coerce_working_set(parsed, working), working)
     assistant_text = parsed.get("assistant_message")
     if not isinstance(assistant_text, str) or not assistant_text.strip():
         assistant_text = _FALLBACK_ASSISTANT
