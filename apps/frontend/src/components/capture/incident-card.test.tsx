@@ -31,6 +31,17 @@ const incident = {
   other_follow_up: null,
 } satisfies CaptureIncident
 
+// Everything optional is null, including incident_type — the exact shape
+// an officer sees when they tap the "Incident type" missing-field chip.
+const bareIncident = {
+  ...incident,
+  community: null,
+  street: null,
+  incident_type: null,
+  incident_summary: 'Unassessed report',
+  event_date: null,
+} satisfies CaptureIncident
+
 describe('IncidentCard', () => {
   it('reads as prose until it is opened', () => {
     render(
@@ -145,6 +156,51 @@ describe('IncidentCard', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: 'Remove' }))
     expect(onRemove).toHaveBeenCalled()
+  })
+
+  it('does not call onEdit when a null-type incident is opened and saved with no edits', async () => {
+    // Regression: seeding the type select with 'other' (a real category)
+    // instead of '' (no-selection) made an untouched null field look
+    // edited on save, permanently pinning 'other' as a manual value.
+    const onEdit = vi.fn()
+    render(
+      <IncidentCard incident={bareIncident} missing={[]} onEdit={onEdit} onRemove={vi.fn()} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /edit/i }))
+    fireEvent.click(screen.getByRole('button', { name: /save/i }))
+
+    await waitFor(() => expect(screen.queryByRole('button', { name: /cancel/i })).toBeNull())
+    expect(onEdit).not.toHaveBeenCalled()
+  })
+
+  it('does not call onEdit when a field is typed into and cleared back to empty', async () => {
+    const onEdit = vi.fn()
+    render(
+      <IncidentCard incident={bareIncident} missing={[]} onEdit={onEdit} onRemove={vi.fn()} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /edit/i }))
+    const community = screen.getByLabelText('Community')
+    fireEvent.change(community, { target: { value: 'x' } })
+    fireEvent.change(community, { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: /save/i }))
+
+    await waitFor(() => expect(screen.queryByRole('button', { name: /cancel/i })).toBeNull())
+    expect(onEdit).not.toHaveBeenCalled()
+  })
+
+  it('leaves incident_type untouched when an unrelated field is the only edit', async () => {
+    const onEdit = vi.fn()
+    render(
+      <IncidentCard incident={incident} missing={[]} onEdit={onEdit} onRemove={vi.fn()} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /edit/i }))
+    fireEvent.change(screen.getByLabelText('Deaths count'), { target: { value: '2' } })
+    fireEvent.click(screen.getByRole('button', { name: /save/i }))
+
+    await waitFor(() => expect(onEdit).toHaveBeenCalled())
+    const [next, paths] = onEdit.mock.calls[0] as [CaptureIncident, string[]]
+    expect(paths).toStrictEqual(['incident:1.deaths_count'])
+    expect(next.incident_type).toBe('flooding')
   })
 
   it('hides Edit and Remove controls when disabled', () => {

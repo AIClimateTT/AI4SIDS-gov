@@ -185,7 +185,11 @@ function IncidentEditForm({
     defaultValues: {
       community: incident.community ?? '',
       street: incident.street ?? '',
-      incident_type: incident.incident_type ?? 'other',
+      // '' (not 'other') is the seed for "no type yet": 'other' is a real
+      // category distinct from unknown, so seeding with it would make an
+      // untouched null field diff against itself on save (null -> 'other'),
+      // permanently pinning a value the officer never chose.
+      incident_type: incident.incident_type ?? '',
       incident_summary: incident.incident_summary ?? '',
       event_date: incident.event_date ?? '',
       injuries_count: incident.injuries_count != null ? String(incident.injuries_count) : '',
