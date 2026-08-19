@@ -51,29 +51,12 @@ describe('IncidentCard', () => {
     expect(screen.queryByLabelText('Community')).toBeNull()
   })
 
-  it('reports only the changed field as a manual path', async () => {
-    const onEdit = vi.fn()
-    render(
-      <IncidentCard incident={incident} missing={[]} onEdit={onEdit} onRemove={vi.fn()} />,
-    )
-    fireEvent.click(screen.getByRole('button', { name: /edit/i }))
-    fireEvent.change(screen.getByLabelText('Injuries count'), {
-      target: { value: '4' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: /save/i }))
-
-    await waitFor(() =>
-      expect(onEdit).toHaveBeenCalledWith(
-        expect.objectContaining({ injuries_count: 4 }),
-        ['incident:1.injuries_count'],
-      ),
-    )
-  })
-
-  it('reports exactly one path when exactly one field is edited', async () => {
-    // This is the property the manual-field provenance mechanism depends
-    // on: a field the officer opened and left alone must not be reported
-    // as changed, and a field they never opened must not appear either.
+  it('reports the derived injuries_occurred flag alongside injuries_count when it changes', async () => {
+    // injuries_occurred is not a field the officer types into directly --
+    // applyIncidentForm derives it from injuries_count. When that derived
+    // value actually changes it must be reported too, or a hand-edited
+    // count (pinned) can end up contradicting an unpinned, model-owned
+    // "occurred" flag on a later chat turn.
     const onEdit = vi.fn()
     render(
       <IncidentCard incident={incident} missing={[]} onEdit={onEdit} onRemove={vi.fn()} />,
@@ -85,9 +68,84 @@ describe('IncidentCard', () => {
     fireEvent.click(screen.getByRole('button', { name: /save/i }))
 
     await waitFor(() => expect(onEdit).toHaveBeenCalled())
+    const [next, paths] = onEdit.mock.calls[0] as [CaptureIncident, string[]]
+    expect(next.injuries_count).toBe(4)
+    expect(next.injuries_occurred).toBe(true)
+    expect(paths).toEqual(
+      expect.arrayContaining(['incident:1.injuries_count', 'incident:1.injuries_occurred']),
+    )
+    expect(paths.length).toBe(2)
+  })
+
+  it('reports the derived deaths_occurred flag alongside deaths_count when it changes', async () => {
+    const onEdit = vi.fn()
+    render(
+      <IncidentCard incident={incident} missing={[]} onEdit={onEdit} onRemove={vi.fn()} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /edit/i }))
+    fireEvent.change(screen.getByLabelText('Deaths count'), {
+      target: { value: '1' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /save/i }))
+
+    await waitFor(() => expect(onEdit).toHaveBeenCalled())
+    const [next, paths] = onEdit.mock.calls[0] as [CaptureIncident, string[]]
+    expect(next.deaths_count).toBe(1)
+    expect(next.deaths_occurred).toBe(true)
+    expect(paths).toEqual(
+      expect.arrayContaining(['incident:1.deaths_count', 'incident:1.deaths_occurred']),
+    )
+    expect(paths.length).toBe(2)
+  })
+
+  it('clearing a previously-set injuries_count back to empty reports both fields, with the flag as null not false', async () => {
+    // null is "unknown"; false is "known: none occurred". Clearing the
+    // count back to unknown must not assert the stronger claim that no
+    // injuries occurred.
+    const injuredIncident = {
+      ...incident,
+      injuries_count: 4,
+      injuries_occurred: true,
+    } satisfies CaptureIncident
+    const onEdit = vi.fn()
+    render(
+      <IncidentCard incident={injuredIncident} missing={[]} onEdit={onEdit} onRemove={vi.fn()} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /edit/i }))
+    fireEvent.change(screen.getByLabelText('Injuries count'), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: /save/i }))
+
+    await waitFor(() => expect(onEdit).toHaveBeenCalled())
+    const [next, paths] = onEdit.mock.calls[0] as [CaptureIncident, string[]]
+    expect(next.injuries_count).toBeNull()
+    expect(next.injuries_occurred).toBeNull()
+    expect(paths).toEqual(
+      expect.arrayContaining(['incident:1.injuries_count', 'incident:1.injuries_occurred']),
+    )
+    expect(paths.length).toBe(2)
+  })
+
+  it('reports exactly one path when exactly one field (with no derived counterpart) is edited', async () => {
+    // This is the property the manual-field provenance mechanism depends
+    // on: a field the officer opened and left alone must not be reported
+    // as changed, and a field they never opened must not appear either.
+    // Community has no derived counterpart, so it is a clean demonstration
+    // of "edit one field, get exactly one path" (unlike injuries/deaths
+    // count, which legitimately produce two).
+    const onEdit = vi.fn()
+    render(
+      <IncidentCard incident={incident} missing={[]} onEdit={onEdit} onRemove={vi.fn()} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /edit/i }))
+    fireEvent.change(screen.getByLabelText('Community'), {
+      target: { value: 'Diego Martin' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /save/i }))
+
+    await waitFor(() => expect(onEdit).toHaveBeenCalled())
     const [, paths] = onEdit.mock.calls[0] as [CaptureIncident, string[]]
     expect(paths.length).toBe(1)
-    expect(paths[0]).toBe('incident:1.injuries_count')
+    expect(paths[0]).toBe('incident:1.community')
   })
 
   it('offers each missing detail as a control that opens the card', () => {
@@ -189,17 +247,21 @@ describe('IncidentCard', () => {
   })
 
   it('leaves incident_type untouched when an unrelated field is the only edit', async () => {
+    // Street has no derived counterpart (unlike deaths_count, which
+    // legitimately produces a second path via deaths_occurred -- see the
+    // dedicated derived-flag tests above), so it cleanly demonstrates that
+    // editing one field doesn't disturb incident_type.
     const onEdit = vi.fn()
     render(
       <IncidentCard incident={incident} missing={[]} onEdit={onEdit} onRemove={vi.fn()} />,
     )
     fireEvent.click(screen.getByRole('button', { name: /edit/i }))
-    fireEvent.change(screen.getByLabelText('Deaths count'), { target: { value: '2' } })
+    fireEvent.change(screen.getByLabelText('Street'), { target: { value: 'Main Road' } })
     fireEvent.click(screen.getByRole('button', { name: /save/i }))
 
     await waitFor(() => expect(onEdit).toHaveBeenCalled())
     const [next, paths] = onEdit.mock.calls[0] as [CaptureIncident, string[]]
-    expect(paths).toStrictEqual(['incident:1.deaths_count'])
+    expect(paths).toStrictEqual(['incident:1.street'])
     expect(next.incident_type).toBe('flooding')
   })
 

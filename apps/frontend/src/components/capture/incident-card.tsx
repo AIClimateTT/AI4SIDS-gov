@@ -32,19 +32,6 @@ const incidentSchema = z.object({
 
 type IncidentFormValues = z.infer<typeof incidentSchema>
 
-// The form only ever edits these seven fields. injuries_occurred /
-// deaths_occurred are derived from the counts, not something the officer
-// typed into a field of their own, so they never get their own manual path.
-const INCIDENT_FORM_FIELDS = [
-  'community',
-  'street',
-  'incident_type',
-  'incident_summary',
-  'event_date',
-  'injuries_count',
-  'deaths_count',
-] as const satisfies readonly (keyof CaptureIncident)[]
-
 // A missing-field path is array-indexed (e.g. `incidents[0].event_date`),
 // not row-id keyed, so we only ever want the trailing field name. The one
 // exception is `casualties`, a synthetic path with no matching model
@@ -78,10 +65,20 @@ function applyIncidentForm(
   }
 }
 
+// Diffs every field on the incident, not just the ones the form exposes as
+// inputs, so a manual path is reported for anything applyIncidentForm
+// actually changes -- including derived fields like injuries_occurred that
+// the officer never types into directly but that change as a side effect
+// of injuries_count. This makes the coverage structural: applyIncidentForm
+// builds `next` by spreading `...incident` and overwriting only the fields
+// it computes, so every field NOT among those writes is byte-for-byte
+// identical to `original` and can never appear here. A field added to
+// applyIncidentForm's output is covered automatically, with no separate
+// list of "diffable fields" to keep in sync.
 function diffIncidentPaths(original: CaptureIncident, next: CaptureIncident): string[] {
-  return INCIDENT_FORM_FIELDS.filter((field) => original[field] !== next[field]).map(
-    (field) => incidentPath(original.row_id, field),
-  )
+  return (Object.keys(original) as (keyof CaptureIncident)[])
+    .filter((field) => field !== 'row_id' && original[field] !== next[field])
+    .map((field) => incidentPath(original.row_id, field))
 }
 
 export function IncidentCard({
