@@ -18,6 +18,8 @@ import type { SubmissionIngestResult } from '@/types/dmcu'
 
 type CorpIdentity = Extract<Identity, { role: 'corp' }>
 
+type ImportSearch = { event_id?: number }
+
 // Mirrors the backend's ALERT_LEVELS tuple in app/modules/sitreps/models.py.
 const ALERT_LEVELS = [
   'green',
@@ -48,11 +50,17 @@ function nowDatetimeLocal(): string {
   )}:${pad(now.getMinutes())}`
 }
 
-export const Route = createFileRoute('/corp/events/$eventId/file')({
-  component: FileSubmissionPage,
+export const Route = createFileRoute('/corp/import')({
+  validateSearch: (search: Record<string, unknown>): ImportSearch => {
+    const raw = search.event_id
+    const value =
+      typeof raw === 'string' ? Number(raw) : typeof raw === 'number' ? raw : NaN
+    return Number.isInteger(value) && value > 0 ? { event_id: value } : {}
+  },
+  component: ImportPage,
 })
 
-function FileSubmissionPage() {
+function ImportPage() {
   const { identity } = useIdentity()
 
   if (identity?.role !== 'corp') {
@@ -61,17 +69,21 @@ function FileSubmissionPage() {
     )
   }
 
-  return <FileSubmissionForm identity={identity} />
+  return <ImportForm identity={identity} />
 }
 
-function FileSubmissionForm({ identity }: { identity: CorpIdentity }) {
-  const { eventId } = Route.useParams()
-  const eventIdNum = Number(eventId)
+function ImportForm({ identity }: { identity: CorpIdentity }) {
+  const { event_id: eventId } = Route.useSearch()
+  const hasEvent = eventId !== undefined
   const [result, setResult] = useState<SubmissionIngestResult | null>(null)
 
-  const submissionsQuery = useQuery(
-    submissionQueries.list({ event_id: eventIdNum }),
-  )
+  // Carrying forward a previous filing's header only makes sense scoped to
+  // one event -- an event-less import (logs only, per the backend) always
+  // starts blank.
+  const submissionsQuery = useQuery({
+    ...submissionQueries.list({ event_id: eventId ?? -1 }),
+    enabled: hasEvent,
+  })
   const latestId = submissionsQuery.data?.[0]?.id
   const hasLatest = latestId !== undefined
   const latestDetailQuery = useQuery(submissionQueries.detail(latestId ?? 0))
@@ -101,7 +113,7 @@ function FileSubmissionForm({ identity }: { identity: CorpIdentity }) {
       const submitted = await fileSubmission.mutateAsync({
         corporation: identity.corporation,
         as_at: value.as_at,
-        event_id: eventIdNum,
+        event_id: eventId,
         alert_level: value.alert_level,
         present_activity: value.present_activity || undefined,
         situation_overview: value.situation_overview || undefined,
@@ -130,16 +142,7 @@ function FileSubmissionForm({ identity }: { identity: CorpIdentity }) {
         <PageHeader
           title={`Situation Report #${result.sequence_no} filed`}
           description="Here is exactly what landed and what was rejected."
-          actions={
-            <Button
-              variant="outline"
-              render={
-                <Link to="/corp/events/$eventId" params={{ eventId }} />
-              }
-            >
-              Back to event
-            </Button>
-          }
+          actions={<BackButton eventId={eventId} />}
         />
         <ContentCard title="Filing result">
           <SubmissionResult result={result} />
@@ -151,17 +154,20 @@ function FileSubmissionForm({ identity }: { identity: CorpIdentity }) {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="File a situation report"
+        title="Upload a CSV filing"
         description="Fill in what changed since the last filing."
         actions={
-          <Button
-            variant="outline"
-            render={<Link to="/corp/events/$eventId" params={{ eventId }} />}
-          >
-            Back to event
-          </Button>
+          <BackButton eventId={eventId} />
         }
       />
+
+      {!hasEvent ? (
+        <p className="text-sm text-muted-foreground">
+          No event attached — this filing will only accept situation logs.
+          Incidents need an event, and attaching one here isn't supported
+          yet; start a conversation instead if you need to declare one.
+        </p>
+      ) : null}
 
       {awaitingPrefill ? (
         <p className="text-sm text-muted-foreground">
@@ -261,5 +267,23 @@ function FileSubmissionForm({ identity }: { identity: CorpIdentity }) {
         </form.AppForm>
       </form>
     </div>
+  )
+}
+
+function BackButton({ eventId }: { eventId?: number }) {
+  if (eventId !== undefined) {
+    return (
+      <Button
+        variant="outline"
+        render={<Link to="/corp/events/$eventId" params={{ eventId: String(eventId) }} />}
+      >
+        Back to event
+      </Button>
+    )
+  }
+  return (
+    <Button variant="outline" render={<Link to="/corp" />}>
+      Back home
+    </Button>
   )
 }

@@ -1,4 +1,4 @@
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { MessageSquareIcon, PlusIcon } from 'lucide-react'
 
@@ -9,6 +9,7 @@ import { CorpRoleNotice } from '@/components/identity/corp-role-notice'
 import { useIdentity } from '@/hooks/use-identity'
 import type { Identity } from '@/lib/identity'
 import { formatConstant } from '@/lib/format-constant'
+import { useCreateCaptureSession } from '@/lib/queries/capture'
 import { eventQueries, submissionQueries } from '@/lib/queries/submissions'
 import type { SubmissionSummary } from '@/types/dmcu'
 
@@ -104,26 +105,16 @@ function EventPageContent({ identity }: { identity: CorpIdentity }) {
                 <Button
                   variant="outline"
                   render={
-                    <Link
-                      to="/corp/events/$eventId/file"
-                      params={{ eventId }}
-                    />
+                    <Link to="/corp/import" search={{ event_id: eventIdNum }} />
                   }
                 >
                   <PlusIcon />
                   File CSV #{nextSequence}
                 </Button>
-                <Button
-                  render={
-                    <Link
-                      to="/corp/events/$eventId/chat"
-                      params={{ eventId }}
-                    />
-                  }
-                >
-                  <MessageSquareIcon />
-                  File by conversation
-                </Button>
+                <StartConversationButton
+                  corporation={identity.corporation}
+                  eventId={eventIdNum}
+                />
               </>
             ) : null}
           </div>
@@ -170,21 +161,15 @@ function EventPageContent({ identity }: { identity: CorpIdentity }) {
               <div className="flex flex-wrap gap-2">
                 <Button
                   variant="outline"
-                  render={
-                    <Link to="/corp/events/$eventId/file" params={{ eventId }} />
-                  }
+                  render={<Link to="/corp/import" search={{ event_id: eventIdNum }} />}
                 >
                   <PlusIcon />
                   File CSV #1
                 </Button>
-                <Button
-                  render={
-                    <Link to="/corp/events/$eventId/chat" params={{ eventId }} />
-                  }
-                >
-                  <MessageSquareIcon />
-                  File by conversation
-                </Button>
+                <StartConversationButton
+                  corporation={identity.corporation}
+                  eventId={eventIdNum}
+                />
               </div>
             }
           />
@@ -199,6 +184,41 @@ function EventPageContent({ identity }: { identity: CorpIdentity }) {
         ) : null}
       </div>
     </div>
+  )
+}
+
+// Starts (or resumes -- the backend reuses an existing draft for this
+// corporation/event pair) a capture session scoped to this event, then
+// hands off straight to the conversation workspace.
+function StartConversationButton({
+  corporation,
+  eventId,
+}: {
+  corporation: string
+  eventId: number
+}) {
+  const createSession = useCreateCaptureSession()
+  const navigate = useNavigate()
+
+  return (
+    <Button
+      disabled={createSession.isPending}
+      onClick={() =>
+        createSession.mutate(
+          { corporation, eventId },
+          {
+            onSuccess: (session) =>
+              void navigate({
+                to: '/corp/c/$sessionId',
+                params: { sessionId: String(session.id) },
+              }),
+          },
+        )
+      }
+    >
+      <MessageSquareIcon />
+      File by conversation
+    </Button>
   )
 }
 

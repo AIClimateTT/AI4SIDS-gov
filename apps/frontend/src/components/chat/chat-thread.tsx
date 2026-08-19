@@ -18,6 +18,10 @@ type ChatThreadProps = {
   onCustomEvent?: (event: ChatCustomEvent) => void
   placeholder?: string
   threadId?: string
+  /** Sent once, on mount, as the opening turn -- e.g. the text typed into
+   * the home composer, handed off after the session is created. A ref
+   * guards against a second send from React StrictMode's double effect. */
+  autoSend?: string
 }
 
 export function ChatThread({
@@ -27,6 +31,7 @@ export function ChatThread({
   onCustomEvent,
   placeholder = 'Describe what happened, or correct a figure…',
   threadId,
+  autoSend,
 }: ChatThreadProps) {
   const { messages, sendMessage, isLoading, error } = useAppChat({
     connection,
@@ -36,6 +41,15 @@ export function ChatThread({
   })
   const [draft, setDraft] = useState('')
   const list = useRef<HTMLDivElement>(null)
+  const autoSent = useRef(false)
+
+  useEffect(() => {
+    if (!autoSend || autoSent.current) return
+    autoSent.current = true
+    void sendMessage(autoSend)
+    // Only ever fires for the autoSend value this thread mounted with.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const last = messages[messages.length - 1]
   const waiting =

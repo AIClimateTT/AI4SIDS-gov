@@ -42,7 +42,7 @@ export const captureQueries = {
 export const captureMutations = {
   create: () =>
     mutationOptions({
-      mutationFn: (input: { corporation: string; eventId: number }) =>
+      mutationFn: (input: { corporation: string; eventId?: number }) =>
         createCaptureSession(input.corporation, input.eventId),
     }),
   turn: () =>
