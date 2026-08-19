@@ -224,15 +224,21 @@ function StartConversationButton({
 
 function SubmissionRow({ submission }: { submission: SubmissionSummary }) {
   return (
-    <ContentCard
-      title={`Situation Report #${submission.sequence_no}`}
-      description={`As at ${new Date(submission.as_at).toLocaleString()} · ${formatConstant(
-        submission.alert_level,
-      )}`}
+    <Link
+      to="/corp/filings/$submissionId"
+      params={{ submissionId: String(submission.id) }}
+      className="block"
     >
-      <p className="text-sm text-muted-foreground">
-        {submission.incident_count} incidents · {submission.log_count} logs
-      </p>
-    </ContentCard>
+      <ContentCard
+        title={`Situation Report #${submission.sequence_no}`}
+        description={`As at ${new Date(submission.as_at).toLocaleString()} · ${formatConstant(
+          submission.alert_level,
+        )}`}
+      >
+        <p className="text-sm text-muted-foreground">
+          {submission.incident_count} incidents · {submission.log_count} logs
+        </p>
+      </ContentCard>
+    </Link>
   )
 }

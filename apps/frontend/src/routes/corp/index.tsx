@@ -263,24 +263,16 @@ function FilingsTable({ submissions }: { submissions: SubmissionSummary[] }) {
   )
 }
 
-// Task 15 (deferred) adds /corp/filings/$submissionId as the read-back
-// route for a single filed report. Until it exists, a row for a filing
-// with a known event links to that event instead of nowhere.
 function FilingRow({ submission }: { submission: SubmissionSummary }) {
   const navigate = useNavigate()
-  const goToEvent = () => {
-    if (submission.event_id == null) return
+  const goToFiling = () =>
     void navigate({
-      to: '/corp/events/$eventId',
-      params: { eventId: String(submission.event_id) },
+      to: '/corp/filings/$submissionId',
+      params: { submissionId: String(submission.id) },
     })
-  }
 
   return (
-    <TableRow
-      className={submission.event_id != null ? 'cursor-pointer' : undefined}
-      onClick={goToEvent}
-    >
+    <TableRow className="cursor-pointer" onClick={goToFiling}>
       <TableCell>{new Date(submission.as_at).toLocaleString()}</TableCell>
       <TableCell>{submission.event_title ?? '—'}</TableCell>
       <TableCell>#{submission.sequence_no}</TableCell>
