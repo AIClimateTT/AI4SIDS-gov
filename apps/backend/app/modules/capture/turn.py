@@ -79,10 +79,18 @@ def coerce_working_set(raw: dict, previous: CaptureWorkingSet) -> CaptureWorking
         incidents.append(incident)
 
     logs: list[CaptureLog] = []
+    used_log_ids: set[str] = set()
+    next_log_id = 1
     for item in capture_raw.get("logs") or []:
+        while str(next_log_id) in used_log_ids:
+            next_log_id += 1
         log = _coerce_log(item if isinstance(item, dict) else {})
-        if log is not None:
-            logs.append(log)
+        if log is None:
+            continue
+        if not log.row_id or log.row_id in used_log_ids:
+            log = log.model_copy(update={"row_id": str(next_log_id)})
+        used_log_ids.add(log.row_id)
+        logs.append(log)
 
     payload = {
         "as_at": as_at,

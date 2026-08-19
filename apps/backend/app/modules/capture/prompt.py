@@ -44,6 +44,7 @@ Return ONLY JSON with this shape:
     ],
     "logs": [
       {{
+        "row_id": "<stable id, keep existing ids>",
         "category": "<one of: {_CATEGORIES}>",
         "statement": "<the officer's own sentence>",
         "item": "<string or null>",
@@ -66,7 +67,7 @@ RULES:
 - situation_overview and present_activity must be the officer's own words, or null. Do not write meteorological context they did not say.
 - Incidents are discrete events with a location or type (flooded houses, fallen tree). Logs are operational/preparedness state (sandbags remaining, staff on standby).
 - If the officer corrects an earlier figure, keep only the latest value.
-- Preserve row_id on existing incidents. Assign a new integer row_id as a string for new incidents.
+- Preserve row_id on existing incidents AND logs. Assign a new integer row_id as a string for new rows.
 - Do not copy phone numbers or personal names.
 - A filing with zero incidents and zero logs is valid ("nothing to report").
 """

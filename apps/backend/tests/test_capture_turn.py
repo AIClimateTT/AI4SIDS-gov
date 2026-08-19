@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 
 from app.modules.capture.schemas import CaptureIncident, CaptureLog, CaptureWorkingSet
-from app.modules.capture.turn import apply_turn, missing_fields
+from app.modules.capture.turn import apply_turn, coerce_working_set, missing_fields
 
 
 class StubLLM:
@@ -334,4 +334,34 @@ def test_extract_assistant_message_grows_as_json_arrives():
     for start in range(0, len(payload), 7):
         seen += extractor.feed(payload[start : start + 7])
     assert seen == "Hello there"
+
+
+def test_logs_get_stable_row_ids_and_keep_them():
+    previous = CaptureWorkingSet(
+        logs=[CaptureLog(row_id="1", statement="200 sandbags in stock", category="resource")]
+    )
+    raw = {
+        "capture": {
+            "logs": [
+                {"row_id": "1", "statement": "200 sandbags in stock", "category": "resource"},
+                {"statement": "6 staff on standby", "category": "personnel"},
+            ]
+        }
+    }
+    working = coerce_working_set(raw, previous)
+    assert [log.row_id for log in working.logs] == ["1", "2"]
+
+
+def test_duplicate_log_row_ids_are_reassigned():
+    raw = {
+        "capture": {
+            "logs": [
+                {"row_id": "1", "statement": "a", "category": "other"},
+                {"row_id": "1", "statement": "b", "category": "other"},
+            ]
+        }
+    }
+    working = coerce_working_set(raw, CaptureWorkingSet())
+    ids = [log.row_id for log in working.logs]
+    assert len(set(ids)) == 2
 

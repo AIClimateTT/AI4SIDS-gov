@@ -45,6 +45,7 @@ class CaptureIncident(BaseModel):
 
 
 class CaptureLog(BaseModel):
+    row_id: str = ""
     category: str = "other"
     statement: str = ""
     item: str | None = None
