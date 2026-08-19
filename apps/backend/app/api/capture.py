@@ -30,8 +30,8 @@ from app.modules.capture.store import (
 )
 from app.modules.capture.turn import apply_turn, stream_turn
 from app.modules.sitreps.ingest import ingest_submission
-from app.modules.sitreps.models import ALERT_LEVELS
-from app.modules.sitreps.store import get_event
+from app.modules.sitreps.models import ALERT_LEVELS, HAZARD_TYPES
+from app.modules.sitreps.store import create_event, get_event
 from app.modules.survey123.normalize import CANONICAL_CORPORATIONS
 
 router = APIRouter()
@@ -210,6 +210,51 @@ def get_one_session(
     session_id: int, db: Session = Depends(get_session)
 ) -> CaptureSessionResponse:
     return _to_response(_load_owned(db, session_id))
+
+
+class AttachEventRequest(BaseModel):
+    event_id: int | None = None
+    title: str | None = None
+    hazard_type: str | None = None
+    started_at: datetime | None = None
+
+
+@router.post("/capture/sessions/{session_id}/event", response_model=CaptureSessionResponse)
+def post_session_event(
+    session_id: int, request: AttachEventRequest, db: Session = Depends(get_session)
+) -> CaptureSessionResponse:
+    row = _load_owned(db, session_id)
+    _require_draft(row)
+
+    if request.event_id is not None:
+        event = get_event(db, request.event_id)
+        if event is None or event.corporation != row.corporation:
+            raise HTTPException(
+                status_code=404,
+                detail=f"event not found for this corporation: {request.event_id}",
+            )
+        row.event_id = event.id
+    elif request.title and request.hazard_type and request.started_at:
+        if request.hazard_type not in HAZARD_TYPES:
+            raise HTTPException(
+                status_code=400, detail=f"unknown hazard_type: {request.hazard_type}"
+            )
+        event = create_event(
+            db,
+            corporation=row.corporation,
+            title=request.title,
+            hazard_type=request.hazard_type,
+            started_at=request.started_at,
+        )
+        row.event_id = event.id
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="attach an existing event_id, or give title, hazard_type and started_at",
+        )
+
+    save_session(db, row)
+    return _to_response(row)
 
 
 @router.post("/capture/sessions/{session_id}/turns", response_model=CaptureSessionResponse)

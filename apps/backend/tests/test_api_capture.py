@@ -11,6 +11,7 @@ from app.db import Base, engine as db_engine
 from app.modules.sitreps.module import sitrep_module
 
 CORP = "diego_martin_regional_corporati"
+OTHER_CORP = "san_fernando_city_corporation"
 DEV_DB_PATH = Path(__file__).parent.parent / "dev.db"
 
 EXTRACT_JSON = json.dumps(
@@ -686,3 +687,126 @@ def test_event_less_draft_and_event_attached_draft_do_not_collide(monkeypatch):
     # the event-less one.
     again_with_event = create_capture(client, event_id)
     assert again_with_event["id"] == with_event["id"]
+
+
+def test_attach_existing_event_to_a_session(monkeypatch):
+    client = make_client(monkeypatch)
+    event_id = create_event(client)
+    session_id = create_capture(client)["id"]
+
+    response = client.post(
+        f"/capture/sessions/{session_id}/event", json={"event_id": event_id}
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["event_id"] == event_id
+
+
+def test_attach_creates_a_new_event_when_given_details(monkeypatch):
+    client = make_client(monkeypatch)
+    session_id = create_capture(client)["id"]
+
+    response = client.post(
+        f"/capture/sessions/{session_id}/event",
+        json={
+            "title": "August flooding",
+            "hazard_type": "flood",
+            "started_at": "2026-08-18T00:00:00",
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["event_id"] is not None
+
+    events = client.get("/events", params={"corporation": CORP}).json()
+    assert any(item["title"] == "August flooding" for item in events)
+
+
+def test_attach_requires_one_of_the_two_branches(monkeypatch):
+    client = make_client(monkeypatch)
+    session_id = create_capture(client)["id"]
+    assert client.post(f"/capture/sessions/{session_id}/event", json={}).status_code == 400
+
+
+def test_attach_rejects_an_event_owned_by_another_corporation(monkeypatch):
+    client = make_client(monkeypatch)
+    other = client.post(
+        "/events",
+        json={
+            "corporation": OTHER_CORP,
+            "title": "Someone else's storm",
+            "hazard_type": "flood",
+            "started_at": "2026-08-18T00:00:00",
+        },
+    ).json()["id"]
+    session_id = create_capture(client)["id"]
+
+    response = client.post(
+        f"/capture/sessions/{session_id}/event", json={"event_id": other}
+    )
+    assert response.status_code == 404
+
+
+def test_reattach_replaces_event_and_leaves_captured_data_untouched(monkeypatch):
+    """Design decision: re-attaching a different event to a session that
+    already has one is ALLOWED while the session is still a draft. Nothing has
+    been written to the submission tables yet, so an officer who picked the
+    wrong event must be able to correct it before filing. The event_id must
+    be replaced outright, and the incidents/logs captured so far must be left
+    exactly as they were — re-attach only changes which event the eventual
+    filing will be scoped to."""
+    client = make_client(monkeypatch)
+    first_event = create_event(client)
+    session_id = create_capture(client, first_event)["id"]
+
+    turn = client.post(
+        f"/capture/sessions/{session_id}/turns",
+        json={
+            "message": (
+                "5 houses flooded in Petit Valley, no injuries. "
+                "200 sandbags remaining at depot."
+            )
+        },
+    )
+    assert turn.status_code == 200, turn.text
+    incidents_before = turn.json()["incidents"]
+    logs_before = turn.json()["logs"]
+    assert incidents_before and logs_before
+
+    second_event = client.post(
+        "/events",
+        json={
+            "corporation": CORP,
+            "title": "A different storm",
+            "hazard_type": "wind",
+            "started_at": "2026-08-19T00:00:00",
+        },
+    ).json()["id"]
+    assert second_event != first_event
+
+    response = client.post(
+        f"/capture/sessions/{session_id}/event", json={"event_id": second_event}
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["event_id"] == second_event
+    assert body["event_id"] != first_event
+    assert body["incidents"] == incidents_before
+    assert body["logs"] == logs_before
+
+    reread = client.get(f"/capture/sessions/{session_id}").json()
+    assert reread["event_id"] == second_event
+    assert reread["incidents"] == incidents_before
+    assert reread["logs"] == logs_before
+
+
+def test_attach_is_rejected_once_the_session_is_filed(monkeypatch):
+    client = make_client(monkeypatch)
+    event_id = create_event(client)
+    session_id = create_capture(client, event_id)["id"]
+    filed = client.post(f"/capture/sessions/{session_id}/file")
+    assert filed.status_code == 201, filed.text
+
+    other_event = create_event(client)
+    response = client.post(
+        f"/capture/sessions/{session_id}/event", json={"event_id": other_event}
+    )
+    assert response.status_code == 409
