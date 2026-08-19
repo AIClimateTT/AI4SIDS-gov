@@ -1,9 +1,19 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { CapturePane } from '@/components/capture/capture-pane'
 import type { CaptureSession } from '@/types/dmcu'
+
+// This project's vitest config does not set `test.globals`, so
+// @testing-library/react's automatic afterEach(cleanup) detection never
+// registers. Without an explicit unmount, a form field's DOM node from an
+// earlier test in this file stays attached (duplicate ids, since every
+// CapturePane instance reuses the same field names), and label-based
+// queries can resolve to the wrong instance. Clean up explicitly.
+afterEach(() => {
+  cleanup()
+})
 
 const session: CaptureSession = {
   id: 1,
