@@ -365,3 +365,69 @@ def test_duplicate_log_row_ids_are_reassigned():
     ids = [log.row_id for log in working.logs]
     assert len(set(ids)) == 2
 
+
+def test_logs_new_row_before_existing_row_does_not_steal_its_id():
+    previous = CaptureWorkingSet(
+        logs=[CaptureLog(row_id="1", statement="200 sandbags in stock", category="resource")]
+    )
+    raw = {
+        "capture": {
+            "logs": [
+                {"statement": "6 staff on standby", "category": "personnel"},
+                {"row_id": "1", "statement": "200 sandbags in stock", "category": "resource"},
+            ]
+        }
+    }
+    working = coerce_working_set(raw, previous)
+    by_statement = {log.statement: log.row_id for log in working.logs}
+    assert by_statement["200 sandbags in stock"] == "1"
+    assert by_statement["6 staff on standby"] != "1"
+
+
+def test_incidents_get_stable_row_ids_and_keep_them():
+    previous = CaptureWorkingSet(
+        incidents=[CaptureIncident(row_id="1", incident_summary="5 houses flooded")]
+    )
+    raw = {
+        "capture": {
+            "incidents": [
+                {"row_id": "1", "incident_summary": "5 houses flooded"},
+                {"incident_summary": "Fallen tree", "incident_type": "fallen_tree"},
+            ]
+        }
+    }
+    working = coerce_working_set(raw, previous)
+    assert [incident.row_id for incident in working.incidents] == ["1", "2"]
+
+
+def test_duplicate_incident_row_ids_are_reassigned():
+    raw = {
+        "capture": {
+            "incidents": [
+                {"row_id": "1", "incident_summary": "a"},
+                {"row_id": "1", "incident_summary": "b"},
+            ]
+        }
+    }
+    working = coerce_working_set(raw, CaptureWorkingSet())
+    ids = [incident.row_id for incident in working.incidents]
+    assert len(set(ids)) == 2
+
+
+def test_incidents_new_row_before_existing_row_does_not_steal_its_id():
+    previous = CaptureWorkingSet(
+        incidents=[CaptureIncident(row_id="1", incident_summary="5 houses flooded")]
+    )
+    raw = {
+        "capture": {
+            "incidents": [
+                {"incident_summary": "Fallen tree on Main Road", "incident_type": "fallen_tree"},
+                {"row_id": "1", "incident_summary": "5 houses flooded"},
+            ]
+        }
+    }
+    working = coerce_working_set(raw, previous)
+    by_summary = {incident.incident_summary: incident.row_id for incident in working.incidents}
+    assert by_summary["5 houses flooded"] == "1"
+    assert by_summary["Fallen tree on Main Road"] != "1"
+

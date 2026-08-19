@@ -2,6 +2,7 @@ import json
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import TypeVar
 
 from pydantic import ValidationError
 
@@ -28,7 +29,7 @@ def _now() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
-def _coerce_incident(raw: dict, fallback_row_id: str) -> CaptureIncident | None:
+def _coerce_incident(raw: dict) -> CaptureIncident | None:
     if not isinstance(raw, dict):
         return None
     payload = dict(raw)
@@ -38,8 +39,6 @@ def _coerce_incident(raw: dict, fallback_row_id: str) -> CaptureIncident | None:
     )
     payload["incident_type"] = mapped
     payload["raw_incident_type"] = unmapped
-    if not payload.get("row_id"):
-        payload["row_id"] = fallback_row_id
     try:
         return CaptureIncident.model_validate(payload)
     except ValidationError:
@@ -58,39 +57,65 @@ def _coerce_log(raw: dict) -> CaptureLog | None:
     return log
 
 
+RowT = TypeVar("RowT", CaptureIncident, CaptureLog)
+
+
+def _assign_row_ids(rows: list[RowT]) -> list[RowT]:
+    """Give every row a stable, unique row_id, without letting an id-less
+    row steal an id that a later row in the same list already owns.
+
+    Two passes:
+    1. Reserve every explicitly-provided, non-empty row_id across all rows.
+    2. Walk the rows in order. A row whose explicit id is reserved and not
+       yet used keeps it (first occurrence wins on duplicates). Anything
+       else (missing id, or an id already used by an earlier row) gets the
+       lowest positive integer id that is neither reserved nor already used.
+    """
+    reserved: set[str] = {row.row_id for row in rows if row.row_id}
+
+    used: set[str] = set()
+    next_id = 1
+    result: list[RowT] = []
+    for row in rows:
+        row_id = row.row_id
+        if row_id and row_id not in used:
+            used.add(row_id)
+        else:
+            while str(next_id) in reserved or str(next_id) in used:
+                next_id += 1
+            row_id = str(next_id)
+            used.add(row_id)
+            row = row.model_copy(update={"row_id": row_id})
+        result.append(row)
+    return result
+
+
 def coerce_working_set(raw: dict, previous: CaptureWorkingSet) -> CaptureWorkingSet:
     capture_raw = raw.get("capture", raw)
     if not isinstance(capture_raw, dict):
         capture_raw = {}
 
     as_at = capture_raw.get("as_at") or previous.as_at
-    incidents: list[CaptureIncident] = []
-    used_ids: set[str] = set()
-    next_id = 1
-    for item in capture_raw.get("incidents") or []:
-        while str(next_id) in used_ids:
-            next_id += 1
-        incident = _coerce_incident(item if isinstance(item, dict) else {}, str(next_id))
-        if incident is None:
-            continue
-        if incident.row_id in used_ids:
-            incident = incident.model_copy(update={"row_id": str(next_id)})
-        used_ids.add(incident.row_id)
-        incidents.append(incident)
-
-    logs: list[CaptureLog] = []
-    used_log_ids: set[str] = set()
-    next_log_id = 1
-    for item in capture_raw.get("logs") or []:
-        while str(next_log_id) in used_log_ids:
-            next_log_id += 1
-        log = _coerce_log(item if isinstance(item, dict) else {})
-        if log is None:
-            continue
-        if not log.row_id or log.row_id in used_log_ids:
-            log = log.model_copy(update={"row_id": str(next_log_id)})
-        used_log_ids.add(log.row_id)
-        logs.append(log)
+    incidents = _assign_row_ids(
+        [
+            incident
+            for incident in (
+                _coerce_incident(item if isinstance(item, dict) else {})
+                for item in capture_raw.get("incidents") or []
+            )
+            if incident is not None
+        ]
+    )
+    logs = _assign_row_ids(
+        [
+            log
+            for log in (
+                _coerce_log(item if isinstance(item, dict) else {})
+                for item in capture_raw.get("logs") or []
+            )
+            if log is not None
+        ]
+    )
 
     payload = {
         "as_at": as_at,
