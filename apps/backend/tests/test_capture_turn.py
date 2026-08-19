@@ -431,3 +431,79 @@ def test_incidents_new_row_before_existing_row_does_not_steal_its_id():
     assert by_summary["5 houses flooded"] == "1"
     assert by_summary["Fallen tree on Main Road"] != "1"
 
+
+def test_incident_row_id_with_dot_is_replaced_with_clean_id():
+    raw = {
+        "capture": {
+            "incidents": [
+                {"row_id": "1.x", "incident_summary": "Fallen tree"},
+            ]
+        }
+    }
+    working = coerce_working_set(raw, CaptureWorkingSet())
+    row_id = working.incidents[0].row_id
+    assert "." not in row_id
+    assert ":" not in row_id
+    assert row_id == "1"
+
+
+def test_incident_row_id_with_colon_is_replaced_with_clean_id():
+    raw = {
+        "capture": {
+            "incidents": [
+                {"row_id": "1:x", "incident_summary": "Fallen tree"},
+            ]
+        }
+    }
+    working = coerce_working_set(raw, CaptureWorkingSet())
+    row_id = working.incidents[0].row_id
+    assert "." not in row_id
+    assert ":" not in row_id
+    assert row_id == "1"
+
+
+def test_log_row_id_with_dot_is_replaced_with_clean_id():
+    raw = {
+        "capture": {
+            "logs": [
+                {"row_id": "1.x", "statement": "200 sandbags in stock", "category": "resource"},
+            ]
+        }
+    }
+    working = coerce_working_set(raw, CaptureWorkingSet())
+    row_id = working.logs[0].row_id
+    assert "." not in row_id
+    assert ":" not in row_id
+    assert row_id == "1"
+
+
+def test_log_row_id_with_colon_is_replaced_with_clean_id():
+    raw = {
+        "capture": {
+            "logs": [
+                {"row_id": "1:x", "statement": "200 sandbags in stock", "category": "resource"},
+            ]
+        }
+    }
+    working = coerce_working_set(raw, CaptureWorkingSet())
+    row_id = working.logs[0].row_id
+    assert "." not in row_id
+    assert ":" not in row_id
+    assert row_id == "1"
+
+
+def test_rejected_dotted_id_does_not_steal_the_id_a_legitimate_row_owns():
+    raw = {
+        "capture": {
+            "incidents": [
+                {"row_id": "1.x", "incident_summary": "Fallen tree"},
+                {"row_id": "1", "incident_summary": "5 houses flooded"},
+            ]
+        }
+    }
+    working = coerce_working_set(raw, CaptureWorkingSet())
+    by_summary = {incident.incident_summary: incident.row_id for incident in working.incidents}
+    assert by_summary["5 houses flooded"] == "1"
+    assert by_summary["Fallen tree"] != "1"
+    assert "." not in by_summary["Fallen tree"]
+

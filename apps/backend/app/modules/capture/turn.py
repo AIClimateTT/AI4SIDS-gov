@@ -60,25 +60,39 @@ def _coerce_log(raw: dict) -> CaptureLog | None:
 RowT = TypeVar("RowT", CaptureIncident, CaptureLog)
 
 
+def _is_usable_explicit_id(row_id: str | None) -> bool:
+    """A model-supplied row_id is usable verbatim only if it cannot be
+    mistaken for part of a field path. The path grammar is
+    ``<kind>:<row_id>.<field>``, so an id containing "." or ":" would let a
+    row's own id swallow (or be swallowed by) a neighbouring path segment.
+    Such an id is treated as though it were never supplied.
+    """
+    return bool(row_id) and "." not in row_id and ":" not in row_id
+
+
 def _assign_row_ids(rows: list[RowT]) -> list[RowT]:
     """Give every row a stable, unique row_id, without letting an id-less
     row steal an id that a later row in the same list already owns.
 
     Two passes:
-    1. Reserve every explicitly-provided, non-empty row_id across all rows.
+    1. Reserve every explicitly-provided, non-empty, delimiter-safe row_id
+       across all rows. An id containing "." or ":" is not reserved — it is
+       structurally incapable of round-tripping through the field-path
+       grammar, so it is discarded rather than kept.
     2. Walk the rows in order. A row whose explicit id is reserved and not
        yet used keeps it (first occurrence wins on duplicates). Anything
-       else (missing id, or an id already used by an earlier row) gets the
-       lowest positive integer id that is neither reserved nor already used.
+       else (missing id, delimiter-unsafe id, or an id already used by an
+       earlier row) gets the lowest positive integer id that is neither
+       reserved nor already used.
     """
-    reserved: set[str] = {row.row_id for row in rows if row.row_id}
+    reserved: set[str] = {row.row_id for row in rows if _is_usable_explicit_id(row.row_id)}
 
     used: set[str] = set()
     next_id = 1
     result: list[RowT] = []
     for row in rows:
         row_id = row.row_id
-        if row_id and row_id not in used:
+        if _is_usable_explicit_id(row_id) and row_id not in used:
             used.add(row_id)
         else:
             while str(next_id) in reserved or str(next_id) in used:
