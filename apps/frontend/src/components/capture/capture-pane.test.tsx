@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { CapturePane } from '@/components/capture/capture-pane'
@@ -92,5 +92,33 @@ describe('CapturePane add forms', () => {
 
     const after = screen.getByLabelText('Situation overview') as HTMLTextAreaElement
     expect(after.value).toBe('Water rising on Diego Martin Main Rd')
+  })
+
+  it('adopts server updates again after the officer saves', async () => {
+    const onSave = vi.fn()
+    const { rerender } = render(<CapturePane session={session} onSave={onSave} />)
+
+    const overview = screen.getByLabelText('Situation overview')
+    fireEvent.change(overview, { target: { value: 'Water rising on Diego Martin Main Rd' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onSave).toHaveBeenCalled())
+
+    // A later chat turn brings a genuinely new server value, after the save.
+    rerender(
+      <CapturePane
+        session={{
+          ...session,
+          updated_at: '2026-08-18T15:00:00',
+          situation_overview: 'Evacuation underway on Diego Martin Main Rd',
+        }}
+        onSave={onSave}
+      />,
+    )
+
+    await waitFor(() => {
+      const after = screen.getByLabelText('Situation overview') as HTMLTextAreaElement
+      expect(after.value).toBe('Evacuation underway on Diego Martin Main Rd')
+    })
   })
 })

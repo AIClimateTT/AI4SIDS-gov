@@ -88,6 +88,10 @@ export function CapturePane({ session, disabled, pending, onSave }: CapturePaneP
           situation_overview: value.situation_overview,
         }),
       )
+      // Mark the form clean against what was just saved, not the (now stale)
+      // session props, so the next chat-turn update is adopted normally
+      // instead of being blocked by the dirty guard forever.
+      situationForm.reset(value)
     },
   })
 
