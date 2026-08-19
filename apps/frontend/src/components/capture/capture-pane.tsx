@@ -12,6 +12,7 @@ import {
   formToCaptureIncident,
   formToCaptureLog,
   nextIncidentRowId,
+  nextLogRowId,
   toDatetimeLocal,
   toIsoDateTime,
 } from '@/lib/capture-mapping'
@@ -66,6 +67,7 @@ function payloadOf(
         : session.situation_overview,
     incidents: patch.incidents ?? session.incidents,
     logs: patch.logs ?? session.logs,
+    manual_fields: patch.manual_fields ?? session.manual_fields,
   }
 }
 
@@ -141,7 +143,8 @@ export function CapturePane({ session, disabled, pending, onSave }: CapturePaneP
     },
     validators: { onSubmit: logSchema },
     onSubmit: ({ value }) => {
-      onSave(payloadOf(session, { logs: [...session.logs, formToCaptureLog(value)] }))
+      const next = formToCaptureLog(value, nextLogRowId(session.logs))
+      onSave(payloadOf(session, { logs: [...session.logs, next] }))
       logForm.reset()
       setAddingLog(false)
     },

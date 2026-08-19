@@ -343,6 +343,7 @@ export type CaptureIncident = {
 }
 
 export type CaptureLog = {
+  row_id: string
   category: string
   statement: string
   item: string | null
@@ -365,7 +366,7 @@ export type CaptureMissingField = {
 export type CaptureSession = {
   id: number
   corporation: string
-  event_id: number
+  event_id: number | null
   status: 'draft' | 'filed' | string
   as_at: string
   alert_level: string
@@ -373,6 +374,7 @@ export type CaptureSession = {
   situation_overview: string | null
   incidents: CaptureIncident[]
   logs: CaptureLog[]
+  manual_fields: string[]
   messages: CaptureMessage[]
   missing: CaptureMissingField[]
   submission_id: number | null
@@ -387,7 +389,12 @@ export type CaptureSessionUpdate = {
   situation_overview?: string | null
   incidents: CaptureIncident[]
   logs: CaptureLog[]
+  manual_fields: string[]
 }
+
+export type AttachEventBody =
+  | { event_id: number }
+  | { title: string; hazard_type: string; started_at: string }
 
 export type CaptureFileResult = {
   session: CaptureSession

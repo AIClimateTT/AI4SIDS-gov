@@ -1,4 +1,4 @@
-import type { CaptureIncident } from '@/types/dmcu'
+import type { CaptureIncident, CaptureLog } from '@/types/dmcu'
 
 export const ALERT_LEVELS = [
   'green',
@@ -65,6 +65,13 @@ export function nextIncidentRowId(incidents: { row_id: string }[]): string {
   return String((nums.length > 0 ? Math.max(...nums) : 0) + 1)
 }
 
+export function nextLogRowId(logs: { row_id: string }[]): string {
+  const nums = logs
+    .map((item) => Number.parseInt(item.row_id, 10))
+    .filter((value) => Number.isFinite(value) && value > 0)
+  return String((nums.length > 0 ? Math.max(...nums) : 0) + 1)
+}
+
 export function parseOptionalNumber(raw: string): number | null {
   const trimmed = raw.trim()
   if (!trimmed) return null
@@ -106,8 +113,9 @@ export function formToCaptureIncident(
   }
 }
 
-export function formToCaptureLog(form: LogFormValues) {
+export function formToCaptureLog(form: LogFormValues, rowId: string): CaptureLog {
   return {
+    row_id: rowId,
     category: form.category.trim() || 'other',
     statement: form.statement.trim(),
     item: form.item.trim() || null,

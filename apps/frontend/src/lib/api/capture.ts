@@ -1,6 +1,7 @@
 import { apiClient } from '@/lib/api/client'
 import { withApiError } from '@/lib/api/errors'
 import type {
+  AttachEventBody,
   CaptureFileResult,
   CaptureSession,
   CaptureSessionUpdate,
@@ -8,11 +9,11 @@ import type {
 
 export async function listCaptureSessions(
   corporation: string,
-  eventId: number,
+  eventId?: number,
 ): Promise<CaptureSession[]> {
   return withApiError(async () => {
     const { data } = await apiClient.get<CaptureSession[]>('/capture/sessions', {
-      params: { corporation, event_id: eventId },
+      params: eventId === undefined ? { corporation } : { corporation, event_id: eventId },
     })
     return data
   })
@@ -20,12 +21,12 @@ export async function listCaptureSessions(
 
 export async function createCaptureSession(
   corporation: string,
-  eventId: number,
+  eventId?: number,
 ): Promise<CaptureSession> {
   return withApiError(async () => {
     const { data } = await apiClient.post<CaptureSession>('/capture/sessions', {
       corporation,
-      event_id: eventId,
+      ...(eventId === undefined ? {} : { event_id: eventId }),
     })
     return data
   })
@@ -68,6 +69,19 @@ export async function fileCaptureSession(id: number): Promise<CaptureFileResult>
   return withApiError(async () => {
     const { data } = await apiClient.post<CaptureFileResult>(
       `/capture/sessions/${id}/file`,
+    )
+    return data
+  })
+}
+
+export async function attachCaptureEvent(
+  id: number,
+  body: AttachEventBody,
+): Promise<CaptureSession> {
+  return withApiError(async () => {
+    const { data } = await apiClient.post<CaptureSession>(
+      `/capture/sessions/${id}/event`,
+      body,
     )
     return data
   })

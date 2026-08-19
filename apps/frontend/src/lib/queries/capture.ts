@@ -2,6 +2,7 @@ import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query
 import { toast } from 'sonner'
 
 import {
+  attachCaptureEvent,
   createCaptureSession,
   fileCaptureSession,
   getCaptureSession,
@@ -12,23 +13,23 @@ import {
 import { overviewKeys } from '@/lib/queries/overview'
 import { eventKeys, submissionKeys } from '@/lib/queries/submissions'
 import { mutationOptions } from '@/lib/queries/tanstack-helpers'
-import type { CaptureSessionUpdate } from '@/types/dmcu'
+import type { AttachEventBody, CaptureSessionUpdate } from '@/types/dmcu'
 
 export const captureKeys = {
   all: () => ['capture'] as const,
   lists: () => [...captureKeys.all(), 'list'] as const,
-  list: (corporation: string, eventId: number) =>
+  list: (corporation: string, eventId?: number) =>
     [...captureKeys.lists(), corporation, eventId] as const,
   details: () => [...captureKeys.all(), 'detail'] as const,
   detail: (id: number) => [...captureKeys.details(), id] as const,
 }
 
 export const captureQueries = {
-  list: (corporation: string, eventId: number) =>
+  list: (corporation: string, eventId?: number) =>
     queryOptions({
       queryKey: captureKeys.list(corporation, eventId),
       queryFn: () => listCaptureSessions(corporation, eventId),
-      enabled: !!corporation && Number.isInteger(eventId) && eventId > 0,
+      enabled: !!corporation,
     }),
   detail: (id: number) =>
     queryOptions({
@@ -100,6 +101,21 @@ export function useUpdateCaptureSession() {
       toast.error('Failed to save capture', {
         description: error.message,
       }),
+  })
+}
+
+export function useAttachCaptureEvent() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { id: number; body: AttachEventBody }) =>
+      attachCaptureEvent(input.id, input.body),
+    onSuccess: (session) => {
+      queryClient.setQueryData(captureKeys.detail(session.id), session)
+      void queryClient.invalidateQueries({ queryKey: captureKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: eventKeys.lists() })
+    },
+    onError: (error: Error) =>
+      toast.error('Failed to attach event', { description: error.message }),
   })
 }
 

@@ -48,6 +48,7 @@ const session: CaptureSession = {
     },
   ],
   logs: [],
+  manual_fields: [],
   messages: [],
   missing: [],
   submission_id: null,

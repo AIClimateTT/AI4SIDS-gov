@@ -56,15 +56,19 @@ describe('capture mapping', () => {
 
   it('maps a log form including a structured quantity', () => {
     expect(
-      formToCaptureLog({
-        category: 'resource',
-        statement: '200 sandbags remaining at depot',
-        item: 'sandbags',
-        quantity: '200',
-        unit: 'bags',
-        status: 'available',
-      }),
+      formToCaptureLog(
+        {
+          category: 'resource',
+          statement: '200 sandbags remaining at depot',
+          item: 'sandbags',
+          quantity: '200',
+          unit: 'bags',
+          status: 'available',
+        },
+        '1',
+      ),
     ).toEqual({
+      row_id: '1',
       category: 'resource',
       statement: '200 sandbags remaining at depot',
       item: 'sandbags',
@@ -76,14 +80,17 @@ describe('capture mapping', () => {
 
   it('maps a not-set log status to null', () => {
     expect(
-      formToCaptureLog({
-        category: 'activity',
-        statement: 'Informed the CEO',
-        item: '',
-        quantity: '',
-        unit: '',
-        status: 'none',
-      }).status,
+      formToCaptureLog(
+        {
+          category: 'activity',
+          statement: 'Informed the CEO',
+          item: '',
+          quantity: '',
+          unit: '',
+          status: 'none',
+        },
+        '2',
+      ).status,
     ).toBeNull()
   })
 })
