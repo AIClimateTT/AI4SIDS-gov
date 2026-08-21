@@ -79,3 +79,15 @@ def test_working_set_facts_count_the_captured_incident():
     )
     assert injuries.value == 1
 
+
+def test_working_set_facts_total_the_captured_damage_cost():
+    working = _working()
+    working.incidents[0].estimated_damage_cost = 1500.0
+    facts = assemble_working_set_facts(
+        working,
+        corporation="arima_borough_corporation",
+        event_id=2,
+    )
+    by_metric = {f.metric: f for f in facts}
+    assert by_metric["estimated_damage_total"].value == 1500.0
+

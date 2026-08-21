@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from types import SimpleNamespace
 
 from app.core.contracts import Fact
@@ -24,6 +25,12 @@ def _parse_event_date(raw: str | None) -> datetime | None:
         return datetime.fromisoformat(raw)
     except ValueError:
         return None
+
+
+def _decimal_cost(value: float | None) -> Decimal | None:
+    if value is None:
+        return None
+    return Decimal(str(value))
 
 
 def _follow_up_flags(incident: CaptureIncident) -> dict[str, bool]:
@@ -56,7 +63,7 @@ def working_set_incident_rows(
             deaths_count=incident.deaths_count,
             building_damage=incident.building_damage,
             special_needs_occupants=incident.special_needs_occupants,
-            estimated_damage_cost=incident.estimated_damage_cost,
+            estimated_damage_cost=_decimal_cost(incident.estimated_damage_cost),
             follow_up_flags=_follow_up_flags(incident),
             validation_status="validated",
             record_ref=f"{corporation}:{event_id or '-'}:{incident.row_id}",
