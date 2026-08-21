@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.contracts import SubmissionIngestResult
 from app.core.engine import generate_report
 from app.core.llm import get_llm_client
-from app.core.report_store import save_report
+from app.core.report_store import add_report
 from app.core.template_store import get_latest_template_version
 from app.db import get_session
 from app.modules.capture.file import working_set_to_ingest_rows
@@ -557,7 +557,7 @@ def issue_session(
         event_title=_event_title(db, row),
         template=template,
     )
-    saved = save_report(generated, db)
+    saved = add_report(generated, db)
     row.status = "filed"
     row.submission_id = ingest.submission_id
     persist_issued_sitrep(

@@ -974,3 +974,51 @@ def test_issue_keeps_session_draft_if_generate_fails(monkeypatch):
     assert retry.status_code == 201, retry.text
     assert retry.json()["session"]["status"] == "filed"
     assert retry.json()["session"]["report_id"]
+
+
+def test_issue_rolls_back_if_session_persist_fails(monkeypatch):
+    client = make_client(monkeypatch)
+    install_templates()
+    event_id = create_event(client)
+    session_id = create_capture(client, event_id)["id"]
+    client.post(
+        f"/capture/sessions/{session_id}/turns",
+        json={"message": "5 houses flooded in Petit Valley. 200 sandbags remaining."},
+    )
+
+    def fail_persist(*args, **kwargs):
+        raise RuntimeError("session persist failed")
+
+    monkeypatch.setattr("app.api.capture.persist_issued_sitrep", fail_persist)
+    with pytest.raises(RuntimeError, match="session persist failed"):
+        client.post(f"/capture/sessions/{session_id}/issue")
+
+    stored = client.get(f"/capture/sessions/{session_id}")
+    assert stored.json()["status"] == "draft"
+    assert stored.json()["report_id"] is None
+    assert stored.json()["submission_id"] is None
+
+    from sqlalchemy.orm import sessionmaker
+
+    from app.core.report_models import Report
+    from app.modules.sitreps.models import SitrepIncident, SituationLog, Submission
+
+    db = sessionmaker(bind=db_engine)()
+    assert db.query(Report).count() == 0
+    assert db.query(Submission).count() == 0
+    assert db.query(SitrepIncident).count() == 0
+    assert db.query(SituationLog).count() == 0
+    db.close()
+
+    from app.modules.capture.sitrep import persist_issued_sitrep
+
+    monkeypatch.setattr(
+        "app.api.capture.persist_issued_sitrep",
+        persist_issued_sitrep,
+    )
+    retry = client.post(f"/capture/sessions/{session_id}/issue")
+    assert retry.status_code == 201, retry.text
+    assert retry.json()["session"]["status"] == "filed"
+    assert retry.json()["session"]["report_id"]
+    assert retry.json()["ingest"]["incidents_inserted"] == 1
+    assert retry.json()["ingest"]["logs_inserted"] == 1
