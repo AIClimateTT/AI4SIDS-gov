@@ -25,8 +25,11 @@ services:
   nim-prod:
     image: nvcr.io/nim/openai/gpt-oss-20b:2.0.8
     container_name: dmcu-prod-nim
-    runtime: nvidia
+    # Do not set runtime: nvidia. That legacy runtime bind-mounts
+    # /run/nvidia-persistenced/socket and fails if persistenced is not running.
+    # Compose device reservations use the NVIDIA Container Toolkit instead.
     shm_size: "16gb"
+    gpus: all
     deploy:
       resources:
         reservations:
@@ -36,6 +39,8 @@ services:
               capabilities: [gpu]
     environment:
       NGC_API_KEY: ${NGC_API_KEY}
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
     volumes:
       - nim_cache:/opt/nim/.cache
     expose:
