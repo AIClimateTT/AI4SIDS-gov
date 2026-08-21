@@ -48,6 +48,7 @@ def test_get_templates_returns_every_shipped_template():
     names = {t["name"] for t in body}
     assert names == {
         "corp_situation_report",
+        "corp_sitrep_single",
         "minister_situation_report",
         "field_data_region_review",
     }
