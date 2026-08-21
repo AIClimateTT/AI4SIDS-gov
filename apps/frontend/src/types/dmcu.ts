@@ -363,6 +363,16 @@ export type CaptureMissingField = {
   message: string
 }
 
+export type CaptureSitrep = {
+  markdown: string
+  fact_table: FactTable
+  violations: CitationViolation[]
+  status: string
+  generated_at: string
+  source_updated_at: string
+  stale: boolean
+}
+
 export type CaptureSession = {
   id: number
   corporation: string
@@ -378,6 +388,8 @@ export type CaptureSession = {
   messages: CaptureMessage[]
   missing: CaptureMissingField[]
   submission_id: number | null
+  report_id: string | null
+  sitrep: CaptureSitrep | null
   created_at: string
   updated_at: string
 }

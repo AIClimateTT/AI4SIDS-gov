@@ -6,8 +6,10 @@ import {
   createCaptureSession,
   fileCaptureSession,
   getCaptureSession,
+  issueCaptureSession,
   listCaptureSessions,
   postCaptureTurn,
+  previewCaptureSession,
   updateCaptureSession,
 } from '@/lib/api/capture'
 import { overviewKeys } from '@/lib/queries/overview'
@@ -58,6 +60,14 @@ export const captureMutations = {
   file: () =>
     mutationOptions({
       mutationFn: (id: number) => fileCaptureSession(id),
+    }),
+  preview: () =>
+    mutationOptions({
+      mutationFn: (id: number) => previewCaptureSession(id),
+    }),
+  issue: () =>
+    mutationOptions({
+      mutationFn: (id: number) => issueCaptureSession(id),
     }),
 }
 
@@ -132,6 +142,38 @@ export function useFileCaptureSession() {
     },
     onError: (error: Error) =>
       toast.error('Failed to file submission', {
+        description: error.message,
+      }),
+  })
+}
+
+export function usePreviewCaptureSession() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    ...captureMutations.preview(),
+    onSuccess: (session) => {
+      queryClient.setQueryData(captureKeys.detail(session.id), session)
+    },
+    onError: (error: Error) =>
+      toast.error('Failed to generate sitrep', {
+        description: error.message,
+      }),
+  })
+}
+
+export function useIssueCaptureSession() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    ...captureMutations.issue(),
+    onSuccess: (result) => {
+      queryClient.setQueryData(captureKeys.detail(result.session.id), result.session)
+      void queryClient.invalidateQueries({ queryKey: captureKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: submissionKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: overviewKeys.summary() })
+      toast.success('Sitrep issued')
+    },
+    onError: (error: Error) =>
+      toast.error('Failed to issue sitrep', {
         description: error.message,
       }),
   })

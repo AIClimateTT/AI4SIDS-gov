@@ -74,6 +74,24 @@ export async function fileCaptureSession(id: number): Promise<CaptureFileResult>
   })
 }
 
+export async function previewCaptureSession(id: number): Promise<CaptureSession> {
+  return withApiError(async () => {
+    const { data } = await apiClient.post<CaptureSession>(
+      `/capture/sessions/${id}/preview`,
+    )
+    return data
+  })
+}
+
+export async function issueCaptureSession(id: number): Promise<CaptureFileResult> {
+  return withApiError(async () => {
+    const { data } = await apiClient.post<CaptureFileResult>(
+      `/capture/sessions/${id}/issue`,
+    )
+    return data
+  })
+}
+
 export async function attachCaptureEvent(
   id: number,
   body: AttachEventBody,
