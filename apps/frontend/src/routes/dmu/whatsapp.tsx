@@ -19,6 +19,7 @@ import { CitationMarkdown } from '@/components/reports'
 import { SubmissionResult } from '@/components/submissions/submission-result'
 import { useAppForm } from '@/hooks/form'
 import { CORPORATION_OPTIONS } from '@/lib/corporations'
+import { isReportJobPending, reportQueries } from '@/lib/queries/reports'
 import {
   useAdjustWhatsAppDraft,
   useExtractWhatsApp,
@@ -195,6 +196,12 @@ function DraftWorkspace({ draftId }: { draftId: number }) {
   const [briefingResult, setBriefingResult] = useState<WhatsAppBriefingResult | null>(
     null,
   )
+  const briefingReport = useQuery(
+    reportQueries.detail(briefingResult?.id ?? ''),
+  )
+  const briefingPending =
+    briefing.isPending ||
+    isReportJobPending(briefingReport.data?.status ?? briefingResult?.status)
   const [promoteResults, setPromoteResults] = useState<SubmissionIngestResult[] | null>(
     null,
   )
@@ -363,10 +370,10 @@ function DraftWorkspace({ draftId }: { draftId: number }) {
               {promote.isPending ? 'Filing…' : 'File to store'}
             </Button>
             <Button
-              disabled={includedCount === 0 || briefing.isPending}
+              disabled={includedCount === 0 || briefingPending}
               onClick={() => void handleBriefing()}
             >
-              {briefing.isPending ? 'Generating…' : 'Generate briefing'}
+              {briefingPending ? 'Generating…' : 'Generate briefing'}
             </Button>
           </div>
           <p className="text-right text-xs text-muted-foreground">
@@ -402,7 +409,19 @@ function DraftWorkspace({ draftId }: { draftId: number }) {
                 </Button>
               }
             >
-              <CitationMarkdown markdown={briefingResult.markdown} />
+              {briefingPending ? (
+                <p className="text-sm text-muted-foreground">Generating briefing…</p>
+              ) : (briefingReport.data?.status ?? briefingResult.status) === 'failed' ? (
+                <p className="text-sm text-destructive">
+                  {briefingReport.data?.error ?? 'Briefing generation failed.'}
+                </p>
+              ) : (
+                <CitationMarkdown
+                  markdown={
+                    briefingReport.data?.markdown || briefingResult.markdown
+                  }
+                />
+              )}
             </ContentCard>
           ) : null}
 

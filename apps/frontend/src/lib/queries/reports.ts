@@ -7,7 +7,12 @@ import { overviewKeys } from '@/lib/queries/overview'
 import type {
   GenerateReportInput,
   ReportListParams,
+  ReportStatus,
 } from '@/types/dmcu'
+
+export function isReportJobPending(status?: ReportStatus) {
+  return status === 'queued' || status === 'running'
+}
 
 // ---------------------------------------------------------------------------
 // Key Factory
@@ -37,6 +42,8 @@ export const reportQueries = {
       queryKey: reportKeys.detail(id),
       queryFn: () => getReport(id),
       enabled: !!id,
+      refetchInterval: (query) =>
+        isReportJobPending(query.state.data?.status) ? 2000 : false,
     }),
 }
 
@@ -63,7 +70,9 @@ export function useCreateReport(onSuccess?: (id: string) => void) {
     onSuccess: (created) => {
       void queryClient.invalidateQueries({ queryKey: reportKeys.lists() })
       void queryClient.invalidateQueries({ queryKey: overviewKeys.summary() })
-      toast.success('Report generated')
+      toast.success(
+        isReportJobPending(created.status) ? 'Report started' : 'Report generated',
+      )
       onSuccess?.(created.id)
     },
     onError: (error: Error) =>

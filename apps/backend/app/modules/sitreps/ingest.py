@@ -10,6 +10,7 @@ from app.modules.sitreps.models import SitrepIncident, SituationLog
 from app.modules.sitreps.models import Submission
 from app.modules.sitreps.parse import (
     INCIDENT_PII_COLUMNS,
+    parse_corp_int,
     parse_incident_row,
     parse_log_row,
 )
@@ -19,6 +20,30 @@ from app.modules.sitreps.store import next_sequence_no
 def _read_rows(path: Path) -> list[dict[str, str]]:
     with open(path, newline="", encoding="utf-8") as f:
         return list(csv.DictReader(f))
+
+
+def _stringify_row(row: dict) -> dict[str, str]:
+    return {str(key): "" if value is None else str(value) for key, value in row.items()}
+
+
+def apply_structured_incident_defaults(
+    row: dict[str, str], as_at: datetime
+) -> dict[str, str]:
+    """Fill fields a conversation may leave blank so parse_incident_row can run.
+
+    CSV uploads do not go through this: a missing Date of Event in a spreadsheet
+    is a row error, not a guess.
+    """
+    out = dict(row)
+    if not (out.get("Date of Event") or "").strip():
+        out["Date of Event"] = as_at.date().isoformat()
+    injuries = parse_corp_int(out.get("Injuries Count"))
+    if not (out.get("Injuries Occurred") or "").strip() and isinstance(injuries, int):
+        out["Injuries Occurred"] = "yes" if injuries > 0 else "no"
+    deaths = parse_corp_int(out.get("Deaths Count"))
+    if not (out.get("Deaths Occurred") or "").strip() and isinstance(deaths, int):
+        out["Deaths Occurred"] = "yes" if deaths > 0 else "no"
+    return out
 
 
 def ingest_submission(
@@ -33,6 +58,9 @@ def ingest_submission(
     incidents_path: Path | None = None,
     logs_path: Path | None = None,
     source_name: str | None = None,
+    incident_rows: list[dict] | None = None,
+    log_rows: list[dict] | None = None,
+    structured_defaults: bool = False,
 ) -> SubmissionIngestResult:
     """Create one submission and load its incident and log rows.
 
@@ -46,9 +74,28 @@ def ingest_submission(
     request ends. ``source_name`` is the human-meaningful name to record on
     the submission instead (e.g. the filename the corp actually uploaded).
     When both files are present, callers should pass them comma-separated.
+
+    ``incident_rows``/``log_rows`` are the same CSV-shaped dicts, already in
+    memory (conversation capture). When provided they take precedence over
+    the file paths. ``structured_defaults`` fills blank dates and casualty
+    flags; it must stay off for spreadsheet uploads.
     """
-    incident_rows = _read_rows(incidents_path) if incidents_path else []
-    log_rows = _read_rows(logs_path) if logs_path else []
+    if incident_rows is not None:
+        loaded_incidents = [_stringify_row(row) for row in incident_rows]
+    else:
+        loaded_incidents = _read_rows(incidents_path) if incidents_path else []
+    if log_rows is not None:
+        loaded_logs = [_stringify_row(row) for row in log_rows]
+    else:
+        loaded_logs = _read_rows(logs_path) if logs_path else []
+
+    if structured_defaults:
+        loaded_incidents = [
+            apply_structured_incident_defaults(row, as_at) for row in loaded_incidents
+        ]
+
+    incident_rows = loaded_incidents
+    log_rows = loaded_logs
 
     row_errors: list[RowErrorInfo] = []
     unmapped_values: dict[str, list[str]] = {}

@@ -18,5 +18,6 @@ class Report(Base):
     narrative: Mapped[str] = mapped_column(Text, nullable=False)
     markdown: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(String, nullable=False)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
     violations: Mapped[list] = mapped_column(JSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)

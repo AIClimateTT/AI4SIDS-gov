@@ -4,6 +4,7 @@ ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 ENV UV_PROJECT_ENVIRONMENT=/app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONPATH=/app
 
 RUN pip install --no-cache-dir uv
 

@@ -88,29 +88,41 @@ function ReportDetailPage() {
             </ContentCard>
           ) : null}
 
-          <ViolationsPanel violations={data.violations} />
-
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-            <ContentCard
-              title="Briefing"
-              description="Click a citation marker like [C001] to jump to its fact."
-            >
-              <CitationMarkdown
-                markdown={data.markdown}
-                violations={data.violations}
-              />
+          {data.status === 'queued' || data.status === 'running' ? (
+            <ContentCard title="Generating">
+              <p className="text-sm text-muted-foreground">
+                This briefing is still running. This page refreshes until it
+                finishes.
+              </p>
             </ContentCard>
-
-            {/* States what the checker guarantees rather than an absolute: it
-                flags any figure that is not in the fact it cites, and a report
-                marked needs_review is one where that check found something. */}
-            <ContentCard
-              title="Fact table"
-              description="The checker flags any figure in the briefing that is not in the fact it cites. Check the report status above before relying on it."
-            >
-              <ReportFactTable factTable={data.fact_table} />
+          ) : data.status === 'failed' ? (
+            <ContentCard title="Generation failed">
+              <p className="text-sm text-destructive">
+                {data.error ?? 'Report generation failed.'}
+              </p>
             </ContentCard>
-          </div>
+          ) : (
+            <>
+              <ViolationsPanel violations={data.violations} />
+              <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+                <ContentCard
+                  title="Briefing"
+                  description="Click a citation marker like [C001] to jump to its fact."
+                >
+                  <CitationMarkdown
+                    markdown={data.markdown}
+                    violations={data.violations}
+                  />
+                </ContentCard>
+                <ContentCard
+                  title="Fact table"
+                  description="The checker flags any figure in the briefing that is not in the fact it cites. Check the report status above before relying on it."
+                >
+                  <ReportFactTable factTable={data.fact_table} />
+                </ContentCard>
+              </div>
+            </>
+          )}
         </>
       ) : null}
     </div>

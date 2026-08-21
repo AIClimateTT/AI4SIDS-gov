@@ -71,7 +71,8 @@ def make_client(
     import app.modules.whatsapp.models  # noqa: F401
 
     shared = llm_client or FakeLLMClient(responses=llm_responses or [EXTRACT_JSON])
-    monkeypatch.setattr("app.api.whatsapp.get_default_llm_client", lambda: shared)
+    monkeypatch.setattr("app.api.whatsapp.get_llm_client", lambda purpose="batch": shared)
+    monkeypatch.setattr("app.core.llm.get_llm_client", lambda purpose="batch": shared)
     Base.metadata.create_all(db_engine)
     return TestClient(create_app())
 
@@ -84,7 +85,7 @@ def test_extract_returns_proposals(monkeypatch):
         files={"file": ("hour.txt", CHAT.encode("utf-8"), "text/plain")},
     )
 
-    assert response.status_code == 200, response.text
+    assert response.status_code == 202, response.text
     body = response.json()
     assert body["filename"] == "hour.txt"
     assert body["message_count"] == 2
@@ -92,6 +93,7 @@ def test_extract_returns_proposals(monkeypatch):
     assert body["incidents"][0]["incident_summary"] == "3 houses flooded"
     assert body["incidents"][0]["included"] is True
     assert body["logs"][0]["quantity"] == 200
+    assert body["status"] == "ready"
 
     reloaded = client.get(f"/whatsapp/drafts/{body['id']}")
     assert reloaded.status_code == 200, reloaded.text
@@ -107,7 +109,7 @@ def test_extract_flags_pii_redacted(monkeypatch):
         files={"file": ("hour.txt", chat.encode("utf-8"), "text/plain")},
     )
 
-    assert response.status_code == 200, response.text
+    assert response.status_code == 202, response.text
     assert response.json()["pii_redacted"] is True
 
 
@@ -139,8 +141,8 @@ def test_confirm_writes_submissions_without_calling_llm(monkeypatch):
             raise AssertionError("confirm must not call the LLM")
 
     monkeypatch.setattr(
-        "app.api.whatsapp.get_default_llm_client",
-        lambda: BoomLLM(),
+        "app.api.whatsapp.get_llm_client",
+        lambda purpose="batch": BoomLLM(),
     )
     import app.modules.sitreps.models  # noqa: F401
     import app.modules.survey123.models  # noqa: F401
@@ -200,7 +202,7 @@ def _extract(client) -> dict:
         files={"file": ("hour.txt", CHAT.encode("utf-8"), "text/plain")},
         data={"as_at": "2026-08-15T16:00:00"},
     )
-    assert response.status_code == 200, response.text
+    assert response.status_code == 202, response.text
     return response.json()
 
 
@@ -297,7 +299,7 @@ def test_briefing_saves_provisional_report_without_sitrep_rows(monkeypatch):
     extracted = _extract(client)
 
     response = client.post(f"/whatsapp/drafts/{extracted['id']}/briefing")
-    assert response.status_code == 200, response.text
+    assert response.status_code == 202, response.text
     body = response.json()
     assert body["markdown"].startswith("**Provisional")
     assert body["status"] == "ok"

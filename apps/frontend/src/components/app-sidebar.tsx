@@ -1,7 +1,6 @@
 import type { ComponentProps } from 'react'
 import { Link } from '@tanstack/react-router'
 import {
-  CalendarIcon,
   FileTextIcon,
   LayoutDashboardIcon,
   LibraryIcon,
@@ -24,14 +23,6 @@ import {
   SidebarRail,
 } from '@/components/ui/sidebar'
 
-// "File a report" is deliberately absent: filing happens through an event, and
-// a nav item that cannot know which event would have to ask — the picker the
-// spec rejects.
-const CORP_NAV = [
-  { title: 'Events', to: '/corp', icon: CalendarIcon },
-  { title: 'My submissions', to: '/corp/submissions', icon: FileTextIcon },
-] as const
-
 const DMU_NAV = [
   { title: 'Dashboard', to: '/dmu', icon: LayoutDashboardIcon },
   { title: 'Field data', to: '/dmu/field-data', icon: UploadIcon },
@@ -43,10 +34,10 @@ const DMU_NAV = [
 
 export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
   const { identity } = useIdentity()
-  // No identity means the only reachable page is the who-are-you screen, so an
-  // empty sidebar is correct rather than a fallback to one role's menu.
-  const navItems =
-    identity === null ? [] : identity.role === 'corp' ? CORP_NAV : DMU_NAV
+  // The root shell only mounts this component for the DMU identity now --
+  // corp renders no sidebar at all. The DMU-only check stays here too, so
+  // this component is never wrong on its own if that changes.
+  const navItems = identity?.role === 'dmu' ? DMU_NAV : []
 
   return (
     <Sidebar variant="inset" {...props}>

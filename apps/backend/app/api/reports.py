@@ -1,13 +1,14 @@
 from datetime import datetime
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.contracts import DataRequirement
-from app.core.engine import PLACEHOLDER_RE, generate_report
-from app.core.llm import get_default_llm_client
-from app.core.report_store import get_report, list_reports, save_report
+from app.core.engine import PLACEHOLDER_RE, resolve_effective_requirements, validate_params
+from app.core.jobs import enqueue
+from app.core.report_store import get_report, list_reports, save_placeholder_report
 from app.core.template_store import get_latest_template_version, get_template_version
 from app.db import get_session
 from app.modules.survey123.normalize import CANONICAL_CORPORATIONS
@@ -32,6 +33,7 @@ class GenerateReportResponse(BaseModel):
     id: str
     status: str
     markdown: str
+    error: str | None = None
 
 
 def validate_corporations(request: GenerateReportRequest) -> None:
@@ -62,7 +64,7 @@ def validate_corporations(request: GenerateReportRequest) -> None:
             )
 
 
-@router.post("/reports", response_model=GenerateReportResponse)
+@router.post("/reports", response_model=GenerateReportResponse, status_code=202)
 def create_report(
     request: GenerateReportRequest, session: Session = Depends(get_session)
 ) -> GenerateReportResponse:
@@ -83,19 +85,27 @@ def create_report(
         ]
 
     try:
-        report = generate_report(
-            template,
-            request.params,
-            session,
-            get_default_llm_client(),
-            data_requirements=override,
-        )
+        resolve_effective_requirements(template, override)
+        validate_params(template, request.params)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    save_report(report, session)
-
-    return GenerateReportResponse(id=report.request_id, status=report.status, markdown=report.markdown)
+    report_id = str(uuid.uuid4())
+    save_placeholder_report(
+        session,
+        report_id=report_id,
+        template=template,
+        params=request.params,
+        data_requirements=override,
+    )
+    enqueue("generate_report", report_id=report_id)
+    session.expire_all()
+    row = get_report(report_id, session)
+    if row is None:
+        raise HTTPException(status_code=500, detail="report placeholder missing after enqueue")
+    return GenerateReportResponse(
+        id=row.id, status=row.status, markdown=row.markdown, error=row.error
+    )
 
 
 class ReportListItem(BaseModel):
@@ -158,6 +168,7 @@ class ReportDetail(BaseModel):
     markdown: str
     status: str
     violations: list
+    error: str | None = None
     created_at: datetime
 
 
@@ -178,5 +189,6 @@ def read_report(report_id: str, session: Session = Depends(get_session)) -> Repo
         markdown=db_report.markdown,
         status=db_report.status,
         violations=db_report.violations,
+        error=db_report.error,
         created_at=db_report.created_at,
     )

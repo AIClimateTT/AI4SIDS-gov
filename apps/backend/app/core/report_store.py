@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from app.core.contracts import DataRequirement, Template
 from app.core.engine import GeneratedReport
 from app.core.report_models import Report
 
@@ -18,12 +19,81 @@ def save_report(report: GeneratedReport, session: Session) -> Report:
         narrative=report.narrative,
         markdown=report.markdown,
         status=report.status,
+        error=None,
         violations=[v.model_dump() for v in report.violations],
         created_at=datetime.now(timezone.utc),
     )
     session.add(db_report)
     session.commit()
     return db_report
+
+
+def save_placeholder_report(
+    session: Session,
+    *,
+    report_id: str,
+    template: Template,
+    params: dict,
+    data_requirements: list[DataRequirement] | None,
+) -> Report:
+    now = datetime.now(timezone.utc)
+    db_report = Report(
+        id=report_id,
+        template=template.name,
+        template_version=template.version,
+        params=params,
+        data_requirements=[r.model_dump() for r in (data_requirements or [])],
+        fact_table={
+            "request_id": report_id,
+            "template": template.name,
+            "template_version": template.version,
+            "params": params,
+            "generated_at": now.isoformat(),
+            "facts": [],
+            "gaps": [],
+        },
+        narrative="",
+        markdown="",
+        status="queued",
+        error=None,
+        violations=[],
+        created_at=now,
+    )
+    session.add(db_report)
+    session.commit()
+    session.refresh(db_report)
+    return db_report
+
+
+def mark_report_running(row: Report, session: Session) -> Report:
+    row.status = "running"
+    session.commit()
+    session.refresh(row)
+    return row
+
+
+def mark_report_failed(row: Report, session: Session, error: str) -> Report:
+    row.status = "failed"
+    row.error = error[:2000]
+    session.commit()
+    session.refresh(row)
+    return row
+
+
+def apply_generated_report(row: Report, report: GeneratedReport, session: Session) -> Report:
+    row.template = report.template
+    row.template_version = report.template_version
+    row.params = report.params
+    row.data_requirements = [r.model_dump() for r in report.data_requirements]
+    row.fact_table = report.fact_table.model_dump(mode="json")
+    row.narrative = report.narrative
+    row.markdown = report.markdown
+    row.status = report.status
+    row.error = None
+    row.violations = [v.model_dump() for v in report.violations]
+    session.commit()
+    session.refresh(row)
+    return row
 
 
 def get_report(report_id: str, session: Session) -> Report | None:

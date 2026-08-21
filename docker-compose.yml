@@ -22,31 +22,30 @@ services:
     networks:
       - app-network
 
-  ollama-prod:
-    image: ollama/ollama:latest
-    container_name: dmcu-prod-ollama
-    volumes:
-      - ollama_data:/root/.ollama
+  nim-prod:
+    image: nvcr.io/nim/openai/gpt-oss-20b:2.0.8
+    container_name: dmcu-prod-nim
+    runtime: nvidia
+    shm_size: "16gb"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     environment:
-      OLLAMA_KEEP_ALIVE: "-1"
+      NGC_API_KEY: ${NGC_API_KEY}
+    volumes:
+      - nim_cache:/opt/nim/.cache
     expose:
-      - "11434"
-    # Serve first, then pull gpt-oss:20b (no-op if already cached).
-    # First pull is large; later restarts only check the local blob.
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        ollama serve &
-        pid=$$!
-        until ollama list >/dev/null 2>&1; do sleep 1; done
-        ollama pull gpt-oss:20b
-        wait $$pid
+      - "8000"
     healthcheck:
-      test: ["CMD", "ollama", "list"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health/ready"]
       interval: 30s
       timeout: 10s
-      retries: 10
-      start_period: 20s
+      retries: 20
+      start_period: 300s
     restart: unless-stopped
     networks:
       - app-network
@@ -59,8 +58,8 @@ services:
     depends_on:
       postgres-prod:
         condition: service_healthy
-      ollama-prod:
-        condition: service_started
+      nim-prod:
+        condition: service_healthy
     expose:
       - "8082"
     ports:
@@ -69,10 +68,12 @@ services:
       APP_ENV: ${APP_ENV:-production}
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://dmcu:dmcu_local@postgres-prod:5432/dmcu}
       DEDUP_SALT: ${DEDUP_SALT:-dev-salt-change-in-production}
-      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama-prod:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-gpt-oss:20b}
-      OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-8192}
+      LLM_PROVIDER: ${LLM_PROVIDER:-nim}
+      NIM_BASE_URL: ${NIM_BASE_URL:-http://nim-prod:8000}
+      NIM_API_KEY: ${NIM_API_KEY:-none}
+      NIM_MODEL: ${NIM_MODEL:-openai/gpt-oss-20b}
+      NIM_CHAT_MODEL: ${NIM_CHAT_MODEL:-openai/gpt-oss-20b}
+      JOB_BACKEND: ${JOB_BACKEND:-procrastinate}
       REPORT_TIMEZONE: ${REPORT_TIMEZONE:-America/Port_of_Spain}
       SURVEY123_TRANSPORT: ${SURVEY123_TRANSPORT:-inprocess}
     extra_hosts:
@@ -93,6 +94,35 @@ services:
     networks:
       - app-network
       - dokploy-network
+
+  worker-prod:
+    container_name: dmcu-prod-worker
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    command: ["worker"]
+    depends_on:
+      postgres-prod:
+        condition: service_healthy
+      backend-prod:
+        condition: service_healthy
+      nim-prod:
+        condition: service_healthy
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://dmcu:dmcu_local@postgres-prod:5432/dmcu}
+      DEDUP_SALT: ${DEDUP_SALT:-dev-salt-change-in-production}
+      LLM_PROVIDER: ${LLM_PROVIDER:-nim}
+      NIM_BASE_URL: ${NIM_BASE_URL:-http://nim-prod:8000}
+      NIM_API_KEY: ${NIM_API_KEY:-none}
+      NIM_MODEL: ${NIM_MODEL:-openai/gpt-oss-20b}
+      NIM_CHAT_MODEL: ${NIM_CHAT_MODEL:-openai/gpt-oss-20b}
+      JOB_BACKEND: ${JOB_BACKEND:-procrastinate}
+      REPORT_TIMEZONE: ${REPORT_TIMEZONE:-America/Port_of_Spain}
+      SURVEY123_TRANSPORT: ${SURVEY123_TRANSPORT:-inprocess}
+    restart: unless-stopped
+    networks:
+      - app-network
 
   frontend-prod:
     container_name: dmcu-prod-frontend
@@ -118,4 +148,4 @@ networks:
 
 volumes:
   postgres_data:
-  ollama_data:
+  nim_cache:

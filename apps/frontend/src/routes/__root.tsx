@@ -5,7 +5,7 @@ import type { QueryClient } from '@tanstack/react-query'
 
 import { AppSidebar } from '@/components/app-sidebar'
 import { IdentityBadge } from '@/components/identity/identity-badge'
-import { IdentityProvider } from '@/hooks/use-identity'
+import { IdentityProvider, useIdentity } from '@/hooks/use-identity'
 import { Separator } from '@/components/ui/separator'
 import {
   SidebarInset,
@@ -28,36 +28,54 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 function RootComponent() {
   return (
     <IdentityProvider>
-      <TooltipProvider>
-        <SidebarProvider>
-          <AppSidebar />
-          <SidebarInset>
-            <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
-              <SidebarTrigger className="-ml-1" />
-              <Separator orientation="vertical" className="mr-2 h-4" />
-              {/* The app is already named in the sidebar header; this row now
-                  carries identity, so a static title here would render the DMU's
-                  name twice. */}
-              <IdentityBadge />
-            </header>
-            <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
-              <Outlet />
-            </div>
-          </SidebarInset>
-        </SidebarProvider>
-        <Toaster />
-        <TanStackDevtools
-          config={{
-            position: 'bottom-right',
-          }}
-          plugins={[
-            {
-              name: 'TanStack Router',
-              render: <TanStackRouterDevtoolsPanel />,
-            },
-          ]}
-        />
-      </TooltipProvider>
+      <AppShell />
     </IdentityProvider>
+  )
+}
+
+function AppShell() {
+  const { identity } = useIdentity()
+  // Two nav links do not earn 256px on a phone -- corp gets no sidebar at
+  // all, just the composer-led home and identity in the header. DMU keeps
+  // the sidebar exactly as before.
+  const showSidebar = identity?.role !== 'corp'
+
+  return (
+    <TooltipProvider>
+      <SidebarProvider>
+        {showSidebar ? <AppSidebar /> : null}
+        <SidebarInset className="min-h-0 overflow-hidden">
+          <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+            {showSidebar ? (
+              <>
+                <SidebarTrigger className="-ml-1" />
+                <Separator orientation="vertical" className="mr-2 h-4" />
+              </>
+            ) : (
+              <span className="text-sm font-medium">DMCU Reports</span>
+            )}
+            {/* The app is already named in the sidebar header (or, for corp,
+                just above); this row carries identity, so a static title
+                here would render the name twice. */}
+            <IdentityBadge />
+          </header>
+          <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-4 md:p-6">
+            <Outlet />
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+      <Toaster />
+      <TanStackDevtools
+        config={{
+          position: 'bottom-right',
+        }}
+        plugins={[
+          {
+            name: 'TanStack Router',
+            render: <TanStackRouterDevtoolsPanel />,
+          },
+        ]}
+      />
+    </TooltipProvider>
   )
 }

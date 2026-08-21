@@ -1,25 +1,23 @@
 from datetime import datetime, timezone
+import uuid
 
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.contracts import SubmissionIngestResult
-from app.core.llm import get_default_llm_client
-from app.core.report_store import save_report
+from app.core.jobs import enqueue
+from app.core.llm import get_llm_client
+from app.core.report_store import get_report, save_placeholder_report
 from app.db import get_session
 from app.modules.whatsapp.adjust import adjust_working_set
-from app.modules.whatsapp.briefing import BriefingError, generate_briefing
+from app.modules.whatsapp.briefing import BRIEFING_TEMPLATE
 from app.modules.whatsapp.confirm import ConfirmError, confirm_proposals
 from app.modules.whatsapp.extract import (
     DraftIncident,
     DraftLog,
-    ExtractionResult,
     ProposedIncident,
     ProposedLog,
-    extract_proposals,
-    to_draft_incidents,
-    to_draft_logs,
 )
 from app.modules.whatsapp.facts import (
     included_attributed_incidents,
@@ -57,6 +55,8 @@ class DraftResponse(BaseModel):
     pii_redacted: bool
     incidents: list[DraftIncident]
     logs: list[DraftLog]
+    status: str
+    error: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -86,6 +86,7 @@ class BriefingResponse(BaseModel):
     id: str
     status: str
     markdown: str
+    error: str | None = None
 
 
 def _as_response(draft: WhatsAppDraft) -> DraftResponse:
@@ -98,6 +99,8 @@ def _as_response(draft: WhatsAppDraft) -> DraftResponse:
         pii_redacted=draft.pii_redacted,
         incidents=draft_incidents(draft),
         logs=draft_logs(draft),
+        status=draft.status,
+        error=draft.error,
         created_at=draft.created_at,
         updated_at=draft.updated_at,
     )
@@ -110,7 +113,7 @@ def _require_draft(session: Session, draft_id: int) -> WhatsAppDraft:
     return draft
 
 
-@router.post("/whatsapp/extract", response_model=DraftResponse)
+@router.post("/whatsapp/extract", response_model=DraftResponse, status_code=202)
 async def post_extract(
     file: UploadFile,
     as_at: datetime | None = Form(None),
@@ -130,22 +133,20 @@ async def post_extract(
     if not messages:
         raise HTTPException(status_code=400, detail="no messages found in export")
 
-    try:
-        extracted: ExtractionResult = extract_proposals(
-            messages, get_default_llm_client()
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-
     draft = create_draft(
         session,
         filename=filename,
         as_at=as_at or datetime.now(timezone.utc).replace(tzinfo=None),
         message_count=len(messages),
         pii_redacted=pii_redacted,
-        incidents=to_draft_incidents(extracted.incidents),
-        logs=to_draft_logs(extracted.logs),
+        incidents=[],
+        logs=[],
+        status="queued",
+        source_text=text,
     )
+    enqueue("extract_whatsapp", draft_id=draft.id)
+    session.expire_all()
+    draft = _require_draft(session, draft.id)
     return _as_response(draft)
 
 
@@ -203,30 +204,41 @@ def post_adjust(
             draft_incidents(draft),
             draft_logs(draft),
             request.instruction,
-            get_default_llm_client(),
+            get_llm_client("chat"),
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return _as_response(update_draft(session, draft, incidents=incidents, logs=logs))
 
 
-@router.post("/whatsapp/drafts/{draft_id}/briefing", response_model=BriefingResponse)
+@router.post("/whatsapp/drafts/{draft_id}/briefing", response_model=BriefingResponse, status_code=202)
 def post_briefing(
     draft_id: int, session: Session = Depends(get_session)
 ) -> BriefingResponse:
     draft = _require_draft(session, draft_id)
-    try:
-        report = generate_briefing(
-            draft_incidents(draft),
-            draft_logs(draft),
-            draft.as_at,
-            get_default_llm_client(),
+    incidents = draft_incidents(draft)
+    logs = draft_logs(draft)
+    if not included_attributed_incidents(incidents) and not included_attributed_logs(logs):
+        raise HTTPException(
+            status_code=400,
+            detail="include at least one row with a corporation to generate a briefing",
         )
-    except BriefingError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    saved = save_report(report, session)
+
+    report_id = str(uuid.uuid4())
+    save_placeholder_report(
+        session,
+        report_id=report_id,
+        template=BRIEFING_TEMPLATE,
+        params={"as_at": draft.as_at.isoformat()},
+        data_requirements=[],
+    )
+    enqueue("generate_briefing", draft_id=draft.id, report_id=report_id)
+    session.expire_all()
+    row = get_report(report_id, session)
+    if row is None:
+        raise HTTPException(status_code=500, detail="briefing placeholder missing after enqueue")
     return BriefingResponse(
-        id=saved.id, status=report.status, markdown=report.markdown
+        id=row.id, status=row.status, markdown=row.markdown, error=row.error
     )
 
 

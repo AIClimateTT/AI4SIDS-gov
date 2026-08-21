@@ -1,6 +1,6 @@
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { PlusIcon } from 'lucide-react'
+import { MessageSquareIcon, PlusIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { EmptyState, LoadingBlock, PageHeader } from '@/components/shared'
@@ -9,6 +9,7 @@ import { CorpRoleNotice } from '@/components/identity/corp-role-notice'
 import { useIdentity } from '@/hooks/use-identity'
 import type { Identity } from '@/lib/identity'
 import { formatConstant } from '@/lib/format-constant'
+import { useCreateCaptureSession } from '@/lib/queries/capture'
 import { eventQueries, submissionQueries } from '@/lib/queries/submissions'
 import type { SubmissionSummary } from '@/types/dmcu'
 
@@ -100,17 +101,21 @@ function EventPageContent({ identity }: { identity: CorpIdentity }) {
             {/* sequence_no is backend-assigned; showing a number before the
                 filings list has actually loaded would name the wrong report. */}
             {submissionsQuery.isSuccess ? (
-              <Button
-                render={
-                  <Link
-                    to="/corp/events/$eventId/file"
-                    params={{ eventId }}
-                  />
-                }
-              >
-                <PlusIcon />
-                File report #{nextSequence}
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  render={
+                    <Link to="/corp/import" search={{ event_id: eventIdNum }} />
+                  }
+                >
+                  <PlusIcon />
+                  File CSV #{nextSequence}
+                </Button>
+                <StartConversationButton
+                  corporation={identity.corporation}
+                  eventId={eventIdNum}
+                />
+              </>
             ) : null}
           </div>
         }
@@ -153,14 +158,19 @@ function EventPageContent({ identity }: { identity: CorpIdentity }) {
             title="No filings yet"
             description="File the first situation report for this event."
             action={
-              <Button
-                render={
-                  <Link to="/corp/events/$eventId/file" params={{ eventId }} />
-                }
-              >
-                <PlusIcon />
-                File report #1
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  render={<Link to="/corp/import" search={{ event_id: eventIdNum }} />}
+                >
+                  <PlusIcon />
+                  File CSV #1
+                </Button>
+                <StartConversationButton
+                  corporation={identity.corporation}
+                  eventId={eventIdNum}
+                />
+              </div>
             }
           />
         ) : null}
@@ -177,17 +187,58 @@ function EventPageContent({ identity }: { identity: CorpIdentity }) {
   )
 }
 
+// Starts (or resumes -- the backend reuses an existing draft for this
+// corporation/event pair) a capture session scoped to this event, then
+// hands off straight to the conversation workspace.
+function StartConversationButton({
+  corporation,
+  eventId,
+}: {
+  corporation: string
+  eventId: number
+}) {
+  const createSession = useCreateCaptureSession()
+  const navigate = useNavigate()
+
+  return (
+    <Button
+      disabled={createSession.isPending}
+      onClick={() =>
+        createSession.mutate(
+          { corporation, eventId },
+          {
+            onSuccess: (session) =>
+              void navigate({
+                to: '/corp/c/$sessionId',
+                params: { sessionId: String(session.id) },
+              }),
+          },
+        )
+      }
+    >
+      <MessageSquareIcon />
+      File by conversation
+    </Button>
+  )
+}
+
 function SubmissionRow({ submission }: { submission: SubmissionSummary }) {
   return (
-    <ContentCard
-      title={`Situation Report #${submission.sequence_no}`}
-      description={`As at ${new Date(submission.as_at).toLocaleString()} · ${formatConstant(
-        submission.alert_level,
-      )}`}
+    <Link
+      to="/corp/filings/$submissionId"
+      params={{ submissionId: String(submission.id) }}
+      className="block"
     >
-      <p className="text-sm text-muted-foreground">
-        {submission.incident_count} incidents · {submission.log_count} logs
-      </p>
-    </ContentCard>
+      <ContentCard
+        title={`Situation Report #${submission.sequence_no}`}
+        description={`As at ${new Date(submission.as_at).toLocaleString()} · ${formatConstant(
+          submission.alert_level,
+        )}`}
+      >
+        <p className="text-sm text-muted-foreground">
+          {submission.incident_count} incidents · {submission.log_count} logs
+        </p>
+      </ContentCard>
+    </Link>
   )
 }
