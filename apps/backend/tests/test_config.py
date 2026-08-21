@@ -7,6 +7,10 @@ def test_settings_defaults(monkeypatch):
     monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
     monkeypatch.delenv("OLLAMA_MODEL", raising=False)
     monkeypatch.delenv("OLLAMA_CHAT_MODEL", raising=False)
+    monkeypatch.delenv("NIM_BASE_URL", raising=False)
+    monkeypatch.delenv("NIM_API_KEY", raising=False)
+    monkeypatch.delenv("NIM_MODEL", raising=False)
+    monkeypatch.delenv("NIM_CHAT_MODEL", raising=False)
     monkeypatch.delenv("JOB_BACKEND", raising=False)
     monkeypatch.delenv("APP_ENV", raising=False)
     monkeypatch.delenv("DEDUP_SALT", raising=False)
@@ -18,6 +22,10 @@ def test_settings_defaults(monkeypatch):
     assert settings.ollama_base_url == "http://localhost:11434"
     assert settings.ollama_model == "gemma3:4b"
     assert settings.ollama_chat_model == "gemma3:4b"
+    assert settings.nim_base_url == "http://localhost:8000"
+    assert settings.nim_api_key == "none"
+    assert settings.nim_model == "openai/gpt-oss-20b"
+    assert settings.nim_chat_model == "openai/gpt-oss-20b"
     assert settings.job_backend is None
     assert settings.report_timezone == "America/Port_of_Spain"
     assert settings.app_env == "development"
@@ -30,6 +38,10 @@ def test_settings_env_override(monkeypatch):
     monkeypatch.setenv("OLLAMA_BASE_URL", "http://ollama-host:11434")
     monkeypatch.setenv("OLLAMA_MODEL", "gpt-oss:20b")
     monkeypatch.setenv("OLLAMA_CHAT_MODEL", "gemma3:4b")
+    monkeypatch.setenv("NIM_BASE_URL", "http://nim-prod:8000")
+    monkeypatch.setenv("NIM_API_KEY", "none")
+    monkeypatch.setenv("NIM_MODEL", "openai/gpt-oss-20b")
+    monkeypatch.setenv("NIM_CHAT_MODEL", "openai/gpt-oss-20b")
     monkeypatch.setenv("JOB_BACKEND", "procrastinate")
     monkeypatch.setenv("APP_ENV", "production")
     monkeypatch.setenv("DEDUP_SALT", "prod-salt-xyz")
@@ -41,6 +53,10 @@ def test_settings_env_override(monkeypatch):
     assert settings.ollama_base_url == "http://ollama-host:11434"
     assert settings.ollama_model == "gpt-oss:20b"
     assert settings.ollama_chat_model == "gemma3:4b"
+    assert settings.nim_base_url == "http://nim-prod:8000"
+    assert settings.nim_api_key == "none"
+    assert settings.nim_model == "openai/gpt-oss-20b"
+    assert settings.nim_chat_model == "openai/gpt-oss-20b"
     assert settings.job_backend == "procrastinate"
     assert settings.app_env == "production"
     assert settings.dedup_salt == "prod-salt-xyz"

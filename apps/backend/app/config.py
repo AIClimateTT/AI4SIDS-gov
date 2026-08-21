@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     database_url: str = "sqlite:///./dev.db"
-    llm_provider: Literal["fake", "ollama"] = "ollama"
+    llm_provider: Literal["fake", "ollama", "nim"] = "ollama"
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "gemma3:4b"
     ollama_chat_model: str = "gemma3:4b"
@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     # grow as corporations report, and overflow yields an empty narrative rather
     # than an error, so it is set explicitly.
     ollama_num_ctx: int = 8192
+    nim_base_url: str = "http://localhost:8000"
+    nim_api_key: str = "none"
+    nim_model: str = "openai/gpt-oss-20b"
+    nim_chat_model: str = "openai/gpt-oss-20b"
     job_backend: Literal["eager", "procrastinate"] | None = None
     report_timezone: str = "America/Port_of_Spain"
     app_env: str = "development"

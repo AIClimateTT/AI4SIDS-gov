@@ -1,8 +1,15 @@
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
+import json
 
 from app.core.contracts import Citation, Fact, FactTable
-from app.core.llm import FakeLLMClient, OllamaLLMClient, get_default_llm_client, get_llm_client
+from app.core.llm import (
+    FakeLLMClient,
+    NimLLMClient,
+    OllamaLLMClient,
+    get_default_llm_client,
+    get_llm_client,
+)
 
 
 def make_fact_table() -> FactTable:
@@ -182,3 +189,108 @@ def test_get_default_llm_client_is_the_batch_client(monkeypatch):
 
     assert isinstance(client, OllamaLLMClient)
     assert client._model == "gpt-oss:20b"
+
+
+def test_fake_llm_client_returns_canned_capture_json_for_a_capture_payload():
+    payload = json.dumps(
+        {
+            "capture": {"as_at": None, "alert_level": "none", "incidents": [], "logs": []},
+            "missing": [],
+            "messages": [],
+            "user_message": "5 houses flooded in Petit Valley",
+        }
+    )
+
+    raw = FakeLLMClient().generate("system prompt", payload)
+    parsed = json.loads(raw)
+
+    assert parsed["assistant_message"]
+    assert "capture" in parsed
+    assert isinstance(parsed["capture"]["incidents"], list)
+
+
+def test_nim_client_generate_calls_chat_correctly():
+    mock_chat = MagicMock()
+    mock_response = MagicMock()
+    mock_response.content = "generated narrative"
+    mock_chat.invoke.return_value = mock_response
+
+    client = NimLLMClient(
+        base_url="http://nim-prod:8000",
+        model="openai/gpt-oss-20b",
+        api_key="none",
+        chat=mock_chat,
+    )
+    result = client.generate("system prompt", "user content")
+
+    assert result == "generated narrative"
+    mock_chat.invoke.assert_called_once_with(
+        [("system", "system prompt"), ("human", "user content")]
+    )
+
+
+def test_nim_client_generate_stream_yields_chat_chunks():
+    mock_chat = MagicMock()
+    first = MagicMock()
+    first.content = '{"assistant'
+    second = MagicMock()
+    second.content = '_message": "hi"}'
+    mock_chat.stream.return_value = [first, second]
+
+    client = NimLLMClient(
+        base_url="http://nim-prod:8000",
+        model="openai/gpt-oss-20b",
+        api_key="none",
+        chat=mock_chat,
+    )
+    chunks = list(client.generate_stream("system prompt", "user content"))
+
+    assert chunks == ['{"assistant', '_message": "hi"}']
+    mock_chat.stream.assert_called_once_with(
+        [("system", "system prompt"), ("human", "user content")]
+    )
+
+
+def _nim_settings():
+    return type(
+        "S",
+        (),
+        {
+            "llm_provider": "nim",
+            "nim_base_url": "http://nim-prod:8000",
+            "nim_api_key": "none",
+            "nim_model": "openai/gpt-oss-20b",
+            "nim_chat_model": "openai/gpt-oss-20b",
+        },
+    )()
+
+
+def test_get_llm_client_nim_batch_uses_the_batch_model(monkeypatch):
+    monkeypatch.setattr("app.core.llm.settings", _nim_settings())
+
+    client = get_llm_client("batch")
+
+    assert isinstance(client, NimLLMClient)
+    assert client._model == "openai/gpt-oss-20b"
+
+
+def test_get_llm_client_nim_chat_uses_the_chat_model(monkeypatch):
+    monkeypatch.setattr(
+        "app.core.llm.settings",
+        type(
+            "S",
+            (),
+            {
+                "llm_provider": "nim",
+                "nim_base_url": "http://nim-prod:8000",
+                "nim_api_key": "none",
+                "nim_model": "openai/gpt-oss-20b",
+                "nim_chat_model": "openai/gpt-oss-20b-chat",
+            },
+        )(),
+    )
+
+    client = get_llm_client("chat")
+
+    assert isinstance(client, NimLLMClient)
+    assert client._model == "openai/gpt-oss-20b-chat"

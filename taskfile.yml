@@ -111,6 +111,19 @@ tasks:
       - uv run python -c "from app.jobs.queue import apply_schema; apply_schema()"
       - uv run python -m procrastinate --app=app.jobs.queue.app worker --concurrency=1
 
+  locust:api:
+    desc: Locust API soak (backend must run with LLM_PROVIDER=fake)
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - uv run python -m locust -f loadtests/locustfile.py --tags api --host http://localhost:8000
+
+  locust:chat:
+    desc: Locust capture stream against a live model (use --users 1-4)
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - uv run python -m locust -f loadtests/locustfile.py --tags chat --host http://localhost:8000
+
+
 
 
  
