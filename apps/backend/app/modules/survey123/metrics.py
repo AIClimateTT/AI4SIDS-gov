@@ -39,6 +39,8 @@ def build_scope(params: dict, **extra: str) -> dict[str, str]:
         "community": params.get("community") or "all",
         "window": build_window_label(params.get("date_from"), params.get("date_to")),
     }
+    if params.get("submission_id"):
+        scope["submission"] = str(params["submission_id"])
     scope.update(extra)
     return scope
 
@@ -47,7 +49,7 @@ def build_scope(params: dict, **extra: str) -> dict[str, str]:
 # only these, because query_ref is the string an auditor uses to reproduce a
 # figure — printing a key that was silently ignored describes a query that
 # never ran. Keep in step with apply_common_filters and base_query.
-QUERY_PARAMS = ("corporation", "community", "date_from", "date_to", "include_pending")
+QUERY_PARAMS = ("corporation", "community", "date_from", "date_to", "include_pending", "submission_id")
 
 
 def build_query_ref(metric_name: str, params: dict) -> str:
@@ -173,6 +175,8 @@ def apply_common_filters(stmt: Select, params: dict, model=FieldObservation) -> 
         stmt = stmt.where(model.corporation == params["corporation"])
     if params.get("community"):
         stmt = stmt.where(model.community == params["community"])
+    if params.get("submission_id") and column_exists(model, "submission_id"):
+        stmt = stmt.where(model.submission_id == int(params["submission_id"]))
     date_from = parse_date_param(params.get("date_from"))
     if date_from is not None:
         stmt = stmt.where(model.event_date >= date_from)
