@@ -169,6 +169,7 @@ export function useIssueCaptureSession() {
       queryClient.setQueryData(captureKeys.detail(result.session.id), result.session)
       void queryClient.invalidateQueries({ queryKey: captureKeys.lists() })
       void queryClient.invalidateQueries({ queryKey: submissionKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: eventKeys.lists() })
       void queryClient.invalidateQueries({ queryKey: overviewKeys.summary() })
       toast.success('Sitrep issued')
     },
