@@ -942,3 +942,35 @@ def test_issue_incident_count_matches_ingested_metric(monkeypatch):
     db.close()
     assert ingested[0].value == working_set_count
     assert ingested[0].value == 1
+
+
+def test_issue_keeps_session_draft_if_generate_fails(monkeypatch):
+    client = make_client(monkeypatch)
+    install_templates()
+    event_id = create_event(client)
+    session_id = create_capture(client, event_id)["id"]
+    client.post(
+        f"/capture/sessions/{session_id}/turns",
+        json={"message": "5 houses flooded in Petit Valley."},
+    )
+
+    def fail_generate(*args, **kwargs):
+        raise RuntimeError("llm down")
+
+    monkeypatch.setattr("app.api.capture.generate_report", fail_generate)
+    with pytest.raises(RuntimeError, match="llm down"):
+        client.post(f"/capture/sessions/{session_id}/issue")
+
+    stored = client.get(f"/capture/sessions/{session_id}")
+    assert stored.status_code == 200, stored.text
+    assert stored.json()["status"] == "draft"
+    assert stored.json()["report_id"] is None
+    assert stored.json()["submission_id"] is None
+
+    from app.core.engine import generate_report as real_generate_report
+
+    monkeypatch.setattr("app.api.capture.generate_report", real_generate_report)
+    retry = client.post(f"/capture/sessions/{session_id}/issue")
+    assert retry.status_code == 201, retry.text
+    assert retry.json()["session"]["status"] == "filed"
+    assert retry.json()["session"]["report_id"]

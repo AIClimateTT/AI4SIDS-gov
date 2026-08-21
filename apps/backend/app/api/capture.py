@@ -473,11 +473,13 @@ def _generate_preview(db: Session, row: CaptureSession) -> CaptureSession:
     return save_sitrep_preview(db, row, generated, source_updated_at=row.updated_at)
 
 
-def file_working_set(db: Session, row: CaptureSession) -> SubmissionIngestResult:
+def ingest_working_set(
+    db: Session, row: CaptureSession, *, commit: bool = True
+) -> SubmissionIngestResult:
     _require_event_if_incidents(row)
     working = working_set_from_session(row)
     incident_rows, log_rows = working_set_to_ingest_rows(working)
-    ingest = ingest_submission(
+    return ingest_submission(
         db,
         corporation=row.corporation,
         as_at=working.as_at or row.as_at,
@@ -489,7 +491,12 @@ def file_working_set(db: Session, row: CaptureSession) -> SubmissionIngestResult
         incident_rows=incident_rows,
         log_rows=log_rows,
         structured_defaults=True,
+        commit=commit,
     )
+
+
+def file_working_set(db: Session, row: CaptureSession) -> SubmissionIngestResult:
+    ingest = ingest_working_set(db, row)
     row.status = "filed"
     row.submission_id = ingest.submission_id
     save_session(db, row)
@@ -536,7 +543,7 @@ def issue_session(
     _require_event_if_incidents(row)
     if sitrep_is_stale(row):
         row = _generate_preview(db, row)
-    ingest = file_working_set(db, row)
+    ingest = ingest_working_set(db, row, commit=False)
     template = _sitrep_template(db)
     generated = generate_report(
         template,
@@ -551,6 +558,8 @@ def issue_session(
         template=template,
     )
     saved = save_report(generated, db)
+    row.status = "filed"
+    row.submission_id = ingest.submission_id
     persist_issued_sitrep(
         db,
         row,
