@@ -1,9 +1,12 @@
 from datetime import datetime, timezone
 
+from sqlalchemy.orm import Session
+
 from app.core.contracts import Fact, FactTable, Template
 from app.core.engine import GeneratedReport, narrate_fact_table
 from app.core.llm import LLMClient
 from app.modules.capture.facts import assemble_working_set_facts
+from app.modules.capture.models import CaptureSession
 from app.modules.capture.schemas import CaptureLog, CaptureWorkingSet
 
 
@@ -67,6 +70,19 @@ def generate_working_set_sitrep(
     generated = narrate_fact_table(
         template, fact_table, llm_client, template.data_requirements
     )
+    generated = attach_sitrep_preamble(
+        generated, working, event_title=event_title, template=template
+    )
+    return generated.model_copy(update={"params": params})
+
+
+def attach_sitrep_preamble(
+    generated: GeneratedReport,
+    working: CaptureWorkingSet,
+    *,
+    event_title: str,
+    template: Template,
+) -> GeneratedReport:
     as_at = working.as_at or datetime.now(timezone.utc)
     preamble = sitrep_preamble(
         event_title=event_title,
@@ -81,4 +97,61 @@ def generate_working_set_sitrep(
         f"# {template.title}\n\n{preamble}\n\n",
         1,
     )
-    return generated.model_copy(update={"markdown": markdown, "params": params})
+    return generated.model_copy(update={"markdown": markdown})
+
+
+def _naive(value: datetime) -> datetime:
+    if value.tzinfo is not None:
+        return value.replace(tzinfo=None)
+    return value
+
+
+def sitrep_is_stale(row: CaptureSession) -> bool:
+    if not row.sitrep_markdown or row.sitrep_source_updated_at is None:
+        return True
+    return row.sitrep_source_updated_at < row.updated_at
+
+
+def apply_sitrep_to_session(
+    row: CaptureSession,
+    generated: GeneratedReport,
+    *,
+    source_updated_at: datetime,
+    report_id: str | None = None,
+) -> None:
+    row.sitrep_markdown = generated.markdown
+    row.sitrep_fact_table = generated.fact_table.model_dump(mode="json")
+    row.sitrep_violations = [item.model_dump(mode="json") for item in generated.violations]
+    row.sitrep_status = generated.status
+    row.sitrep_generated_at = _naive(generated.fact_table.generated_at)
+    row.sitrep_source_updated_at = _naive(source_updated_at)
+    if report_id is not None:
+        row.report_id = report_id
+
+
+def save_sitrep_preview(
+    db: Session,
+    row: CaptureSession,
+    generated: GeneratedReport,
+    source_updated_at: datetime,
+) -> CaptureSession:
+    apply_sitrep_to_session(row, generated, source_updated_at=source_updated_at)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def persist_issued_sitrep(
+    db: Session,
+    row: CaptureSession,
+    generated: GeneratedReport,
+    *,
+    report_id: str,
+    source_updated_at: datetime,
+) -> CaptureSession:
+    apply_sitrep_to_session(
+        row, generated, source_updated_at=source_updated_at, report_id=report_id
+    )
+    db.commit()
+    db.refresh(row)
+    return row
