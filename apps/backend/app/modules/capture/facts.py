@@ -54,6 +54,7 @@ def working_set_incident_rows(
             event_id=event_id,
             row_id=incident.row_id,
             incident_type=incident.incident_type,
+            raw_incident_type=incident.raw_incident_type,
             community=incident.community,
             street=incident.street,
             event_date=_parse_event_date(incident.event_date),

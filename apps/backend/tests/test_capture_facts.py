@@ -91,3 +91,19 @@ def test_working_set_facts_total_the_captured_damage_cost():
     by_metric = {f.metric: f for f in facts}
     assert by_metric["estimated_damage_total"].value == 1500.0
 
+
+def test_working_set_facts_keep_unmapped_incident_raw_label():
+    working = _working()
+    working.incidents[0].incident_type = "unmapped"
+    working.incidents[0].raw_incident_type = "flash overflow"
+    facts = assemble_working_set_facts(
+        working,
+        corporation="arima_borough_corporation",
+        event_id=2,
+    )
+    by_metric = {f.metric: f for f in facts}
+    assert by_metric["incident_count"].breakdown["flash overflow"] == 1
+    assert any(
+        "flash overflow" in gap for gap in by_metric["incident_count"].gaps
+    )
+
