@@ -9,6 +9,7 @@ import {
   casualtyOccurred,
   parseOptionalNumber,
 } from '@/lib/capture-mapping'
+import { casualtiesUnknown } from '@/lib/capture-tallies'
 import { formatConstant } from '@/lib/format-constant'
 import type { CaptureIncident, CaptureMissingField } from '@/types/dmcu'
 
@@ -75,6 +76,32 @@ function applyIncidentForm(
 // identical to `original` and can never appear here. A field added to
 // applyIncidentForm's output is covered automatically, with no separate
 // list of "diffable fields" to keep in sync.
+function locationLine(incident: CaptureIncident): string {
+  return (
+    [
+      incident.incident_type ? formatConstant(incident.incident_type) : null,
+      incident.community,
+      incident.street,
+    ]
+      .filter(Boolean)
+      .join(' · ') || 'Details still needed'
+  )
+}
+
+function statusLine(incident: CaptureIncident): string | null {
+  if (casualtiesUnknown(incident)) return 'Casualties unknown'
+  const parts: string[] = []
+  if (incident.injuries_count != null || incident.injuries_occurred != null) {
+    parts.push(`${incident.injuries_count ?? 0} injured`)
+  }
+  if (incident.deaths_count != null || incident.deaths_occurred != null) {
+    parts.push(`${incident.deaths_count ?? 0} dead`)
+  }
+  if (incident.relief_supplied === true) parts.push('relief given')
+  if (incident.further_assessment_required === true) parts.push('assessment needed')
+  return parts.length > 0 ? parts.join(' · ') : null
+}
+
 function diffIncidentPaths(original: CaptureIncident, next: CaptureIncident): string[] {
   return (Object.keys(original) as (keyof CaptureIncident)[])
     .filter((field) => field !== 'row_id' && original[field] !== next[field])
@@ -110,6 +137,8 @@ export function IncidentCard({
     )
   }
 
+  const status = statusLine(incident)
+
   return (
     <div className="rounded-lg border px-3 py-2 text-sm">
       <div className="flex items-start justify-between gap-2">
@@ -117,15 +146,8 @@ export function IncidentCard({
           <p className="font-medium">
             {incident.incident_summary || 'Untitled incident'}
           </p>
-          <p className="text-muted-foreground">
-            {[
-              incident.incident_type ? formatConstant(incident.incident_type) : null,
-              incident.community,
-              incident.event_date,
-            ]
-              .filter(Boolean)
-              .join(' · ') || 'Details still needed'}
-          </p>
+          <p className="text-muted-foreground">{locationLine(incident)}</p>
+          {status ? <p className="text-muted-foreground">{status}</p> : null}
         </div>
         {!disabled ? (
           <div className="flex shrink-0 gap-1">

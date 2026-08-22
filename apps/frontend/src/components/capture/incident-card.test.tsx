@@ -43,11 +43,32 @@ const bareIncident = {
 } satisfies CaptureIncident
 
 describe('IncidentCard', () => {
-  it('reads as prose until it is opened', () => {
+  it('shows known casualties on the closed card without opening Edit', () => {
     render(
-      <IncidentCard incident={incident} missing={[]} onEdit={vi.fn()} onRemove={vi.fn()} />,
+      <IncidentCard
+        incident={{
+          ...incident,
+          injuries_occurred: true,
+          injuries_count: 1,
+          deaths_occurred: false,
+          deaths_count: 0,
+        }}
+        missing={[]}
+        onEdit={vi.fn()}
+        onRemove={vi.fn()}
+      />,
     )
-    expect(screen.getByText('5 houses flooded')).not.toBeNull()
+    expect(screen.getByText(/1 injured/)).not.toBeNull()
+    expect(screen.getByText(/0 dead/)).not.toBeNull()
+    expect(screen.queryByLabelText('Community')).toBeNull()
+  })
+
+  it('does not claim zero injuries when casualties are unknown', () => {
+    render(
+      <IncidentCard incident={bareIncident} missing={[]} onEdit={vi.fn()} onRemove={vi.fn()} />,
+    )
+    expect(screen.queryByText(/0 injured/)).toBeNull()
+    expect(screen.getByText('Casualties unknown')).not.toBeNull()
     expect(screen.queryByLabelText('Community')).toBeNull()
   })
 

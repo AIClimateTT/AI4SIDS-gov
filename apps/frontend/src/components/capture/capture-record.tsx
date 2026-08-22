@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { EventChip } from '@/components/capture/event-chip'
 import { IncidentCard } from '@/components/capture/incident-card'
@@ -11,7 +11,9 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { Textarea } from '@/components/ui/textarea'
 import { withManual } from '@/lib/capture-paths'
+import { workingSetTallies } from '@/lib/capture-tallies'
 import {
   ALERT_LEVELS,
   formToCaptureIncident,
@@ -133,6 +135,40 @@ export function CaptureRecord({
       </div>
 
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4">
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-muted-foreground">Situation</h2>
+          <SituationField
+            label="Situation overview"
+            value={session.situation_overview}
+            placeholder="Add a situation overview…"
+            disabled={disabled}
+            onCommit={(value) =>
+              onSave(
+                payloadOf(session, {
+                  situation_overview: value,
+                  manual_fields: withManual(session.manual_fields, 'situation_overview'),
+                }),
+              )
+            }
+          />
+          <SituationField
+            label="Present activity"
+            value={session.present_activity}
+            placeholder="What is happening now…"
+            disabled={disabled}
+            onCommit={(value) =>
+              onSave(
+                payloadOf(session, {
+                  present_activity: value,
+                  manual_fields: withManual(session.manual_fields, 'present_activity'),
+                }),
+              )
+            }
+          />
+        </section>
+
+        <TallyStrip incidents={session.incidents} />
+
         <section className="space-y-2">
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-sm font-semibold text-muted-foreground">
@@ -250,19 +286,77 @@ export function CaptureRecord({
         </section>
       </div>
 
-      <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-2 border-t bg-background px-4 py-3">
-        <p className="text-sm text-muted-foreground">
-          {session.incidents.length} incidents · {session.logs.length} logs ·{' '}
-          {session.missing.length} details needed
-        </p>
-        {onReview ? (
+      {onReview ? (
+        <div className="sticky bottom-0 flex flex-wrap items-center justify-end gap-2 border-t bg-background px-4 py-3">
           <Button type="button" disabled={disabled || pending} onClick={onReview}>
             Review & file
           </Button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </div>
   )
+}
+
+function SituationField({
+  label,
+  value,
+  placeholder,
+  disabled,
+  onCommit,
+}: {
+  label: string
+  value: string | null
+  placeholder: string
+  disabled?: boolean
+  onCommit: (value: string | null) => void
+}) {
+  const [draft, setDraft] = useState(value ?? '')
+
+  useEffect(() => {
+    setDraft(value ?? '')
+  }, [value])
+
+  return (
+    <label className="block space-y-1">
+      <span className="text-sm font-medium">{label}</span>
+      <Textarea
+        aria-label={label}
+        value={draft}
+        placeholder={placeholder}
+        disabled={disabled}
+        rows={2}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={() => {
+          const next = draft.trim() || null
+          const previous = value?.trim() || null
+          if (next === previous) return
+          onCommit(next)
+        }}
+      />
+    </label>
+  )
+}
+
+function TallyStrip({ incidents }: { incidents: CaptureSession['incidents'] }) {
+  const tallies = workingSetTallies(incidents)
+  const parts = [
+    `${tallies.incidents} ${tallies.incidents === 1 ? 'incident' : 'incidents'}`,
+  ]
+  if (tallies.injuries > 0) parts.push(`${tallies.injuries} injured`)
+  if (tallies.deaths > 0) parts.push(`${tallies.deaths} dead`)
+  if (tallies.unknownCasualties > 0) {
+    parts.push(
+      tallies.unknownCasualties === 1
+        ? '1 with unknown casualties'
+        : `${tallies.unknownCasualties} with unknown casualties`,
+    )
+  }
+  if (tallies.reliefSupplied > 0) parts.push(`${tallies.reliefSupplied} relief given`)
+  if (tallies.furtherAssessment > 0) {
+    parts.push(`${tallies.furtherAssessment} need assessment`)
+  }
+
+  return <p className="text-sm">{parts.join(' · ')}</p>
 }
 
 function AlertLevelChip({
