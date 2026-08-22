@@ -1,52 +1,59 @@
 name: corp_situation_report
 title: Corporation Situation Report
-description: A corporation's own situation report, built from the SITREP data it submitted.
+description: One sitrep filing — this conversation's incidents and logs, cited.
 params:
   - name: corporation
     required: true
-  - name: date_from
-    required: true
-  - name: date_to
-    required: true
+  - name: submission_id
+    required: false
 data_requirements:
   - module: sitreps
     metric: incident_count
-    params: { corporation: "{corporation}", date_from: "{date_from}", date_to: "{date_to}" }
+    params: { corporation: "{corporation}", submission_id: "{submission_id}" }
   - module: sitreps
-    metric: street_level_tally
-    params: { corporation: "{corporation}", date_from: "{date_from}", date_to: "{date_to}" }
-  - module: sitreps
-    metric: homes_affected_count
-    params: { corporation: "{corporation}", date_from: "{date_from}", date_to: "{date_to}" }
+    metric: incident_register
+    params: { corporation: "{corporation}", submission_id: "{submission_id}" }
   - module: sitreps
     metric: casualty_summary
-    params: { corporation: "{corporation}", date_from: "{date_from}", date_to: "{date_to}" }
+    params: { corporation: "{corporation}", submission_id: "{submission_id}" }
   - module: sitreps
-    metric: relief_actions_summary
-    params: { corporation: "{corporation}", date_from: "{date_from}", date_to: "{date_to}" }
+    metric: relief_stock_summary
+    params: { corporation: "{corporation}", submission_id: "{submission_id}" }
+  - module: sitreps
+    metric: activity_log
+    params: { corporation: "{corporation}", submission_id: "{submission_id}" }
   - module: sitreps
     metric: special_needs_count
-    params: { corporation: "{corporation}", date_from: "{date_from}", date_to: "{date_to}" }
+    params: { corporation: "{corporation}", submission_id: "{submission_id}" }
   - module: sitreps
     metric: estimated_damage_total
-    params: { corporation: "{corporation}", date_from: "{date_from}", date_to: "{date_to}" }
+    params: { corporation: "{corporation}", submission_id: "{submission_id}" }
 narration:
-  system_prompt: |
-    You are drafting a situation report for one regional corporation of Trinidad
-    and Tobago, for its own Disaster Management Unit and for onward submission to
-    the Disaster Management Coordinating Unit.
-
-    These figures are the corporation's own verified account of what happened in
-    its region. Report them as established fact, not as estimates.
-
-    Open with the current situation, then give street-level and operational
-    detail, then the relief response. Keep it to one page of short paragraphs.
+  identity: |
+    You are this regional corporation’s sitrep clerk in Trinidad and Tobago.
+    You capture what the officer said into a working set, then issue a
+    situation report the Disaster Management Coordinating Unit can read.
+    You never invent a number. You never speak as the DMU or the Minister.
+    You never write meteorological or national context the officer did not say.
+  skills:
+    capture: |
+      Pipeline in is this turn’s message plus the working set (source of truth).
+      Pipeline out is JSON: confirmation plus the full working set. Confirm what
+      was just captured, then at most two missing-field probes. Incidents are
+      discrete events; logs are operational or resource state. Preserve row_id.
+      Manual fields are settled. Leave a count null when the officer gave no number.
+    compose: |
+      Pipeline in is the fact table for this filing. Pipeline out is short
+      connective prose only. Header, overview, present activity, count boxes,
+      incident table, and log tables are already rendered — do not repeat them
+      and do not rebuild counts. Prefer the officer’s incident_summary over the
+      type slug. Omit a zero or empty metric; do not announce it. Cite every
+      figure with [C001]. One or two paragraphs: what is happening now, then
+      casualties if present.
   output_sections:
-    - situation_overview
-    - present_activity
-    - streets_and_impact
-    - relief_response
+    - connective_prose
     - data_gaps
 render:
   format: markdown
   include_citation_appendix: true
+  layout: filing

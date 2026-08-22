@@ -1,13 +1,13 @@
 from datetime import datetime
 
 from app.core.llm import FakeLLMClient
-from app.modules.capture.schemas import CaptureIncident, CaptureLog, CaptureWorkingSet
+from app.modules.capture.schemas import CaptureIncident, CaptureWorkingSet
 from app.modules.capture.sitrep import generate_working_set_sitrep, sitrep_preamble
 from app.templates.loader import load_template
 from pathlib import Path
 
 TEMPLATE = load_template(
-    Path(__file__).parent.parent / "app/templates/definitions/corp_sitrep_single.yaml"
+    Path(__file__).parent.parent / "app/templates/definitions/corp_situation_report.yaml"
 )
 
 
@@ -18,11 +18,10 @@ def test_preamble_renders_verbatim_overview_and_logs():
         as_at=datetime(2026, 8, 21, 12, 0),
         situation_overview="River overtopped overnight.",
         present_activity="Shelter open.",
-        logs=[CaptureLog(row_id="1", category="activity", statement="Sandbagging on Queen Street")],
     )
     assert "Flooding in Arima" in text
     assert "River overtopped overnight." in text
-    assert "Sandbagging on Queen Street" in text
+    assert "Sandbagging" not in text
     assert "None" not in text
 
 

@@ -104,17 +104,25 @@ function AdminGeneratePage() {
     },
   })
 
+  const generateTemplates = useMemo(
+    () =>
+      (templatesQuery.data ?? []).filter(
+        (template) => template.name === 'minister_situation_report',
+      ),
+    [templatesQuery.data],
+  )
+
   const templateName = useStore(form.store, (state) => state.values.templateName)
 
   const selectedTemplate = useMemo(
-    () => templatesQuery.data?.find((template) => template.name === templateName),
-    [templateName, templatesQuery.data],
+    () => generateTemplates.find((template) => template.name === templateName),
+    [generateTemplates, templateName],
   )
 
   useEffect(() => {
-    if (!templatesQuery.data?.length || templateName) return
-    form.setFieldValue('templateName', templatesQuery.data[0].name)
-  }, [form, templateName, templatesQuery.data])
+    if (!generateTemplates.length || templateName) return
+    form.setFieldValue('templateName', generateTemplates[0].name)
+  }, [form, generateTemplates, templateName])
 
   useEffect(() => {
     if (!selectedTemplate) return
@@ -179,7 +187,7 @@ function AdminGeneratePage() {
                   <field.SelectField
                     label="Template"
                     required
-                    options={(templatesQuery.data ?? []).map((template) => ({
+                    options={generateTemplates.map((template) => ({
                       value: template.name,
                       label: `${template.title} (v${template.version})`,
                     }))}

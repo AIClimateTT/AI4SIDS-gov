@@ -48,7 +48,6 @@ def test_get_templates_returns_every_shipped_template():
     names = {t["name"] for t in body}
     assert names == {
         "corp_situation_report",
-        "corp_sitrep_single",
         "minister_situation_report",
         "field_data_region_review",
     }
@@ -66,5 +65,11 @@ def test_get_templates_includes_full_template_fields():
     assert param_names == {"date_from", "date_to"}
     assert all(p["required"] for p in minister["params"])
     assert len(minister["data_requirements"]) > 0
-    assert minister["narration"]["system_prompt"]
+    assert minister["narration"]["identity"]
+    assert minister["narration"]["skills"]["compose"]
+    assert not minister["narration"]["skills"]["capture"]
     assert minister["narration"]["output_sections"]
+    corp = next(t for t in body if t["name"] == "corp_situation_report")
+    assert {p["name"] for p in corp["params"]} == {"corporation", "submission_id"}
+    assert corp["narration"]["skills"]["capture"]
+    assert corp["narration"]["skills"]["compose"]

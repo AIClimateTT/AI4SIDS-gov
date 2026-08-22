@@ -142,6 +142,7 @@ def make_client(monkeypatch, llm_responses: list[str] | None = None) -> TestClie
         lambda purpose="batch": _SitrepAwareLLM(responses=llm_responses or [EXTRACT_JSON]),
     )
     Base.metadata.create_all(db_engine)
+    install_templates()
     return TestClient(create_app())
 
 
@@ -841,7 +842,6 @@ def test_attach_is_rejected_once_the_session_is_filed(monkeypatch):
 
 def test_preview_does_not_ingest_incidents(monkeypatch):
     client = make_client(monkeypatch)
-    install_templates()
     event_id = create_event(client)
     session_id = create_capture(client, event_id)["id"]
     client.post(
@@ -866,7 +866,6 @@ def test_preview_does_not_ingest_incidents(monkeypatch):
 
 def test_issue_ingests_and_persists_a_report(monkeypatch):
     client = make_client(monkeypatch)
-    install_templates()
     event_id = create_event(client)
     session_id = create_capture(client, event_id)["id"]
     client.post(
@@ -908,7 +907,6 @@ def test_preview_on_filed_session_is_conflict(monkeypatch):
 
 def test_issue_incident_count_matches_ingested_metric(monkeypatch):
     client = make_client(monkeypatch)
-    install_templates()
     event_id = create_event(client)
     session_id = create_capture(client, event_id)["id"]
     client.post(
@@ -946,7 +944,6 @@ def test_issue_incident_count_matches_ingested_metric(monkeypatch):
 
 def test_issue_keeps_session_draft_if_generate_fails(monkeypatch):
     client = make_client(monkeypatch)
-    install_templates()
     event_id = create_event(client)
     session_id = create_capture(client, event_id)["id"]
     client.post(
@@ -957,7 +954,7 @@ def test_issue_keeps_session_draft_if_generate_fails(monkeypatch):
     def fail_generate(*args, **kwargs):
         raise RuntimeError("llm down")
 
-    monkeypatch.setattr("app.api.capture.generate_report", fail_generate)
+    monkeypatch.setattr("app.api.capture.generate_working_set_sitrep", fail_generate)
     with pytest.raises(RuntimeError, match="llm down"):
         client.post(f"/capture/sessions/{session_id}/issue")
 
@@ -967,9 +964,11 @@ def test_issue_keeps_session_draft_if_generate_fails(monkeypatch):
     assert stored.json()["report_id"] is None
     assert stored.json()["submission_id"] is None
 
-    from app.core.engine import generate_report as real_generate_report
+    from app.modules.capture.sitrep import (
+        generate_working_set_sitrep as real_generate_sitrep,
+    )
 
-    monkeypatch.setattr("app.api.capture.generate_report", real_generate_report)
+    monkeypatch.setattr("app.api.capture.generate_working_set_sitrep", real_generate_sitrep)
     retry = client.post(f"/capture/sessions/{session_id}/issue")
     assert retry.status_code == 201, retry.text
     assert retry.json()["session"]["status"] == "filed"
@@ -978,7 +977,6 @@ def test_issue_keeps_session_draft_if_generate_fails(monkeypatch):
 
 def test_issue_rolls_back_if_session_persist_fails(monkeypatch):
     client = make_client(monkeypatch)
-    install_templates()
     event_id = create_event(client)
     session_id = create_capture(client, event_id)["id"]
     client.post(

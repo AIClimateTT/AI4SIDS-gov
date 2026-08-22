@@ -62,7 +62,7 @@ def make_minister_template() -> Template:
                 params={"date_from": "{date_from}", "date_to": "{date_to}"},
             ),
         ],
-        narration=NarrationConfig(system_prompt="test", output_sections=["headline"]),
+        narration=NarrationConfig.of("test"),
         render=RenderConfig(),
     )
 
@@ -169,7 +169,7 @@ def test_citation_rules_require_digits_not_words():
 
     template = Template(
         name="t", title="T", description="d", params=[], data_requirements=[],
-        narration=NarrationConfig(system_prompt="Write the report.", output_sections=[]),
+        narration=NarrationConfig.of("Write the report.", output_sections=[]),
         render=RenderConfig(),
     )
 

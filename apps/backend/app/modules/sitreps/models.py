@@ -154,6 +154,8 @@ class SituationLog(Base):
     """Operational or preparedness state as at one submission. Never upserted."""
 
     __tablename__ = "situation_logs"
+    __module_name__ = "sitreps"
+    __source_label__ = "SITREP"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     submission_id: Mapped[int] = mapped_column(
@@ -165,3 +167,7 @@ class SituationLog(Base):
     quantity: Mapped[float | None] = mapped_column(Numeric, nullable=True)
     unit: Mapped[str | None] = mapped_column(String, nullable=True)
     status: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    @property
+    def record_ref(self) -> str:
+        return f"log:{self.submission_id}:{self.id}"

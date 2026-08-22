@@ -287,8 +287,6 @@ def main() -> None:
     llm = get_default_llm_client()
     window = {"date_from": "2023-06-01", "date_to": "2023-06-30"}
     wanted = [
-        ("corp_situation_report", {**window, "corporation": "diego_martin_regional_corporati"}),
-        ("corp_situation_report", {**window, "corporation": "tunapuna_piarco_regional_corpor"}),
         ("minister_situation_report", dict(window)),
     ]
     for name, params in wanted:

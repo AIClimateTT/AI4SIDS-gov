@@ -13,7 +13,7 @@ from app.modules.capture.numbers import (
     numbers_from_working_set,
     strip_invented_numbers,
 )
-from app.modules.capture.prompt import SYSTEM_PROMPT
+from app.modules.capture.prompt import SCHEMA_AND_ENUMS
 from app.modules.capture.provenance import pin_manual_fields
 from app.modules.capture.schemas import (
     CaptureIncident,
@@ -233,6 +233,7 @@ def apply_turn(
     messages: list[CaptureMessage] | list[dict],
     user_message: str,
     llm_client: LLMClient,
+    system_prompt: str | None = None,
 ) -> tuple[CaptureWorkingSet, str, list[MissingField], list[CaptureMessage]]:
     cleaned = user_message.strip()
     if not cleaned:
@@ -240,7 +241,8 @@ def apply_turn(
 
     history = _history(messages)
     user_entry = CaptureMessage(role="user", content=cleaned, created_at=_now())
-    raw = llm_client.generate(SYSTEM_PROMPT, _prompt_payload(working, history, cleaned))
+    assembled = system_prompt if system_prompt is not None else SCHEMA_AND_ENUMS
+    raw = llm_client.generate(assembled, _prompt_payload(working, history, cleaned))
     done = _finish_turn(working, history, user_entry, raw)
     return done.working, done.assistant_message, done.missing, done.messages
 
@@ -250,6 +252,7 @@ def stream_turn(
     messages: list[CaptureMessage] | list[dict],
     user_message: str,
     llm_client: LLMClient,
+    system_prompt: str | None = None,
 ) -> Iterator[str | TurnComplete]:
     cleaned = user_message.strip()
     if not cleaned:
@@ -258,11 +261,12 @@ def stream_turn(
     history = _history(messages)
     user_entry = CaptureMessage(role="user", content=cleaned, created_at=_now())
     prompt = _prompt_payload(working, history, cleaned)
+    assembled = system_prompt if system_prompt is not None else SCHEMA_AND_ENUMS
     generate_stream = getattr(llm_client, "generate_stream", None)
     chunks = (
-        generate_stream(SYSTEM_PROMPT, prompt)
+        generate_stream(assembled, prompt)
         if callable(generate_stream)
-        else [llm_client.generate(SYSTEM_PROMPT, prompt)]
+        else [llm_client.generate(assembled, prompt)]
     )
 
     extractor = AssistantMessageExtractor()

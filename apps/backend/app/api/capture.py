@@ -9,7 +9,6 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from app.core.contracts import RowErrorInfo, SubmissionIngestResult
-from app.core.engine import generate_report
 from app.core.llm import get_llm_client
 from app.core.report_store import add_report
 from app.core.template_store import get_latest_template_version
@@ -24,11 +23,9 @@ from app.modules.capture.schemas import (
     MissingField,
 )
 from app.modules.capture.sitrep import (
-    attach_sitrep_preamble,
     generate_working_set_sitrep,
     persist_issued_sitrep,
     save_sitrep_preview,
-    sitrep_is_stale,
 )
 from app.modules.capture.store import (
     apply_working_set,
@@ -40,6 +37,7 @@ from app.modules.capture.store import (
     session_missing,
     working_set_from_session,
 )
+from app.modules.capture.prompt import compose_capture_prompt
 from app.modules.capture.turn import apply_turn, stream_turn
 from app.modules.sitreps.ingest import ingest_submission
 from app.modules.sitreps.models import ALERT_LEVELS, HAZARD_TYPES
@@ -318,6 +316,7 @@ def post_turn(
         session_messages(row),
         request.message,
         get_llm_client("chat"),
+        system_prompt=compose_capture_prompt(_sitrep_template(db)),
     )
     apply_working_set(row, working)
     row.messages = [item.model_dump(mode="json") for item in messages]
@@ -355,7 +354,13 @@ def post_turn_stream(
             )
             streamed = False
             done = None
-            for item in stream_turn(working, history, user_message, llm):
+            for item in stream_turn(
+                working,
+                history,
+                user_message,
+                llm,
+                system_prompt=compose_capture_prompt(_sitrep_template(db)),
+            ):
                 if isinstance(item, str):
                     streamed = True
                     yield _sse(
@@ -485,11 +490,11 @@ def _require_event_if_incidents(row: CaptureSession) -> None:
 
 
 def _sitrep_template(db: Session):
-    template = get_latest_template_version("corp_sitrep_single", db)
+    template = get_latest_template_version("corp_situation_report", db)
     if template is None:
         raise HTTPException(
             status_code=400,
-            detail="template corp_sitrep_single is not installed; run templates import-all",
+            detail="template corp_situation_report is not installed; run templates import-all",
         )
     return template
 
@@ -584,21 +589,24 @@ def issue_session(
     row = _load_owned(db, session_id)
     _require_draft(row)
     _require_event_if_incidents(row)
-    if sitrep_is_stale(row):
-        row = _generate_preview(db, row)
     ingest = ingest_working_set(db, row, commit=False)
     template = _sitrep_template(db)
-    generated = generate_report(
-        template,
-        {"corporation": row.corporation, "submission_id": ingest.submission_id},
-        db,
-        get_llm_client("chat"),
-    )
-    generated = attach_sitrep_preamble(
-        generated,
+    generated = generate_working_set_sitrep(
         working_set_from_session(row),
+        corporation=row.corporation,
+        event_id=row.event_id,
         event_title=_event_title(db, row),
         template=template,
+        llm_client=get_llm_client("chat"),
+        request_id=str(uuid.uuid4()),
+    )
+    generated = generated.model_copy(
+        update={
+            "params": {
+                "corporation": row.corporation,
+                "submission_id": ingest.submission_id,
+            }
+        }
     )
     saved = add_report(generated, db)
     row.status = "filed"

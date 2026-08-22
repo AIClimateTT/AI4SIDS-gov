@@ -29,7 +29,7 @@ def make_template(include_citation_appendix: bool = True) -> Template:
         description="test",
         params=[],
         data_requirements=[],
-        narration=NarrationConfig(system_prompt="p", output_sections=["headline"]),
+        narration=NarrationConfig.of("p"),
         render=RenderConfig(include_citation_appendix=include_citation_appendix),
     )
 
@@ -124,6 +124,79 @@ def test_render_includes_citation_appendix_by_default():
     assert "## Citation Appendix" in markdown
     assert "C001" in markdown
     assert "test citation C001" in markdown
+
+
+def test_filing_layout_omits_zero_relief_and_unknown_street():
+    template = make_template()
+    template.render.layout = "filing"
+    fact_table = make_fact_table(
+        facts=[
+            Fact(
+                metric="incident_count",
+                value=1,
+                unit="incidents",
+                scope={"corporation": "all"},
+                breakdown={"flooding_": 1, "landslide": 0},
+                verification="validated",
+                citation=make_citation("C001"),
+            ),
+            Fact(
+                metric="relief_stock_summary",
+                value=10.0,
+                unit="units",
+                scope={"item": "tarpaulins", "status": "completed"},
+                breakdown=None,
+                verification="validated",
+                citation=make_citation("C002"),
+            ),
+            Fact(
+                metric="relief_stock_summary",
+                value=0,
+                unit="units",
+                scope={"item": "blankets", "status": "completed"},
+                breakdown=None,
+                verification="validated",
+                citation=make_citation("C003"),
+            ),
+            Fact(
+                metric="incident_register",
+                value=1,
+                unit="incident",
+                scope={
+                    "date": "2026-08-21",
+                    "community": "",
+                    "street": "Tumpuna Road",
+                    "type": "flooding_",
+                    "summary": "Flooding on Tumpuna Road",
+                    "injuries": "1",
+                    "deaths": "",
+                    "action": "",
+                },
+                breakdown=None,
+                verification="validated",
+                citation=make_citation("C004"),
+            ),
+        ]
+    )
+
+    markdown = render_report(template, fact_table, "Connective prose.")
+
+    assert "## Situation summary" in markdown
+    assert "| flooding_ | 1 |" in markdown
+    assert "landslide" not in markdown
+    assert "| 10 |" in markdown
+    assert "blankets" not in markdown
+    assert "Tumpuna Road" in markdown
+    assert "unknown street" not in markdown.lower()
+    assert "## Data Tables" not in markdown
+    assert "Connective prose." in markdown
+
+
+def test_filing_omits_data_gaps_when_the_only_gap_is_none():
+    template = make_template()
+    template.render.layout = "filing"
+    markdown = render_report(template, make_fact_table(gaps=["None"]), "prose")
+    assert "## Data Gaps" not in markdown
 
 
 def test_render_omits_citation_appendix_when_disabled():

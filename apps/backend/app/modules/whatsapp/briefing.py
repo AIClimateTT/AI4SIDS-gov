@@ -19,16 +19,16 @@ BRIEFING_TEMPLATE = Template(
     description="Provisional ministerial note from an unconfirmed WhatsApp extract.",
     params=[TemplateParam(name="as_at", required=True)],
     data_requirements=[],
-    narration=NarrationConfig(
-        system_prompt=(
+    narration=NarrationConfig.of(
+        "Every fact is unverified (verification: pending). Say so plainly. "
+        "Group by corporation. Lead with incidents and casualties, then "
+        "resources and activity. Do not merge or invent totals. Keep it to "
+        "one page. Never present this as a signed national SITREP.",
+        identity=(
             "You are drafting a short provisional hour briefing for the Minister "
             "of Rural Development and Local Government of Trinidad and Tobago, "
             "from a WhatsApp group extract that has not been filed as corporation "
-            "SITREPs.\n\n"
-            "Every fact is unverified (verification: pending). Say so plainly. "
-            "Group by corporation. Lead with incidents and casualties, then "
-            "resources and activity. Do not merge or invent totals. Keep it to "
-            "one page. Never present this as a signed national SITREP."
+            "SITREPs."
         ),
         output_sections=["situation_overview", "by_corporation", "data_gaps"],
     ),

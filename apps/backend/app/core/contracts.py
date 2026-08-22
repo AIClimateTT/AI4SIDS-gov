@@ -65,14 +65,36 @@ class DataRequirement(BaseModel):
     params: dict = {}
 
 
+class NarrationSkills(BaseModel):
+    capture: str = ""
+    compose: str
+
+
 class NarrationConfig(BaseModel):
-    system_prompt: str
+    identity: str
+    skills: NarrationSkills
     output_sections: list[str]
+
+    @classmethod
+    def of(
+        cls,
+        compose: str = "p",
+        *,
+        identity: str = "test",
+        capture: str = "",
+        output_sections: list[str] | None = None,
+    ) -> "NarrationConfig":
+        return cls(
+            identity=identity,
+            skills=NarrationSkills(capture=capture, compose=compose),
+            output_sections=["headline"] if output_sections is None else output_sections,
+        )
 
 
 class RenderConfig(BaseModel):
     format: Literal["markdown"] = "markdown"
     include_citation_appendix: bool = True
+    layout: Literal["narrative", "filing"] = "narrative"
 
 
 class Template(BaseModel):

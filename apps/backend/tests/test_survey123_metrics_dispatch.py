@@ -14,6 +14,7 @@ EXPECTED_METRIC_NAMES = {
     "incidents_by_corporation",
     "homes_affected_count",
     "casualty_summary",
+    "incident_register",
     "street_level_tally",
     "relief_actions_summary",
     "special_needs_count",
@@ -35,7 +36,7 @@ def test_list_metrics_returns_all_nine_with_correct_names():
     specs = survey123_module.list_metrics()
 
     assert {spec.name for spec in specs} == EXPECTED_METRIC_NAMES
-    assert len(specs) == 9
+    assert len(specs) == 10
     for spec in specs:
         assert spec.module == "survey123"
         assert spec.params_schema["type"] == "object"

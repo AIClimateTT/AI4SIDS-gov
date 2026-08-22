@@ -24,8 +24,10 @@ CITATION_RULES = """RULES (absolute — always apply):
 
 
 def compose_system_prompt(template: Template) -> str:
-    user_prompt = template.narration.system_prompt.strip()
-    return f"{CITATION_RULES}\n\n{user_prompt}" if user_prompt else CITATION_RULES
+    identity = template.narration.identity.strip()
+    compose = template.narration.skills.compose.strip()
+    body = "\n\n".join(part for part in (identity, compose) if part)
+    return f"{CITATION_RULES}\n\n{body}" if body else CITATION_RULES
 
 
 def resolve_params(raw_params: dict, template_params: dict) -> dict:
