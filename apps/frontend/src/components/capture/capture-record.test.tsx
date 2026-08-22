@@ -85,12 +85,65 @@ describe('CaptureRecord', () => {
     )
   })
 
-  it('summarises the record and offers review', () => {
+  it('offers review without repeating the incident count in the footer', () => {
     const onReview = vi.fn()
     renderRecord(<CaptureRecord session={session} onSave={vi.fn()} onReview={onReview} />)
-    expect(screen.getByText(/1 incident/)).not.toBeNull()
+    expect(screen.queryByText(/details needed/)).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: /review & file/i }))
     expect(onReview).toHaveBeenCalled()
+  })
+
+  it('shows empty placeholders for overview and present activity', () => {
+    renderRecord(<CaptureRecord session={session} onSave={vi.fn()} />)
+    expect(
+      (screen.getByLabelText('Situation overview') as HTMLTextAreaElement).placeholder,
+    ).toMatch(/Add a situation overview/)
+    expect(
+      (screen.getByLabelText('Present activity') as HTMLTextAreaElement).placeholder,
+    ).toMatch(/What is happening now/)
+  })
+
+  it('saves overview on blur and pins the manual path', () => {
+    const onSave = vi.fn()
+    renderRecord(<CaptureRecord session={session} onSave={onSave} />)
+    const field = screen.getByLabelText('Situation overview')
+    fireEvent.change(field, { target: { value: 'River overtopped overnight.' } })
+    fireEvent.blur(field)
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        situation_overview: 'River overtopped overnight.',
+        manual_fields: ['situation_overview'],
+      }),
+    )
+  })
+
+  it('saves present activity on blur and pins the manual path', () => {
+    const onSave = vi.fn()
+    renderRecord(<CaptureRecord session={session} onSave={onSave} />)
+    const field = screen.getByLabelText('Present activity')
+    fireEvent.change(field, { target: { value: 'Shelter open at the centre.' } })
+    fireEvent.blur(field)
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        present_activity: 'Shelter open at the centre.',
+        manual_fields: ['present_activity'],
+      }),
+    )
+  })
+
+  it('shows a tally strip with known injuries', () => {
+    renderRecord(<CaptureRecord session={session} onSave={vi.fn()} />)
+    expect(screen.getByText(/1 incident · 1 injured/)).not.toBeNull()
+  })
+
+  it('does not let a filed session edit situation prose', () => {
+    renderRecord(<CaptureRecord session={session} onSave={vi.fn()} disabled />)
+    expect((screen.getByLabelText('Situation overview') as HTMLTextAreaElement).disabled).toBe(
+      true,
+    )
+    expect((screen.getByLabelText('Present activity') as HTMLTextAreaElement).disabled).toBe(
+      true,
+    )
   })
 
   it('does not render a separate still-needed list', () => {

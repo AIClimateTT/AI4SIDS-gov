@@ -38,6 +38,14 @@ const LOG_FORM_FIELDS = [
   'status',
 ] as const satisfies readonly (keyof CaptureLog)[]
 
+function logLead(log: CaptureLog): string | null {
+  const item = log.item?.trim() || null
+  const quantity =
+    log.quantity != null ? `${log.quantity}${item ? ` ${item}` : log.unit ? ` ${log.unit}` : ''}` : item
+  if (!quantity) return null
+  return log.status ? `${quantity} · ${formatConstant(log.status)}` : quantity
+}
+
 function fieldOfPath(path: string): string {
   return path.split('.').pop() ?? path
 }
@@ -71,22 +79,23 @@ export function LogCard({ log, missing, disabled, onEdit, onRemove }: LogCardPro
     )
   }
 
+  const lead = logLead(log)
+
   return (
     <div className="rounded-lg border px-3 py-2 text-sm">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="font-medium">{log.statement}</p>
-          <p className="text-muted-foreground">
-            {[
-              formatConstant(log.category),
-              log.quantity != null
-                ? `${log.quantity}${log.unit ? ` ${log.unit}` : ''}`
-                : null,
-              log.status ? formatConstant(log.status) : null,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          </p>
+          {lead ? (
+            <>
+              <p className="font-medium">{lead}</p>
+              <p className="text-muted-foreground">{log.statement}</p>
+            </>
+          ) : (
+            <>
+              <p className="font-medium">{log.statement}</p>
+              <p className="text-muted-foreground">{formatConstant(log.category)}</p>
+            </>
+          )}
         </div>
         {!disabled ? (
           <div className="flex shrink-0 gap-1">

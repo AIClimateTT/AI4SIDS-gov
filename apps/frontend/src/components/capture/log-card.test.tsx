@@ -26,6 +26,26 @@ describe('LogCard', () => {
     expect(screen.queryByLabelText('Statement')).toBeNull()
   })
 
+  it('leads with quantity and item on the closed card', () => {
+    render(
+      <LogCard
+        log={{
+          ...log,
+          item: 'sandbags',
+          quantity: 200,
+          unit: 'bags',
+          status: 'available',
+        }}
+        missing={[]}
+        onEdit={vi.fn()}
+        onRemove={vi.fn()}
+      />,
+    )
+    expect(screen.getByText(/200 sandbags/)).not.toBeNull()
+    expect(screen.getByText('Water tankers deployed to Petit Valley')).not.toBeNull()
+    expect(screen.queryByLabelText('Statement')).toBeNull()
+  })
+
   it('reports only the changed field as a manual path', async () => {
     const onEdit = vi.fn()
     render(<LogCard log={log} missing={[]} onEdit={onEdit} onRemove={vi.fn()} />)
