@@ -1,15 +1,20 @@
 import json
 import uuid
 from datetime import datetime
+from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
-from app.core.contracts import SubmissionIngestResult
+from app.core.contracts import RowErrorInfo, SubmissionIngestResult
+from app.core.engine import generate_report
 from app.core.llm import get_llm_client
+from app.core.report_store import add_report
+from app.core.template_store import get_latest_template_version
 from app.db import get_session
+from app.modules.capture.csv_import import import_csv_rows, read_csv_bytes
 from app.modules.capture.file import working_set_to_ingest_rows
 from app.modules.capture.models import CaptureSession
 from app.modules.capture.schemas import (
@@ -17,6 +22,13 @@ from app.modules.capture.schemas import (
     CaptureLog,
     CaptureWorkingSet,
     MissingField,
+)
+from app.modules.capture.sitrep import (
+    attach_sitrep_preamble,
+    generate_working_set_sitrep,
+    persist_issued_sitrep,
+    save_sitrep_preview,
+    sitrep_is_stale,
 )
 from app.modules.capture.store import (
     apply_working_set,
@@ -48,6 +60,16 @@ class CaptureMessageOut(BaseModel):
     created_at: datetime
 
 
+class SitrepOut(BaseModel):
+    markdown: str
+    fact_table: dict
+    violations: list
+    status: str
+    generated_at: datetime
+    source_updated_at: datetime
+    stale: bool
+
+
 class CaptureSessionResponse(BaseModel):
     id: int
     corporation: str
@@ -63,6 +85,8 @@ class CaptureSessionResponse(BaseModel):
     messages: list[CaptureMessageOut]
     missing: list[MissingField]
     submission_id: int | None
+    report_id: str | None = None
+    sitrep: SitrepOut | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -96,10 +120,34 @@ class FileSessionResponse(BaseModel):
     ingest: SubmissionIngestResult
 
 
+class CsvImportResponse(BaseModel):
+    session: CaptureSessionResponse
+    kind: Literal["incidents", "logs"]
+    rows_read: int
+    rows_accepted: int
+    row_errors: list[RowErrorInfo]
+
+
 def _require_corporation(corporation: str) -> str:
     if corporation not in CANONICAL_CORPORATIONS:
         raise HTTPException(status_code=400, detail=f"unknown corporation: {corporation}")
     return corporation
+
+
+def _sitrep_out(row: CaptureSession) -> SitrepOut | None:
+    if row.sitrep_markdown is None or row.sitrep_generated_at is None:
+        return None
+    source = row.sitrep_source_updated_at
+    stale = source is None or source < row.updated_at
+    return SitrepOut(
+        markdown=row.sitrep_markdown,
+        fact_table=row.sitrep_fact_table or {},
+        violations=row.sitrep_violations or [],
+        status=row.sitrep_status or "",
+        generated_at=row.sitrep_generated_at,
+        source_updated_at=source or row.updated_at,
+        stale=stale,
+    )
 
 
 def _to_response(row: CaptureSession) -> CaptureSessionResponse:
@@ -121,6 +169,8 @@ def _to_response(row: CaptureSession) -> CaptureSessionResponse:
         ],
         missing=session_missing(row),
         submission_id=row.submission_id,
+        report_id=row.report_id,
+        sitrep=_sitrep_out(row),
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
@@ -390,15 +440,39 @@ def put_session(
 
 
 @router.post(
-    "/capture/sessions/{session_id}/file",
-    response_model=FileSessionResponse,
-    status_code=201,
+    "/capture/sessions/{session_id}/csv",
+    response_model=CsvImportResponse,
 )
-def file_session(
-    session_id: int, db: Session = Depends(get_session)
-) -> FileSessionResponse:
+async def post_session_csv(
+    session_id: int,
+    kind: Literal["incidents", "logs"] = Form(),
+    file: UploadFile = File(),
+    db: Session = Depends(get_session),
+) -> CsvImportResponse:
     row = _load_owned(db, session_id)
     _require_draft(row)
+    contents = await file.read()
+    try:
+        rows = read_csv_bytes(contents)
+    except UnicodeDecodeError as exc:
+        raise HTTPException(
+            status_code=400, detail="file is not valid UTF-8 CSV"
+        ) from exc
+
+    before = working_set_from_session(row)
+    working, errors = import_csv_rows(before, kind=kind, rows=rows)
+    apply_working_set(row, working)
+    save_session(db, row)
+    return CsvImportResponse(
+        session=_to_response(row),
+        kind=kind,
+        rows_read=len(rows),
+        rows_accepted=len(rows) - len(errors),
+        row_errors=errors,
+    )
+
+
+def _require_event_if_incidents(row: CaptureSession) -> None:
     working = working_set_from_session(row)
     if row.event_id is None and working.incidents:
         raise HTTPException(
@@ -408,8 +482,47 @@ def file_session(
                 "attach one before filing. Situation logs may be filed without one."
             ),
         )
+
+
+def _sitrep_template(db: Session):
+    template = get_latest_template_version("corp_sitrep_single", db)
+    if template is None:
+        raise HTTPException(
+            status_code=400,
+            detail="template corp_sitrep_single is not installed; run templates import-all",
+        )
+    return template
+
+
+def _event_title(db: Session, row: CaptureSession) -> str:
+    if row.event_id is None:
+        return "Untitled event"
+    event = get_event(db, row.event_id)
+    return event.title if event is not None else "Untitled event"
+
+
+def _generate_preview(db: Session, row: CaptureSession) -> CaptureSession:
+    template = _sitrep_template(db)
+    working = working_set_from_session(row)
+    generated = generate_working_set_sitrep(
+        working,
+        corporation=row.corporation,
+        event_id=row.event_id,
+        event_title=_event_title(db, row),
+        template=template,
+        llm_client=get_llm_client("chat"),
+        request_id=str(uuid.uuid4()),
+    )
+    return save_sitrep_preview(db, row, generated, source_updated_at=row.updated_at)
+
+
+def ingest_working_set(
+    db: Session, row: CaptureSession, *, commit: bool = True
+) -> SubmissionIngestResult:
+    _require_event_if_incidents(row)
+    working = working_set_from_session(row)
     incident_rows, log_rows = working_set_to_ingest_rows(working)
-    ingest = ingest_submission(
+    return ingest_submission(
         db,
         corporation=row.corporation,
         as_at=working.as_at or row.as_at,
@@ -421,8 +534,80 @@ def file_session(
         incident_rows=incident_rows,
         log_rows=log_rows,
         structured_defaults=True,
+        commit=commit,
     )
+
+
+def file_working_set(db: Session, row: CaptureSession) -> SubmissionIngestResult:
+    ingest = ingest_working_set(db, row)
     row.status = "filed"
     row.submission_id = ingest.submission_id
     save_session(db, row)
+    return ingest
+
+
+@router.post(
+    "/capture/sessions/{session_id}/file",
+    response_model=FileSessionResponse,
+    status_code=201,
+)
+def file_session(
+    session_id: int, db: Session = Depends(get_session)
+) -> FileSessionResponse:
+    row = _load_owned(db, session_id)
+    _require_draft(row)
+    ingest = file_working_set(db, row)
+    return FileSessionResponse(session=_to_response(row), ingest=ingest)
+
+
+@router.post(
+    "/capture/sessions/{session_id}/preview",
+    response_model=CaptureSessionResponse,
+)
+def preview_session(
+    session_id: int, db: Session = Depends(get_session)
+) -> CaptureSessionResponse:
+    row = _load_owned(db, session_id)
+    _require_draft(row)
+    row = _generate_preview(db, row)
+    return _to_response(row)
+
+
+@router.post(
+    "/capture/sessions/{session_id}/issue",
+    response_model=FileSessionResponse,
+    status_code=201,
+)
+def issue_session(
+    session_id: int, db: Session = Depends(get_session)
+) -> FileSessionResponse:
+    row = _load_owned(db, session_id)
+    _require_draft(row)
+    _require_event_if_incidents(row)
+    if sitrep_is_stale(row):
+        row = _generate_preview(db, row)
+    ingest = ingest_working_set(db, row, commit=False)
+    template = _sitrep_template(db)
+    generated = generate_report(
+        template,
+        {"corporation": row.corporation, "submission_id": ingest.submission_id},
+        db,
+        get_llm_client("chat"),
+    )
+    generated = attach_sitrep_preamble(
+        generated,
+        working_set_from_session(row),
+        event_title=_event_title(db, row),
+        template=template,
+    )
+    saved = add_report(generated, db)
+    row.status = "filed"
+    row.submission_id = ingest.submission_id
+    persist_issued_sitrep(
+        db,
+        row,
+        generated,
+        report_id=saved.id,
+        source_updated_at=row.updated_at,
+    )
     return FileSessionResponse(session=_to_response(row), ingest=ingest)

@@ -1,0 +1,48 @@
+name: corp_sitrep_single
+title: Corporation Situation Report
+description: One sitrep filing — this conversation's incidents, cited.
+params:
+  - name: corporation
+    required: true
+  - name: submission_id
+    required: false
+data_requirements:
+  - module: sitreps
+    metric: incident_count
+    params: { corporation: "{corporation}", submission_id: "{submission_id}" }
+  - module: sitreps
+    metric: street_level_tally
+    params: { corporation: "{corporation}", submission_id: "{submission_id}" }
+  - module: sitreps
+    metric: homes_affected_count
+    params: { corporation: "{corporation}", submission_id: "{submission_id}" }
+  - module: sitreps
+    metric: casualty_summary
+    params: { corporation: "{corporation}", submission_id: "{submission_id}" }
+  - module: sitreps
+    metric: relief_actions_summary
+    params: { corporation: "{corporation}", submission_id: "{submission_id}" }
+  - module: sitreps
+    metric: special_needs_count
+    params: { corporation: "{corporation}", submission_id: "{submission_id}" }
+  - module: sitreps
+    metric: estimated_damage_total
+    params: { corporation: "{corporation}", submission_id: "{submission_id}" }
+narration:
+  system_prompt: |
+    You are drafting one regional corporation situation report for onward
+    submission to the Disaster Management Coordinating Unit.
+
+    The Event, Alert, As-at, overview, present activity, and situation log
+    lines are supplied separately and must not be rewritten here.
+
+    Using ONLY the fact table JSON, write short paragraphs covering
+    street-level impact, casualties, and relief actions. Every figure must
+    carry its [C001]-style citation. Do not invent counts.
+  output_sections:
+    - streets_and_impact
+    - relief_response
+    - data_gaps
+render:
+  format: markdown
+  include_citation_appendix: true

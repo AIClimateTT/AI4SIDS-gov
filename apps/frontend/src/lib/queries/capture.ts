@@ -6,14 +6,17 @@ import {
   createCaptureSession,
   fileCaptureSession,
   getCaptureSession,
+  importCaptureCsv,
+  issueCaptureSession,
   listCaptureSessions,
   postCaptureTurn,
+  previewCaptureSession,
   updateCaptureSession,
 } from '@/lib/api/capture'
 import { overviewKeys } from '@/lib/queries/overview'
 import { eventKeys, submissionKeys } from '@/lib/queries/submissions'
 import { mutationOptions } from '@/lib/queries/tanstack-helpers'
-import type { AttachEventBody, CaptureSessionUpdate } from '@/types/dmcu'
+import type { AttachEventBody, CaptureCsvKind, CaptureSessionUpdate } from '@/types/dmcu'
 
 export const captureKeys = {
   all: () => ['capture'] as const,
@@ -58,6 +61,19 @@ export const captureMutations = {
   file: () =>
     mutationOptions({
       mutationFn: (id: number) => fileCaptureSession(id),
+    }),
+  preview: () =>
+    mutationOptions({
+      mutationFn: (id: number) => previewCaptureSession(id),
+    }),
+  issue: () =>
+    mutationOptions({
+      mutationFn: (id: number) => issueCaptureSession(id),
+    }),
+  csv: () =>
+    mutationOptions({
+      mutationFn: (input: { id: number; kind: CaptureCsvKind; file: File }) =>
+        importCaptureCsv(input.id, input.kind, input.file),
     }),
 }
 
@@ -132,6 +148,76 @@ export function useFileCaptureSession() {
     },
     onError: (error: Error) =>
       toast.error('Failed to file submission', {
+        description: error.message,
+      }),
+  })
+}
+
+export function usePreviewCaptureSession() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    ...captureMutations.preview(),
+    onSuccess: (session) => {
+      queryClient.setQueryData(captureKeys.detail(session.id), session)
+    },
+    onError: (error: Error) =>
+      toast.error('Failed to generate sitrep', {
+        description: error.message,
+      }),
+  })
+}
+
+export function useIssueCaptureSession() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    ...captureMutations.issue(),
+    onSuccess: (result) => {
+      queryClient.setQueryData(captureKeys.detail(result.session.id), result.session)
+      void queryClient.invalidateQueries({ queryKey: captureKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: submissionKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: eventKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: overviewKeys.summary() })
+      toast.success('Sitrep issued')
+    },
+    onError: (error: Error) =>
+      toast.error('Failed to issue sitrep', {
+        description: error.message,
+      }),
+  })
+}
+
+function csvNoun(kind: CaptureCsvKind, count: number): string {
+  if (kind === 'incidents') return count === 1 ? 'incident' : 'incidents'
+  return count === 1 ? 'situation log' : 'situation logs'
+}
+
+export function useImportCaptureCsv() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    ...captureMutations.csv(),
+    onSuccess: (result) => {
+      queryClient.setQueryData(captureKeys.detail(result.session.id), result.session)
+      void queryClient.invalidateQueries({ queryKey: captureKeys.lists() })
+      const noun = csvNoun(result.kind, result.rows_accepted)
+      if (result.rows_accepted === 0) {
+        toast.error(
+          result.row_errors[0]?.reason ?? 'No rows found in that CSV',
+        )
+        return
+      }
+      if (result.row_errors.length > 0) {
+        toast.warning(
+          `Added ${result.rows_accepted} ${noun}; ${result.row_errors.length} row${
+            result.row_errors.length === 1 ? '' : 's'
+          } skipped`,
+          { description: result.row_errors[0]?.reason },
+        )
+        return
+      }
+      toast.success(`Added ${result.rows_accepted} ${noun}`)
+    },
+    onError: (error: Error) =>
+      toast.error('Failed to import CSV', {
         description: error.message,
       }),
   })

@@ -113,8 +113,25 @@ def _clean_registry():
         DEV_DB_PATH.unlink()
 
 
+TEMPLATES_DIR = Path(__file__).parent.parent / "app" / "templates" / "definitions"
+
+
+class _SitrepAwareLLM(FakeLLMClient):
+    """Capture turns get canned JSON; sitrep narration uses FakeLLMClient auto-cite."""
+
+    def generate(self, system_prompt: str, user_content: str) -> str:
+        try:
+            data = json.loads(user_content)
+        except json.JSONDecodeError:
+            data = None
+        if isinstance(data, dict) and isinstance(data.get("facts"), list):
+            return FakeLLMClient()._auto_narrative(user_content)
+        return super().generate(system_prompt, user_content)
+
+
 def make_client(monkeypatch, llm_responses: list[str] | None = None) -> TestClient:
     import app.core.report_models  # noqa: F401
+    import app.core.template_models  # noqa: F401
     import app.modules.capture.models  # noqa: F401
     import app.modules.sitreps.models  # noqa: F401
     import app.modules.survey123.models  # noqa: F401
@@ -122,10 +139,20 @@ def make_client(monkeypatch, llm_responses: list[str] | None = None) -> TestClie
 
     monkeypatch.setattr(
         "app.api.capture.get_llm_client",
-        lambda purpose="batch": FakeLLMClient(responses=llm_responses or [EXTRACT_JSON]),
+        lambda purpose="batch": _SitrepAwareLLM(responses=llm_responses or [EXTRACT_JSON]),
     )
     Base.metadata.create_all(db_engine)
     return TestClient(create_app())
+
+
+def install_templates() -> None:
+    from sqlalchemy.orm import sessionmaker
+
+    from app.core.template_store import import_template_directory
+
+    db = sessionmaker(bind=db_engine)()
+    import_template_directory(TEMPLATES_DIR, db)
+    db.close()
 
 
 def create_event(client: TestClient) -> int:
@@ -808,5 +835,255 @@ def test_attach_is_rejected_once_the_session_is_filed(monkeypatch):
     other_event = create_event(client)
     response = client.post(
         f"/capture/sessions/{session_id}/event", json={"event_id": other_event}
+    )
+    assert response.status_code == 409
+
+
+def test_preview_does_not_ingest_incidents(monkeypatch):
+    client = make_client(monkeypatch)
+    install_templates()
+    event_id = create_event(client)
+    session_id = create_capture(client, event_id)["id"]
+    client.post(
+        f"/capture/sessions/{session_id}/turns",
+        json={"message": "5 houses flooded in Petit Valley. 200 sandbags remaining."},
+    )
+    response = client.post(f"/capture/sessions/{session_id}/preview")
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["status"] == "draft"
+    assert body["submission_id"] is None
+    assert body["sitrep"]["markdown"]
+    assert body["sitrep"]["stale"] is False
+    from sqlalchemy.orm import sessionmaker
+
+    from app.modules.sitreps.models import SitrepIncident
+
+    db = sessionmaker(bind=db_engine)()
+    assert db.query(SitrepIncident).count() == 0
+    db.close()
+
+
+def test_issue_ingests_and_persists_a_report(monkeypatch):
+    client = make_client(monkeypatch)
+    install_templates()
+    event_id = create_event(client)
+    session_id = create_capture(client, event_id)["id"]
+    client.post(
+        f"/capture/sessions/{session_id}/turns",
+        json={"message": "5 houses flooded in Petit Valley."},
+    )
+    response = client.post(f"/capture/sessions/{session_id}/issue")
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["session"]["status"] == "filed"
+    assert body["session"]["report_id"]
+    assert body["ingest"]["incidents_inserted"] == 1
+    report = client.get(f"/reports/{body['session']['report_id']}")
+    assert report.status_code == 200
+    assert "[C001]" in report.json()["markdown"]
+
+
+def test_issue_rejects_incidents_without_an_event(monkeypatch):
+    client = make_client(monkeypatch)
+    session_id = create_capture(client, event_id=None)["id"]
+    client.put(
+        f"/capture/sessions/{session_id}",
+        json={
+            "incidents": [{"row_id": "1", "incident_summary": "5 houses flooded"}],
+            "logs": [],
+        },
+    )
+    response = client.post(f"/capture/sessions/{session_id}/issue")
+    assert response.status_code == 400
+
+
+def test_preview_on_filed_session_is_conflict(monkeypatch):
+    client = make_client(monkeypatch)
+    event_id = create_event(client)
+    session_id = create_capture(client, event_id)["id"]
+    client.post(f"/capture/sessions/{session_id}/file")
+    assert client.post(f"/capture/sessions/{session_id}/preview").status_code == 409
+
+
+def test_issue_incident_count_matches_ingested_metric(monkeypatch):
+    client = make_client(monkeypatch)
+    install_templates()
+    event_id = create_event(client)
+    session_id = create_capture(client, event_id)["id"]
+    client.post(
+        f"/capture/sessions/{session_id}/turns",
+        json={"message": "5 houses flooded in Petit Valley."},
+    )
+    response = client.post(f"/capture/sessions/{session_id}/issue")
+    assert response.status_code == 201, response.text
+    submission_id = response.json()["session"]["submission_id"]
+
+    from sqlalchemy.orm import sessionmaker
+
+    from app.modules.capture.facts import assemble_working_set_facts
+    from app.modules.capture.store import get_session_row, working_set_from_session
+
+    db = sessionmaker(bind=db_engine)()
+    row = get_session_row(db, session_id)
+    working = working_set_from_session(row)
+    working_set_count = next(
+        fact.value
+        for fact in assemble_working_set_facts(
+            working, corporation=row.corporation, event_id=row.event_id
+        )
+        if fact.metric == "incident_count"
+    )
+    ingested = sitrep_module.run_metric(
+        "incident_count",
+        {"corporation": CORP, "submission_id": submission_id},
+        db,
+    )
+    db.close()
+    assert ingested[0].value == working_set_count
+    assert ingested[0].value == 1
+
+
+def test_issue_keeps_session_draft_if_generate_fails(monkeypatch):
+    client = make_client(monkeypatch)
+    install_templates()
+    event_id = create_event(client)
+    session_id = create_capture(client, event_id)["id"]
+    client.post(
+        f"/capture/sessions/{session_id}/turns",
+        json={"message": "5 houses flooded in Petit Valley."},
+    )
+
+    def fail_generate(*args, **kwargs):
+        raise RuntimeError("llm down")
+
+    monkeypatch.setattr("app.api.capture.generate_report", fail_generate)
+    with pytest.raises(RuntimeError, match="llm down"):
+        client.post(f"/capture/sessions/{session_id}/issue")
+
+    stored = client.get(f"/capture/sessions/{session_id}")
+    assert stored.status_code == 200, stored.text
+    assert stored.json()["status"] == "draft"
+    assert stored.json()["report_id"] is None
+    assert stored.json()["submission_id"] is None
+
+    from app.core.engine import generate_report as real_generate_report
+
+    monkeypatch.setattr("app.api.capture.generate_report", real_generate_report)
+    retry = client.post(f"/capture/sessions/{session_id}/issue")
+    assert retry.status_code == 201, retry.text
+    assert retry.json()["session"]["status"] == "filed"
+    assert retry.json()["session"]["report_id"]
+
+
+def test_issue_rolls_back_if_session_persist_fails(monkeypatch):
+    client = make_client(monkeypatch)
+    install_templates()
+    event_id = create_event(client)
+    session_id = create_capture(client, event_id)["id"]
+    client.post(
+        f"/capture/sessions/{session_id}/turns",
+        json={"message": "5 houses flooded in Petit Valley. 200 sandbags remaining."},
+    )
+
+    def fail_persist(*args, **kwargs):
+        raise RuntimeError("session persist failed")
+
+    monkeypatch.setattr("app.api.capture.persist_issued_sitrep", fail_persist)
+    with pytest.raises(RuntimeError, match="session persist failed"):
+        client.post(f"/capture/sessions/{session_id}/issue")
+
+    stored = client.get(f"/capture/sessions/{session_id}")
+    assert stored.json()["status"] == "draft"
+    assert stored.json()["report_id"] is None
+    assert stored.json()["submission_id"] is None
+
+    from sqlalchemy.orm import sessionmaker
+
+    from app.core.report_models import Report
+    from app.modules.sitreps.models import SitrepIncident, SituationLog, Submission
+
+    db = sessionmaker(bind=db_engine)()
+    assert db.query(Report).count() == 0
+    assert db.query(Submission).count() == 0
+    assert db.query(SitrepIncident).count() == 0
+    assert db.query(SituationLog).count() == 0
+    db.close()
+
+    from app.modules.capture.sitrep import persist_issued_sitrep
+
+    monkeypatch.setattr(
+        "app.api.capture.persist_issued_sitrep",
+        persist_issued_sitrep,
+    )
+    retry = client.post(f"/capture/sessions/{session_id}/issue")
+    assert retry.status_code == 201, retry.text
+    assert retry.json()["session"]["status"] == "filed"
+    assert retry.json()["session"]["report_id"]
+    assert retry.json()["ingest"]["incidents_inserted"] == 1
+    assert retry.json()["ingest"]["logs_inserted"] == 1
+
+
+INCIDENTS_CSV = Path(__file__).parent.parent / "fixtures" / "sample_submission_incidents.csv"
+LOGS_CSV = Path(__file__).parent.parent / "fixtures" / "sample_submission_logs.csv"
+
+
+def test_csv_merges_into_the_working_set_without_ingesting(monkeypatch):
+    client = make_client(monkeypatch)
+    session_id = create_capture(client)["id"]
+
+    response = client.post(
+        f"/capture/sessions/{session_id}/csv",
+        data={"kind": "incidents"},
+        files={"file": ("incidents.csv", INCIDENTS_CSV.read_bytes(), "text/csv")},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["kind"] == "incidents"
+    assert body["rows_read"] == 3
+    assert body["rows_accepted"] == 3
+    assert body["row_errors"] == []
+    assert [row["community"] for row in body["session"]["incidents"]] == [
+        "Petit Valley",
+        "Maraval",
+        "Diamond Vale",
+    ]
+
+    from sqlalchemy.orm import sessionmaker
+
+    from app.modules.sitreps.models import SitrepIncident, Submission
+
+    db = sessionmaker(bind=db_engine)()
+    assert db.query(Submission).count() == 0
+    assert db.query(SitrepIncident).count() == 0
+    db.close()
+
+
+def test_csv_logs_append_to_the_working_set(monkeypatch):
+    client = make_client(monkeypatch)
+    session_id = create_capture(client)["id"]
+
+    response = client.post(
+        f"/capture/sessions/{session_id}/csv",
+        data={"kind": "logs"},
+        files={"file": ("logs.csv", LOGS_CSV.read_bytes(), "text/csv")},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["rows_accepted"] == 5
+    assert body["session"]["logs"][0]["item"] is None
+    assert body["session"]["logs"][1]["item"] == "sandbags"
+
+
+def test_csv_import_is_rejected_once_filed(monkeypatch):
+    client = make_client(monkeypatch)
+    event_id = create_event(client)
+    session_id = create_capture(client, event_id)["id"]
+    assert client.post(f"/capture/sessions/{session_id}/file").status_code == 201
+
+    response = client.post(
+        f"/capture/sessions/{session_id}/csv",
+        data={"kind": "incidents"},
+        files={"file": ("incidents.csv", INCIDENTS_CSV.read_bytes(), "text/csv")},
     )
     assert response.status_code == 409

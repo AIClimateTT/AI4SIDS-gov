@@ -1,17 +1,21 @@
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { MessageSquareIcon, PlusIcon } from 'lucide-react'
+import { MessageSquareIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { EmptyState, LoadingBlock, PageHeader } from '@/components/shared'
 import { ContentCard } from '@/components/shared/content-card'
 import { CorpRoleNotice } from '@/components/identity/corp-role-notice'
+import { Badge } from '@/components/ui/badge'
 import { useIdentity } from '@/hooks/use-identity'
 import type { Identity } from '@/lib/identity'
 import { formatConstant } from '@/lib/format-constant'
-import { useCreateCaptureSession } from '@/lib/queries/capture'
+import {
+  captureQueries,
+  useCreateCaptureSession,
+} from '@/lib/queries/capture'
 import { eventQueries, submissionQueries } from '@/lib/queries/submissions'
-import type { SubmissionSummary } from '@/types/dmcu'
+import type { CaptureSession } from '@/types/dmcu'
 
 type CorpIdentity = Extract<Identity, { role: 'corp' }>
 
@@ -36,41 +40,36 @@ function EventPageContent({ identity }: { identity: CorpIdentity }) {
   const eventIdNum = Number(eventId)
 
   const eventsQuery = useQuery(eventQueries.list(identity.corporation))
+  const sessionsQuery = useQuery(
+    captureQueries.list(identity.corporation, eventIdNum),
+  )
   const submissionsQuery = useQuery(
     submissionQueries.list({ event_id: eventIdNum }),
   )
 
   const event = eventsQuery.data?.find((candidate) => candidate.id === eventIdNum)
+  const sessions = (sessionsQuery.data ?? [])
+    .slice()
+    .sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))
   const submissions = submissionsQuery.data ?? []
   const latestId = submissions[0]?.id
   const hasLatest = latestId !== undefined
-  // Present activity only lives on the detail record — the list endpoint
-  // returns summaries without it — so the header needs a second fetch for
-  // the single most recent filing. Kept out of the page-wide isPending /
-  // isError below: its own pending/error/success states render locally
-  // inside "Latest situation" so a failed detail fetch reads as exactly
-  // that, not as "no filings yet" or as a whole-page failure that would
-  // hide the (already loaded) filings list.
   const latestDetailQuery = useQuery(submissionQueries.detail(latestId ?? 0))
   const latest = latestDetailQuery.data
 
-  const nextSequence =
-    submissions.length > 0
-      ? Math.max(...submissions.map((submission) => submission.sequence_no)) + 1
-      : 1
-
-  const isPending = eventsQuery.isPending || submissionsQuery.isPending
-  const isError = eventsQuery.isError || submissionsQuery.isError
-  const error = eventsQuery.error ?? submissionsQuery.error
+  const isPending =
+    eventsQuery.isPending || sessionsQuery.isPending || submissionsQuery.isPending
+  const isError = eventsQuery.isError || sessionsQuery.isError
+  const error = eventsQuery.error ?? sessionsQuery.error
 
   if (isError) {
     return (
-      <div className="space-y-6">
+      <div className="mx-auto w-full max-w-5xl space-y-6">
         <PageHeader
           title={event?.title ?? 'Event'}
           actions={
             <Button variant="outline" render={<Link to="/corp" />}>
-              Back to events
+              Back to home
             </Button>
           }
         />
@@ -83,7 +82,7 @@ function EventPageContent({ identity }: { identity: CorpIdentity }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto w-full max-w-5xl space-y-6">
       <PageHeader
         title={event?.title ?? 'Event'}
         description={
@@ -96,27 +95,12 @@ function EventPageContent({ identity }: { identity: CorpIdentity }) {
         actions={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" render={<Link to="/corp" />}>
-              Back to events
+              Back to home
             </Button>
-            {/* sequence_no is backend-assigned; showing a number before the
-                filings list has actually loaded would name the wrong report. */}
-            {submissionsQuery.isSuccess ? (
-              <>
-                <Button
-                  variant="outline"
-                  render={
-                    <Link to="/corp/import" search={{ event_id: eventIdNum }} />
-                  }
-                >
-                  <PlusIcon />
-                  File CSV #{nextSequence}
-                </Button>
-                <StartConversationButton
-                  corporation={identity.corporation}
-                  eventId={eventIdNum}
-                />
-              </>
-            ) : null}
+            <StartSitrepButton
+              corporation={identity.corporation}
+              eventId={eventIdNum}
+            />
           </div>
         }
       />
@@ -151,34 +135,25 @@ function EventPageContent({ identity }: { identity: CorpIdentity }) {
       ) : null}
 
       <div className="space-y-3">
-        <h2 className="text-sm font-medium text-muted-foreground">Filings</h2>
+        <h2 className="text-sm font-medium text-muted-foreground">Sitreps</h2>
 
-        {submissionsQuery.data && submissions.length === 0 ? (
+        {sessionsQuery.isSuccess && sessions.length === 0 ? (
           <EmptyState
-            title="No filings yet"
-            description="File the first situation report for this event."
+            title="No sitreps yet"
+            description="Start a sitrep to capture this event by conversation."
             action={
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  render={<Link to="/corp/import" search={{ event_id: eventIdNum }} />}
-                >
-                  <PlusIcon />
-                  File CSV #1
-                </Button>
-                <StartConversationButton
-                  corporation={identity.corporation}
-                  eventId={eventIdNum}
-                />
-              </div>
+              <StartSitrepButton
+                corporation={identity.corporation}
+                eventId={eventIdNum}
+              />
             }
           />
         ) : null}
 
-        {submissions.length > 0 ? (
+        {sessions.length > 0 ? (
           <div className="space-y-2">
-            {submissions.map((submission) => (
-              <SubmissionRow key={submission.id} submission={submission} />
+            {sessions.map((session) => (
+              <SitrepRow key={session.id} session={session} />
             ))}
           </div>
         ) : null}
@@ -187,10 +162,7 @@ function EventPageContent({ identity }: { identity: CorpIdentity }) {
   )
 }
 
-// Starts (or resumes -- the backend reuses an existing draft for this
-// corporation/event pair) a capture session scoped to this event, then
-// hands off straight to the conversation workspace.
-function StartConversationButton({
+function StartSitrepButton({
   corporation,
   eventId,
 }: {
@@ -217,26 +189,31 @@ function StartConversationButton({
       }
     >
       <MessageSquareIcon />
-      File by conversation
+      Start new sitrep
     </Button>
   )
 }
 
-function SubmissionRow({ submission }: { submission: SubmissionSummary }) {
+function SitrepRow({ session }: { session: CaptureSession }) {
   return (
     <Link
-      to="/corp/filings/$submissionId"
-      params={{ submissionId: String(submission.id) }}
+      to="/corp/c/$sessionId"
+      params={{ sessionId: String(session.id) }}
       className="block"
     >
       <ContentCard
-        title={`Situation Report #${submission.sequence_no}`}
-        description={`As at ${new Date(submission.as_at).toLocaleString()} · ${formatConstant(
-          submission.alert_level,
+        title={session.status === 'draft' ? 'Draft sitrep' : 'Filed sitrep'}
+        description={`Updated ${new Date(session.updated_at).toLocaleString()} · ${formatConstant(
+          session.alert_level,
         )}`}
+        action={
+          <Badge variant={session.status === 'draft' ? 'outline' : 'secondary'}>
+            {session.status === 'draft' ? 'Draft' : 'Filed'}
+          </Badge>
+        }
       >
         <p className="text-sm text-muted-foreground">
-          {submission.incident_count} incidents · {submission.log_count} logs
+          {session.incidents.length} incidents · {session.logs.length} logs
         </p>
       </ContentCard>
     </Link>

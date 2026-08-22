@@ -8,7 +8,7 @@ from app.core.engine import GeneratedReport
 from app.core.report_models import Report
 
 
-def save_report(report: GeneratedReport, session: Session) -> Report:
+def add_report(report: GeneratedReport, session: Session) -> Report:
     db_report = Report(
         id=report.request_id,
         template=report.template,
@@ -24,6 +24,11 @@ def save_report(report: GeneratedReport, session: Session) -> Report:
         created_at=datetime.now(timezone.utc),
     )
     session.add(db_report)
+    return db_report
+
+
+def save_report(report: GeneratedReport, session: Session) -> Report:
+    db_report = add_report(report, session)
     session.commit()
     return db_report
 

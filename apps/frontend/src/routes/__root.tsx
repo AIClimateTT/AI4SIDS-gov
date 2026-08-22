@@ -1,11 +1,17 @@
-import { Outlet, createRootRouteWithContext } from '@tanstack/react-router'
+import {
+  Outlet,
+  createRootRouteWithContext,
+  useRouterState,
+} from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import type { QueryClient } from '@tanstack/react-query'
 
 import { AppSidebar } from '@/components/app-sidebar'
+import { CorpSidebar } from '@/components/corp/corp-sidebar'
 import { IdentityBadge } from '@/components/identity/identity-badge'
 import { IdentityProvider, useIdentity } from '@/hooks/use-identity'
+import { useCorpChatWorkspace } from '@/hooks/use-corp-chat-workspace'
 import { Separator } from '@/components/ui/separator'
 import {
   SidebarInset,
@@ -35,29 +41,40 @@ function RootComponent() {
 
 function AppShell() {
   const { identity } = useIdentity()
-  // Two nav links do not earn 256px on a phone -- corp gets no sidebar at
-  // all, just the composer-led home and identity in the header. DMU keeps
-  // the sidebar exactly as before.
-  const showSidebar = identity?.role !== 'corp'
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
+  const isCorp = identity?.role === 'corp'
+  const isCorpChat = isCorp && pathname.startsWith('/corp/c/')
+  const showSidebar = identity?.role === 'dmu' || isCorp
+  const { eventTitle } = useCorpChatWorkspace()
 
   return (
     <TooltipProvider>
-      <SidebarProvider>
-        {showSidebar ? <AppSidebar /> : null}
+      <SidebarProvider className="h-svh overflow-hidden">
+        {identity?.role === 'dmu' ? <AppSidebar /> : null}
+        {isCorp ? <CorpSidebar /> : null}
         <SidebarInset className="min-h-0 overflow-hidden">
           <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
             {showSidebar ? (
               <>
                 <SidebarTrigger className="-ml-1" />
-                <Separator orientation="vertical" className="mr-2 h-4" />
+                <div>
+                  <Separator
+                    orientation="vertical"
+                    className="mr-2 data-[orientation=vertical]:h-4"
+                  />
+                </div>
               </>
             ) : (
               <span className="text-sm font-medium">DMCU Reports</span>
             )}
-            {/* The app is already named in the sidebar header (or, for corp,
-                just above); this row carries identity, so a static title
-                here would render the name twice. */}
-            <IdentityBadge />
+            {isCorpChat ? (
+              <span className="min-w-0 truncate text-sm font-medium">
+                {eventTitle ?? 'New sitrep'}
+              </span>
+            ) : null}
+            {isCorp ? null : <IdentityBadge />}
           </header>
           <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-4 md:p-6">
             <Outlet />

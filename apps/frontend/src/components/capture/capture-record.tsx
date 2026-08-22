@@ -34,7 +34,7 @@ export type CaptureRecordProps = {
   disabled?: boolean
   pending?: boolean
   onSave: (payload: CaptureSessionUpdate) => void
-  onReview: () => void
+  onReview?: () => void
 }
 
 // A literal [] default prop allocates a brand-new array every render,
@@ -101,7 +101,7 @@ export function CaptureRecord({
     onSave(payloadOf(session, { logs }))
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       <div className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
         <EventChip session={session} events={events} disabled={disabled} />
         <AlertLevelChip
@@ -255,9 +255,11 @@ export function CaptureRecord({
           {session.incidents.length} incidents · {session.logs.length} logs ·{' '}
           {session.missing.length} details needed
         </p>
-        <Button type="button" disabled={disabled || pending} onClick={onReview}>
-          Review & file
-        </Button>
+        {onReview ? (
+          <Button type="button" disabled={disabled || pending} onClick={onReview}>
+            Review & file
+          </Button>
+        ) : null}
       </div>
     </div>
   )

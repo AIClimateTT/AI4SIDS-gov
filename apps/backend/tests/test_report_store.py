@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 from app.core.citation_check import CitationViolation
 from app.core.contracts import Citation, DataRequirement, Fact, FactTable
 from app.core.engine import GeneratedReport
-from app.core.report_store import get_report, save_report
+from app.core.report_store import add_report, get_report, save_report
 from app.db import Base, make_engine
 
 
@@ -127,3 +127,22 @@ def test_save_report_persists_explicit_template_version(tmp_path):
     saved = save_report(report, session)
 
     assert saved.template_version == 3
+
+
+def test_add_report_does_not_commit(tmp_path):
+    session = make_session(tmp_path)
+    report = make_generated_report()
+
+    added = add_report(report, session)
+    assert added.id == "req-1"
+
+    other = make_session(tmp_path)
+    assert get_report("req-1", other) is None
+    other.close()
+
+    session.commit()
+    other = make_session(tmp_path)
+    fetched = get_report("req-1", other)
+    assert fetched is not None
+    assert fetched.id == "req-1"
+    other.close()

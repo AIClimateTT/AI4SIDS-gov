@@ -15,7 +15,6 @@ import { Route as DmuIndexRouteImport } from './routes/dmu/index'
 import { Route as CorpIndexRouteImport } from './routes/corp/index'
 import { Route as DmuWhatsappRouteImport } from './routes/dmu/whatsapp'
 import { Route as DmuFieldDataRouteImport } from './routes/dmu/field-data'
-import { Route as CorpImportRouteImport } from './routes/corp/import'
 import { Route as DmuReportsIndexRouteImport } from './routes/dmu/reports/index'
 import { Route as DmuReportsNewRouteImport } from './routes/dmu/reports/new'
 import { Route as DmuReportsReportIdRouteImport } from './routes/dmu/reports/$reportId'
@@ -56,11 +55,6 @@ const DmuWhatsappRoute = DmuWhatsappRouteImport.update({
 const DmuFieldDataRoute = DmuFieldDataRouteImport.update({
   id: '/dmu/field-data',
   path: '/dmu/field-data',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CorpImportRoute = CorpImportRouteImport.update({
-  id: '/corp/import',
-  path: '/corp/import',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DmuReportsIndexRoute = DmuReportsIndexRouteImport.update({
@@ -125,7 +119,6 @@ const DmuAdminTemplatesNameVersionsVersionRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/who-are-you': typeof WhoAreYouRoute
-  '/corp/import': typeof CorpImportRoute
   '/dmu/field-data': typeof DmuFieldDataRoute
   '/dmu/whatsapp': typeof DmuWhatsappRoute
   '/corp/': typeof CorpIndexRoute
@@ -145,7 +138,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/who-are-you': typeof WhoAreYouRoute
-  '/corp/import': typeof CorpImportRoute
   '/dmu/field-data': typeof DmuFieldDataRoute
   '/dmu/whatsapp': typeof DmuWhatsappRoute
   '/corp': typeof CorpIndexRoute
@@ -166,7 +158,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/who-are-you': typeof WhoAreYouRoute
-  '/corp/import': typeof CorpImportRoute
   '/dmu/field-data': typeof DmuFieldDataRoute
   '/dmu/whatsapp': typeof DmuWhatsappRoute
   '/corp/': typeof CorpIndexRoute
@@ -188,7 +179,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/who-are-you'
-    | '/corp/import'
     | '/dmu/field-data'
     | '/dmu/whatsapp'
     | '/corp/'
@@ -208,7 +198,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/who-are-you'
-    | '/corp/import'
     | '/dmu/field-data'
     | '/dmu/whatsapp'
     | '/corp'
@@ -228,7 +217,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/who-are-you'
-    | '/corp/import'
     | '/dmu/field-data'
     | '/dmu/whatsapp'
     | '/corp/'
@@ -249,7 +237,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   WhoAreYouRoute: typeof WhoAreYouRoute
-  CorpImportRoute: typeof CorpImportRoute
   DmuFieldDataRoute: typeof DmuFieldDataRoute
   DmuWhatsappRoute: typeof DmuWhatsappRoute
   CorpIndexRoute: typeof CorpIndexRoute
@@ -309,13 +296,6 @@ declare module '@tanstack/react-router' {
       path: '/dmu/field-data'
       fullPath: '/dmu/field-data'
       preLoaderRoute: typeof DmuFieldDataRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/corp/import': {
-      id: '/corp/import'
-      path: '/corp/import'
-      fullPath: '/corp/import'
-      preLoaderRoute: typeof CorpImportRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dmu/reports/': {
@@ -401,7 +381,6 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   WhoAreYouRoute: WhoAreYouRoute,
-  CorpImportRoute: CorpImportRoute,
   DmuFieldDataRoute: DmuFieldDataRoute,
   DmuWhatsappRoute: DmuWhatsappRoute,
   CorpIndexRoute: CorpIndexRoute,

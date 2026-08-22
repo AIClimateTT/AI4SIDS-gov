@@ -90,6 +90,39 @@ def test_the_backfilled_columns_keep_their_shape(tmp_path):
     assert "source_text" in drafts
 
 
+def test_capture_sessions_have_sitrep_columns(tmp_path):
+    import sqlite3
+
+    db = tmp_path / "fresh.db"
+    result = run_alembic("upgrade", "head", database_url=f"sqlite:///{db}")
+    assert result.returncode == 0, result.stderr
+    conn = sqlite3.connect(db)
+
+    columns = {r[1]: r for r in conn.execute("PRAGMA table_info(capture_sessions)")}
+    for name in (
+        "report_id",
+        "sitrep_markdown",
+        "sitrep_fact_table",
+        "sitrep_violations",
+        "sitrep_status",
+        "sitrep_generated_at",
+        "sitrep_source_updated_at",
+    ):
+        assert name in columns, f"{name} missing from capture_sessions"
+        assert columns[name][3] == 0, f"{name} should be nullable"
+
+    report_fks = [
+        fk
+        for fk in conn.execute("PRAGMA foreign_key_list(capture_sessions)")
+        if fk[3] == "report_id"
+    ]
+    assert report_fks, "report_id should FK to reports"
+    assert report_fks[0][2] == "reports"
+    assert report_fks[0][4] == "id"
+    on_delete = (report_fks[0][6] or "NO ACTION").upper()
+    assert on_delete != "CASCADE", "issued reports must survive session deletion"
+
+
 def test_downgrade_base_succeeds_from_head(tmp_path):
     db = tmp_path / "fresh.db"
     run_alembic("upgrade", "head", database_url=f"sqlite:///{db}")

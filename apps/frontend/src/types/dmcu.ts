@@ -363,6 +363,16 @@ export type CaptureMissingField = {
   message: string
 }
 
+export type CaptureSitrep = {
+  markdown: string
+  fact_table: FactTable
+  violations: CitationViolation[]
+  status: string
+  generated_at: string
+  source_updated_at: string
+  stale: boolean
+}
+
 export type CaptureSession = {
   id: number
   corporation: string
@@ -378,6 +388,8 @@ export type CaptureSession = {
   messages: CaptureMessage[]
   missing: CaptureMissingField[]
   submission_id: number | null
+  report_id: string | null
+  sitrep: CaptureSitrep | null
   created_at: string
   updated_at: string
 }
@@ -399,4 +411,14 @@ export type AttachEventBody =
 export type CaptureFileResult = {
   session: CaptureSession
   ingest: SubmissionIngestResult
+}
+
+export type CaptureCsvKind = 'incidents' | 'logs'
+
+export type CaptureCsvImportResult = {
+  session: CaptureSession
+  kind: CaptureCsvKind
+  rows_read: number
+  rows_accepted: number
+  row_errors: Array<{ file: string; row_number: number; reason: string }>
 }

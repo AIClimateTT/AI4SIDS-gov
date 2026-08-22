@@ -2,6 +2,8 @@ import { apiClient } from '@/lib/api/client'
 import { withApiError } from '@/lib/api/errors'
 import type {
   AttachEventBody,
+  CaptureCsvImportResult,
+  CaptureCsvKind,
   CaptureFileResult,
   CaptureSession,
   CaptureSessionUpdate,
@@ -69,6 +71,41 @@ export async function fileCaptureSession(id: number): Promise<CaptureFileResult>
   return withApiError(async () => {
     const { data } = await apiClient.post<CaptureFileResult>(
       `/capture/sessions/${id}/file`,
+    )
+    return data
+  })
+}
+
+export async function previewCaptureSession(id: number): Promise<CaptureSession> {
+  return withApiError(async () => {
+    const { data } = await apiClient.post<CaptureSession>(
+      `/capture/sessions/${id}/preview`,
+    )
+    return data
+  })
+}
+
+export async function issueCaptureSession(id: number): Promise<CaptureFileResult> {
+  return withApiError(async () => {
+    const { data } = await apiClient.post<CaptureFileResult>(
+      `/capture/sessions/${id}/issue`,
+    )
+    return data
+  })
+}
+
+export async function importCaptureCsv(
+  id: number,
+  kind: CaptureCsvKind,
+  file: File,
+): Promise<CaptureCsvImportResult> {
+  return withApiError(async () => {
+    const form = new FormData()
+    form.append('kind', kind)
+    form.append('file', file)
+    const { data } = await apiClient.post<CaptureCsvImportResult>(
+      `/capture/sessions/${id}/csv`,
+      form,
     )
     return data
   })

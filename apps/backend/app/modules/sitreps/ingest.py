@@ -61,6 +61,7 @@ def ingest_submission(
     incident_rows: list[dict] | None = None,
     log_rows: list[dict] | None = None,
     structured_defaults: bool = False,
+    commit: bool = True,
 ) -> SubmissionIngestResult:
     """Create one submission and load its incident and log rows.
 
@@ -215,7 +216,10 @@ def ingest_submission(
         session.add(SituationLog(**fields, submission_id=submission.id))
 
     submission.row_errors = [e.model_dump() for e in row_errors]
-    session.commit()
+    if commit:
+        session.commit()
+    else:
+        session.flush()
 
     return SubmissionIngestResult(
         submission_id=submission.id,

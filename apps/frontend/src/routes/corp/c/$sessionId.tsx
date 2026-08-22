@@ -1,9 +1,16 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 
 import { CaptureRecord } from '@/components/capture/capture-record'
-import { ReviewFileSheet } from '@/components/capture/review-file-sheet'
+import { SitrepDraftPane } from '@/components/capture/sitrep-draft-pane'
 import { ChatThread } from '@/components/chat/chat-thread'
 import { toChatMessages } from '@/components/chat/messages'
 import {
@@ -13,17 +20,25 @@ import {
 import { CorpRoleNotice } from '@/components/identity/corp-role-notice'
 import { EmptyState, LoadingBlock } from '@/components/shared'
 import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from '@/components/ui/resizable'
+import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useIdentity } from '@/hooks/use-identity'
 import type { Identity } from '@/lib/identity'
 import {
   captureKeys,
   captureQueries,
-  useFileCaptureSession,
+  useImportCaptureCsv,
+  useIssueCaptureSession,
+  usePreviewCaptureSession,
   useUpdateCaptureSession,
 } from '@/lib/queries/capture'
 import { eventQueries } from '@/lib/queries/submissions'
@@ -42,6 +57,22 @@ type SessionSearch = {
   /** Set by "Add an incident manually" so the mobile sheet opens straight
    * to the record instead of the empty thread. */
   open?: 'record'
+}
+
+const DESKTOP_SPLIT = '(min-width: 768px)'
+
+function subscribeDesktop(notify: () => void) {
+  const media = window.matchMedia(DESKTOP_SPLIT)
+  media.addEventListener('change', notify)
+  return () => media.removeEventListener('change', notify)
+}
+
+function desktopSnapshot() {
+  return window.matchMedia(DESKTOP_SPLIT).matches
+}
+
+function useDesktopSplit() {
+  return useSyncExternalStore(subscribeDesktop, desktopSnapshot, () => true)
 }
 
 export const Route = createFileRoute('/corp/c/$sessionId')({
@@ -87,11 +118,13 @@ function CaptureChatSession({
   const sessionQuery = useQuery(captureQueries.detail(sessionId))
   const queryClient = useQueryClient()
   const update = useUpdateCaptureSession()
-  const fileSession = useFileCaptureSession()
   const navigate = useNavigate()
   const search = Route.useSearch()
   const [sheetOpen, setSheetOpen] = useState(search.open === 'record')
-  const [reviewOpen, setReviewOpen] = useState(false)
+  const isDesktop = useDesktopSplit()
+  const preview = usePreviewCaptureSession()
+  const issue = useIssueCaptureSession()
+  const importCsv = useImportCaptureCsv()
 
   // Captured once on mount, then the search param is stripped so a reload
   // never resends the opening turn (F6's handoff from the home composer).
@@ -111,7 +144,7 @@ function CaptureChatSession({
 
   const session = sessionQuery.data
   const isFiled = session?.status === 'filed'
-  const busy = update.isPending || fileSession.isPending
+  const busy = update.isPending
   const eventTitle = events.find((event) => event.id === session?.event_id)?.title
 
   const connection = useMemo(
@@ -135,24 +168,17 @@ function CaptureChatSession({
     },
     [queryClient, sessionId],
   )
-  // On success, close the review sheet and navigate to the durable filed
-  // report rather than leaving the officer on a dead disabled chat --
-  // sequence_no is backend-assigned, so it's only knowable from this
-  // response, never named before it.
-  const handleFile = useCallback(() => {
-    fileSession.mutate(sessionId, {
-      onSuccess: (result) => {
-        setReviewOpen(false)
-        void navigate({
-          to: '/corp/filings/$submissionId',
-          params: { submissionId: String(result.ingest.submission_id) },
-        })
-      },
-    })
-  }, [fileSession, sessionId, navigate])
   const handleSave = useCallback(
     (payload: CaptureSessionUpdate) => update.mutate({ id: sessionId, payload }),
     [update, sessionId],
+  )
+  const handlePreview = useCallback(
+    () => preview.mutate(sessionId),
+    [preview, sessionId],
+  )
+  const handleIssue = useCallback(
+    () => issue.mutate(sessionId),
+    [issue, sessionId],
   )
 
   if (sessionQuery.isError) {
@@ -168,32 +194,67 @@ function CaptureChatSession({
     return <LoadingBlock rows={8} />
   }
 
-  return (
-    <div className="-m-4 flex min-h-0 flex-1 flex-col md:-m-6 md:flex-row">
-      <main className="order-2 flex min-h-0 flex-1 flex-col px-4 py-4 pb-20 md:order-1 md:px-6 md:pb-4">
-        <div className="mx-auto flex w-full min-w-0 max-w-[46rem] flex-1 flex-col gap-4">
-          <ChatThread
-            key={session.id}
-            connection={connection}
-            initialMessages={initialMessages}
-            disabled={isFiled}
-            onCustomEvent={onCustomEvent}
-            threadId={String(session.id)}
-            autoSend={autoSend}
-          />
-        </div>
-      </main>
+  const thread = (
+    <ChatThread
+      key={session.id}
+      connection={connection}
+      initialMessages={initialMessages}
+      disabled={isFiled || importCsv.isPending}
+      onCustomEvent={onCustomEvent}
+      threadId={String(session.id)}
+      autoSend={autoSend}
+      actions={[
+        {
+          label: 'Upload incidents CSV',
+          accept: '.csv,text/csv',
+          onFile: (file) =>
+            importCsv.mutate({ id: session.id, kind: 'incidents', file }),
+        },
+        {
+          label: 'Upload situation logs CSV',
+          accept: '.csv,text/csv',
+          onFile: (file) =>
+            importCsv.mutate({ id: session.id, kind: 'logs', file }),
+        },
+      ]}
+    />
+  )
 
-      <aside className="order-1 hidden shrink-0 md:order-2 md:flex md:sticky md:top-0 md:h-[calc(100svh-3.5rem)] md:w-[400px] md:self-start md:overflow-y-auto md:border-l">
-        <CaptureRecord
-          session={session}
-          events={events}
-          disabled={isFiled || busy}
-          pending={update.isPending}
-          onSave={handleSave}
-          onReview={() => setReviewOpen(true)}
-        />
-      </aside>
+  return (
+    <div className="-m-4 flex min-h-0 flex-1 flex-col overflow-hidden bg-muted/40 md:-m-6">
+      {isDesktop ? (
+        <ResizablePanelGroup
+          orientation="horizontal"
+          className="min-h-0 flex-1"
+        >
+          <ResizablePanel defaultSize="50%" minSize="32%" className="min-h-0">
+            <main className="flex h-full min-h-0 flex-col px-4 py-4 md:px-6">
+              {thread}
+            </main>
+          </ResizablePanel>
+          <ResizableHandle withHandle />
+          <ResizablePanel defaultSize="50%" minSize="32%" className="min-h-0">
+            <div className="m-2 flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-background shadow-sm">
+              <ArtifactPane
+                session={session}
+                events={events}
+                eventTitle={eventTitle}
+                disabled={isFiled || busy}
+                pending={update.isPending}
+                previewPending={preview.isPending}
+                issuePending={issue.isPending}
+                onSave={handleSave}
+                onPreview={handlePreview}
+                onIssue={handleIssue}
+              />
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      ) : (
+        <main className="flex min-h-0 flex-1 flex-col px-4 py-4 pb-20">
+          {thread}
+        </main>
+      )}
 
       <button
         type="button"
@@ -208,29 +269,93 @@ function CaptureChatSession({
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent side="bottom" className="flex h-[85svh] flex-col gap-0 p-0">
           <SheetHeader className="border-b">
-            <SheetTitle>Captured record</SheetTitle>
+            <SheetTitle>{eventTitle ?? 'Sitrep'}</SheetTitle>
           </SheetHeader>
           <div className="flex min-h-0 flex-1 flex-col">
-            <CaptureRecord
+            <ArtifactPane
               session={session}
               events={events}
+              eventTitle={eventTitle}
               disabled={isFiled || busy}
               pending={update.isPending}
+              previewPending={preview.isPending}
+              issuePending={issue.isPending}
               onSave={handleSave}
-              onReview={() => setReviewOpen(true)}
+              onPreview={handlePreview}
+              onIssue={handleIssue}
             />
           </div>
         </SheetContent>
       </Sheet>
-
-      <ReviewFileSheet
-        open={reviewOpen}
-        onOpenChange={setReviewOpen}
-        session={session}
-        filing={fileSession.isPending}
-        onFile={handleFile}
-        eventTitle={eventTitle}
-      />
     </div>
+  )
+}
+
+function ArtifactPane({
+  session,
+  events,
+  eventTitle,
+  disabled,
+  pending,
+  previewPending,
+  issuePending,
+  onSave,
+  onPreview,
+  onIssue,
+}: {
+  session: CaptureSession
+  events: EventSummary[]
+  eventTitle?: string | null
+  disabled: boolean
+  pending: boolean
+  previewPending: boolean
+  issuePending: boolean
+  onSave: (payload: CaptureSessionUpdate) => void
+  onPreview: () => void
+  onIssue: () => void
+}) {
+  const autoPreviewedFor = useRef<number | null>(null)
+
+  function handleTabChange(value: unknown) {
+    if (value !== 'sitrep') return
+    if (autoPreviewedFor.current === session.id) return
+    if (session.status !== 'draft') return
+    if (session.sitrep != null && !session.sitrep.stale) return
+    autoPreviewedFor.current = session.id
+    onPreview()
+  }
+
+  return (
+    <Tabs
+      defaultValue="facts"
+      className="flex h-full min-h-0 flex-col gap-0"
+      onValueChange={handleTabChange}
+    >
+      <div className="flex shrink-0 items-center border-b px-3 py-2">
+        <TabsList variant="line">
+          <TabsTrigger value="facts">Facts</TabsTrigger>
+          <TabsTrigger value="sitrep">Sitrep</TabsTrigger>
+        </TabsList>
+      </div>
+      <TabsContent value="facts" className="min-h-0 overflow-hidden">
+        <CaptureRecord
+          session={session}
+          events={events}
+          disabled={disabled}
+          pending={pending}
+          onSave={onSave}
+        />
+      </TabsContent>
+      <TabsContent value="sitrep" className="min-h-0 overflow-hidden">
+        <SitrepDraftPane
+          session={session}
+          eventTitle={eventTitle}
+          onPreview={onPreview}
+          onIssue={onIssue}
+          previewPending={previewPending}
+          issuePending={issuePending}
+        />
+      </TabsContent>
+    </Tabs>
   )
 }

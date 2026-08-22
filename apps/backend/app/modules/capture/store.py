@@ -101,8 +101,11 @@ def list_sessions(
     return list(db.scalars(stmt).all())
 
 
-def save_session(db: Session, row: CaptureSession) -> CaptureSession:
-    row.updated_at = _now()
+def save_session(
+    db: Session, row: CaptureSession, *, touch: bool = True
+) -> CaptureSession:
+    if touch:
+        row.updated_at = _now()
     db.commit()
     db.refresh(row)
     return row

@@ -28,5 +28,19 @@ class CaptureSession(Base):
     submission_id: Mapped[int | None] = mapped_column(
         ForeignKey("submissions.id"), nullable=True
     )
+    report_id: Mapped[str | None] = mapped_column(
+        ForeignKey("reports.id", name="fk_capture_sessions_report_id"),
+        nullable=True,
+    )
+    sitrep_markdown: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sitrep_fact_table: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    sitrep_violations: Mapped[list | None] = mapped_column(
+        JSON, nullable=True, default=list
+    )
+    sitrep_status: Mapped[str | None] = mapped_column(String, nullable=True)
+    sitrep_generated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    sitrep_source_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)

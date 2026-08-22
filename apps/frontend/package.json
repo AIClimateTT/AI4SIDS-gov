@@ -18,6 +18,7 @@
   "dependencies": {
     "@base-ui/react": "^1.6.0",
     "@fontsource-variable/inter": "^5.2.8",
+    "@shadcn/react": "^0.3.0",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/ai": "^0.45.1",
     "@tanstack/ai-react": "^0.19.3",
@@ -39,6 +40,7 @@
     "react-day-picker": "^10.0.1",
     "react-dom": "^19.2.0",
     "react-markdown": "^10.1.0",
+    "react-resizable-panels": "^4.12.3",
     "rehype-raw": "^7.0.0",
     "rehype-sanitize": "^6.0.0",
     "remark-gfm": "^4.0.1",

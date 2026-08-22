@@ -19,7 +19,7 @@ describe('Composer', () => {
     fireEvent.change(screen.getByRole('textbox'), {
       target: { value: 'Flooding on Diego Martin Main Road, five houses' },
     })
-    fireEvent.click(screen.getByRole('button', { name: /start/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     await waitFor(() => expect(create).toHaveBeenCalledWith({ corporation: CORP }))
     await waitFor(() =>
@@ -33,7 +33,7 @@ describe('Composer', () => {
   it('does not start a session on empty input', () => {
     const create = vi.fn()
     render(<Composer corporation={CORP} createSession={create} onStarted={vi.fn()} />)
-    fireEvent.click(screen.getByRole('button', { name: /start/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     expect(create).not.toHaveBeenCalled()
   })
 })

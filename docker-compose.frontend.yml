@@ -1,0 +1,26 @@
+# Dokploy app: frontend
+# Watch paths: apps/frontend/**, docker-compose.frontend.yml
+# Requires dmcu-app-network (created by infra). Proxy /api to backend-prod.
+name: dmcu-frontend
+
+services:
+  frontend-prod:
+    container_name: dmcu-prod-frontend
+    build:
+      context: ./apps/frontend
+      dockerfile: frontend.Dockerfile
+      args:
+        VITE_API_URL: /api
+    expose:
+      - "8081"
+    restart: unless-stopped
+    networks:
+      - app-network
+      - dokploy-network
+
+networks:
+  app-network:
+    name: dmcu-app-network
+    external: true
+  dokploy-network:
+    external: true

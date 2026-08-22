@@ -1,0 +1,70 @@
+# Dokploy app: api + worker
+# Watch paths: apps/backend/**, docker-compose.backend.yml
+# Requires infra (dmcu-app-network, postgres-prod, nim-prod) to be up.
+name: dmcu-backend
+
+x-app-env: &app-env
+  APP_ENV: ${APP_ENV:-production}
+  DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://dmcu:dmcu_local@postgres-prod:5432/dmcu}
+  DEDUP_SALT: ${DEDUP_SALT:-dev-salt-change-in-production}
+  LLM_PROVIDER: ${LLM_PROVIDER:-nim}
+  NIM_BASE_URL: ${NIM_BASE_URL:-http://nim-prod:8000}
+  NIM_API_KEY: ${NIM_API_KEY:-none}
+  NIM_MODEL: ${NIM_MODEL:-openai/gpt-oss-20b}
+  NIM_CHAT_MODEL: ${NIM_CHAT_MODEL:-openai/gpt-oss-20b}
+  JOB_BACKEND: ${JOB_BACKEND:-procrastinate}
+  REPORT_TIMEZONE: ${REPORT_TIMEZONE:-America/Port_of_Spain}
+  SURVEY123_TRANSPORT: ${SURVEY123_TRANSPORT:-inprocess}
+
+services:
+  backend-prod:
+    container_name: dmcu-prod-backend
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    expose:
+      - "8082"
+    ports:
+      - "127.0.0.1:8000:8082"
+    environment:
+      <<: *app-env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8082/healthcheck')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    networks:
+      - app-network
+      - dokploy-network
+
+  worker-prod:
+    container_name: dmcu-prod-worker
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    command: ["worker"]
+    depends_on:
+      backend-prod:
+        condition: service_healthy
+    environment:
+      <<: *app-env
+    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    name: dmcu-app-network
+    external: true
+  dokploy-network:
+    external: true

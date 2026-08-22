@@ -39,6 +39,8 @@ def build_scope(params: dict, **extra: str) -> dict[str, str]:
         "community": params.get("community") or "all",
         "window": build_window_label(params.get("date_from"), params.get("date_to")),
     }
+    if params.get("submission_id"):
+        scope["submission"] = str(params["submission_id"])
     scope.update(extra)
     return scope
 
@@ -47,7 +49,7 @@ def build_scope(params: dict, **extra: str) -> dict[str, str]:
 # only these, because query_ref is the string an auditor uses to reproduce a
 # figure — printing a key that was silently ignored describes a query that
 # never ran. Keep in step with apply_common_filters and base_query.
-QUERY_PARAMS = ("corporation", "community", "date_from", "date_to", "include_pending")
+QUERY_PARAMS = ("corporation", "community", "date_from", "date_to", "include_pending", "submission_id")
 
 
 def build_query_ref(metric_name: str, params: dict) -> str:
@@ -173,6 +175,8 @@ def apply_common_filters(stmt: Select, params: dict, model=FieldObservation) -> 
         stmt = stmt.where(model.corporation == params["corporation"])
     if params.get("community"):
         stmt = stmt.where(model.community == params["community"])
+    if params.get("submission_id") and column_exists(model, "submission_id"):
+        stmt = stmt.where(model.submission_id == int(params["submission_id"]))
     date_from = parse_date_param(params.get("date_from"))
     if date_from is not None:
         stmt = stmt.where(model.event_date >= date_from)
@@ -195,6 +199,14 @@ def base_query(params: dict, model=FieldObservation) -> Select:
     if column_exists(model, "validation_status") and not params.get("include_pending", False):
         stmt = stmt.where(model.validation_status == "validated")
     return stmt
+
+
+def load_metric_rows(params: dict, session: Session | None, model, rows=None) -> list:
+    if rows is not None:
+        return list(rows)
+    if session is None:
+        raise ValueError("session is required when rows are not supplied")
+    return list(session.execute(base_query(params, model)).scalars().all())
 
 
 UNRECOGNISED_INCIDENT_TYPE_LABEL = "(unrecognised incident type)"
@@ -253,8 +265,8 @@ def unmapped_incident_type_gaps(metric_name: str, rows, consequence: str) -> lis
     ]
 
 
-def incident_count(params: dict, session: Session, model=FieldObservation) -> list[Fact]:
-    rows = session.execute(base_query(params, model)).scalars().all()
+def incident_count(params: dict, session: Session | None, model=FieldObservation, rows=None) -> list[Fact]:
+    rows = load_metric_rows(params, session, model, rows)
 
     breakdown: dict[str, int] = {}
     for r in rows:
@@ -292,8 +304,8 @@ def incident_count(params: dict, session: Session, model=FieldObservation) -> li
     ]
 
 
-def incidents_by_corporation(params: dict, session: Session, model=FieldObservation) -> list[Fact]:
-    rows = session.execute(base_query(params, model)).scalars().all()
+def incidents_by_corporation(params: dict, session: Session | None, model=FieldObservation, rows=None) -> list[Fact]:
+    rows = load_metric_rows(params, session, model, rows)
 
     breakdown: dict[str, int] = {}
     for r in rows:
@@ -328,10 +340,10 @@ def incidents_by_corporation(params: dict, session: Session, model=FieldObservat
 HOME_AFFECTING_INCIDENT_TYPES = {"flooding_", "fire", "blown_off_roof"}
 
 
-def homes_affected_count(params: dict, session: Session, model=FieldObservation) -> list[Fact]:
+def homes_affected_count(params: dict, session: Session | None, model=FieldObservation, rows=None) -> list[Fact]:
     full_params = dict(params)
     full_params["include_pending"] = True
-    rows = session.execute(base_query(full_params, model)).scalars().all()
+    rows = load_metric_rows(full_params, session, model, rows)
 
     affected = [
         r for r in rows if (r.building_damage or "").strip() or r.incident_type in HOME_AFFECTING_INCIDENT_TYPES
@@ -382,8 +394,8 @@ def homes_affected_count(params: dict, session: Session, model=FieldObservation)
     ]
 
 
-def casualty_summary(params: dict, session: Session, model=FieldObservation) -> list[Fact]:
-    rows = session.execute(base_query(params, model)).scalars().all()
+def casualty_summary(params: dict, session: Session | None, model=FieldObservation, rows=None) -> list[Fact]:
+    rows = load_metric_rows(params, session, model, rows)
 
     injury_rows = [r for r in rows if (r.injuries_count or 0) > 0]
     death_rows = [r for r in rows if (r.deaths_count or 0) > 0]
@@ -434,8 +446,8 @@ def casualty_summary(params: dict, session: Session, model=FieldObservation) -> 
 FOLLOW_UP_FLAG_KEYS = ["relief_supplied", "forwarded_to_agency", "further_assessment_required", "other"]
 
 
-def street_level_tally(params: dict, session: Session, model=FieldObservation) -> list[Fact]:
-    rows = session.execute(base_query(params, model)).scalars().all()
+def street_level_tally(params: dict, session: Session | None, model=FieldObservation, rows=None) -> list[Fact]:
+    rows = load_metric_rows(params, session, model, rows)
 
     breakdown: dict[str, int] = {}
     for r in rows:
@@ -469,8 +481,8 @@ def street_level_tally(params: dict, session: Session, model=FieldObservation) -
     ]
 
 
-def relief_actions_summary(params: dict, session: Session, model=FieldObservation) -> list[Fact]:
-    rows = session.execute(base_query(params, model)).scalars().all()
+def relief_actions_summary(params: dict, session: Session | None, model=FieldObservation, rows=None) -> list[Fact]:
+    rows = load_metric_rows(params, session, model, rows)
 
     breakdown = {key: 0 for key in FOLLOW_UP_FLAG_KEYS}
     contributing_ids: set[str] = set()
@@ -510,8 +522,8 @@ def relief_actions_summary(params: dict, session: Session, model=FieldObservatio
     ]
 
 
-def special_needs_count(params: dict, session: Session, model=FieldObservation) -> list[Fact]:
-    rows = session.execute(base_query(params, model)).scalars().all()
+def special_needs_count(params: dict, session: Session | None, model=FieldObservation, rows=None) -> list[Fact]:
+    rows = load_metric_rows(params, session, model, rows)
     contributing = [r for r in rows if (r.special_needs_occupants or 0) > 0]
 
     global_ids = [record_ref_of(r) for r in contributing]
@@ -539,8 +551,8 @@ def special_needs_count(params: dict, session: Session, model=FieldObservation) 
     ]
 
 
-def estimated_damage_total(params: dict, session: Session, model=FieldObservation) -> list[Fact]:
-    rows = session.execute(base_query(params, model)).scalars().all()
+def estimated_damage_total(params: dict, session: Session | None, model=FieldObservation, rows=None) -> list[Fact]:
+    rows = load_metric_rows(params, session, model, rows)
     with_cost = [r for r in rows if r.estimated_damage_cost is not None]
 
     total = sum((r.estimated_damage_cost for r in with_cost), start=Decimal("0"))
