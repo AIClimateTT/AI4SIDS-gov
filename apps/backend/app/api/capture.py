@@ -1,18 +1,20 @@
 import json
 import uuid
 from datetime import datetime
+from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
-from app.core.contracts import SubmissionIngestResult
+from app.core.contracts import RowErrorInfo, SubmissionIngestResult
 from app.core.engine import generate_report
 from app.core.llm import get_llm_client
 from app.core.report_store import add_report
 from app.core.template_store import get_latest_template_version
 from app.db import get_session
+from app.modules.capture.csv_import import import_csv_rows, read_csv_bytes
 from app.modules.capture.file import working_set_to_ingest_rows
 from app.modules.capture.models import CaptureSession
 from app.modules.capture.schemas import (
@@ -116,6 +118,14 @@ class UpdateSessionRequest(BaseModel):
 class FileSessionResponse(BaseModel):
     session: CaptureSessionResponse
     ingest: SubmissionIngestResult
+
+
+class CsvImportResponse(BaseModel):
+    session: CaptureSessionResponse
+    kind: Literal["incidents", "logs"]
+    rows_read: int
+    rows_accepted: int
+    row_errors: list[RowErrorInfo]
 
 
 def _require_corporation(corporation: str) -> str:
@@ -427,6 +437,39 @@ def put_session(
     apply_working_set(row, working)
     save_session(db, row)
     return _to_response(row)
+
+
+@router.post(
+    "/capture/sessions/{session_id}/csv",
+    response_model=CsvImportResponse,
+)
+async def post_session_csv(
+    session_id: int,
+    kind: Literal["incidents", "logs"] = Form(),
+    file: UploadFile = File(),
+    db: Session = Depends(get_session),
+) -> CsvImportResponse:
+    row = _load_owned(db, session_id)
+    _require_draft(row)
+    contents = await file.read()
+    try:
+        rows = read_csv_bytes(contents)
+    except UnicodeDecodeError as exc:
+        raise HTTPException(
+            status_code=400, detail="file is not valid UTF-8 CSV"
+        ) from exc
+
+    before = working_set_from_session(row)
+    working, errors = import_csv_rows(before, kind=kind, rows=rows)
+    apply_working_set(row, working)
+    save_session(db, row)
+    return CsvImportResponse(
+        session=_to_response(row),
+        kind=kind,
+        rows_read=len(rows),
+        rows_accepted=len(rows) - len(errors),
+        row_errors=errors,
+    )
 
 
 def _require_event_if_incidents(row: CaptureSession) -> None:

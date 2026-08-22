@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { UIMessage } from '@tanstack/ai-react'
 
@@ -29,6 +29,10 @@ const connection = {
 } as never
 
 describe('ChatThread', () => {
+  afterEach(() => {
+    cleanup()
+  })
+
   beforeEach(() => {
     sendMessage.mockReset()
     mockState.isLoading = false

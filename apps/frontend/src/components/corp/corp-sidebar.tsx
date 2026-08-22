@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
-import { FileTextIcon, HouseIcon, MapPinIcon } from 'lucide-react'
+import { DownloadIcon, FileTextIcon, HouseIcon, MapPinIcon } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 
 import {
@@ -8,6 +8,11 @@ import {
 } from '@/hooks/use-corp-chat-workspace'
 import { useIdentity } from '@/hooks/use-identity'
 import { identityLabel } from '@/lib/identity'
+import {
+  INCIDENT_CSV_HEADERS,
+  LOG_CSV_HEADERS,
+  downloadCsvTemplate,
+} from '@/lib/csv-templates'
 import { captureQueries } from '@/lib/queries/capture'
 import { eventQueries } from '@/lib/queries/submissions'
 import { Button } from '@/components/ui/button'
@@ -113,25 +118,34 @@ export function CorpSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ) : (
-                sitreps.map((sitrep) => (
-                  <SidebarMenuItem key={sitrep.id}>
-                    <SidebarMenuButton
-                      isActive={sitrep.id === sessionId}
-                      tooltip={sitrep.status === 'draft' ? 'Draft' : 'Issued'}
-                      render={
-                        <Link
-                          to="/corp/c/$sessionId"
-                          params={{ sessionId: String(sitrep.id) }}
-                        />
-                      }
-                    >
-                      <span className="truncate">
-                        {sitrep.status === 'draft' ? 'Draft' : 'Issued'} ·{' '}
-                        {new Date(sitrep.updated_at).toLocaleDateString()}
-                      </span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))
+                sitreps.map((sitrep) => {
+                  const when = new Date(sitrep.as_at)
+                  const label = sitrep.status === 'draft' ? 'Draft' : 'Issued'
+                  const stamp = when.toLocaleString(undefined, {
+                    day: 'numeric',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                  return (
+                    <SidebarMenuItem key={sitrep.id}>
+                      <SidebarMenuButton
+                        isActive={sitrep.id === sessionId}
+                        tooltip={`${label} · ${when.toLocaleString()}`}
+                        render={
+                          <Link
+                            to="/corp/c/$sessionId"
+                            params={{ sessionId: String(sitrep.id) }}
+                          />
+                        }
+                      >
+                        <span className="truncate">
+                          {label} · {stamp}
+                        </span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })
               )}
             </SidebarMenu>
           </SidebarGroup>
@@ -169,6 +183,33 @@ export function CorpSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
+        <SidebarGroup className="p-0">
+          <SidebarGroupLabel>Resources</SidebarGroupLabel>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                tooltip="Incidents template"
+                onClick={() =>
+                  downloadCsvTemplate('incidents.csv', INCIDENT_CSV_HEADERS)
+                }
+              >
+                <DownloadIcon />
+                <span>Incidents template</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                tooltip="Situation logs template"
+                onClick={() =>
+                  downloadCsvTemplate('situation-logs.csv', LOG_CSV_HEADERS)
+                }
+              >
+                <DownloadIcon />
+                <span>Situation logs template</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroup>
         <div className="flex items-center gap-2 px-2 py-1.5">
           <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
             <span className="truncate font-medium">{identityLabel(identity)}</span>

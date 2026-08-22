@@ -36,6 +36,7 @@ import type { Identity } from '@/lib/identity'
 import {
   captureKeys,
   captureQueries,
+  useImportCaptureCsv,
   useIssueCaptureSession,
   usePreviewCaptureSession,
   useUpdateCaptureSession,
@@ -123,6 +124,7 @@ function CaptureChatSession({
   const isDesktop = useDesktopSplit()
   const preview = usePreviewCaptureSession()
   const issue = useIssueCaptureSession()
+  const importCsv = useImportCaptureCsv()
 
   // Captured once on mount, then the search param is stripped so a reload
   // never resends the opening turn (F6's handoff from the home composer).
@@ -197,10 +199,24 @@ function CaptureChatSession({
       key={session.id}
       connection={connection}
       initialMessages={initialMessages}
-      disabled={isFiled}
+      disabled={isFiled || importCsv.isPending}
       onCustomEvent={onCustomEvent}
       threadId={String(session.id)}
       autoSend={autoSend}
+      actions={[
+        {
+          label: 'Upload incidents CSV',
+          accept: '.csv,text/csv',
+          onFile: (file) =>
+            importCsv.mutate({ id: session.id, kind: 'incidents', file }),
+        },
+        {
+          label: 'Upload situation logs CSV',
+          accept: '.csv,text/csv',
+          onFile: (file) =>
+            importCsv.mutate({ id: session.id, kind: 'logs', file }),
+        },
+      ]}
     />
   )
 

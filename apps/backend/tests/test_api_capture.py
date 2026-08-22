@@ -1022,3 +1022,68 @@ def test_issue_rolls_back_if_session_persist_fails(monkeypatch):
     assert retry.json()["session"]["report_id"]
     assert retry.json()["ingest"]["incidents_inserted"] == 1
     assert retry.json()["ingest"]["logs_inserted"] == 1
+
+
+INCIDENTS_CSV = Path(__file__).parent.parent / "fixtures" / "sample_submission_incidents.csv"
+LOGS_CSV = Path(__file__).parent.parent / "fixtures" / "sample_submission_logs.csv"
+
+
+def test_csv_merges_into_the_working_set_without_ingesting(monkeypatch):
+    client = make_client(monkeypatch)
+    session_id = create_capture(client)["id"]
+
+    response = client.post(
+        f"/capture/sessions/{session_id}/csv",
+        data={"kind": "incidents"},
+        files={"file": ("incidents.csv", INCIDENTS_CSV.read_bytes(), "text/csv")},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["kind"] == "incidents"
+    assert body["rows_read"] == 3
+    assert body["rows_accepted"] == 3
+    assert body["row_errors"] == []
+    assert [row["community"] for row in body["session"]["incidents"]] == [
+        "Petit Valley",
+        "Maraval",
+        "Diamond Vale",
+    ]
+
+    from sqlalchemy.orm import sessionmaker
+
+    from app.modules.sitreps.models import SitrepIncident, Submission
+
+    db = sessionmaker(bind=db_engine)()
+    assert db.query(Submission).count() == 0
+    assert db.query(SitrepIncident).count() == 0
+    db.close()
+
+
+def test_csv_logs_append_to_the_working_set(monkeypatch):
+    client = make_client(monkeypatch)
+    session_id = create_capture(client)["id"]
+
+    response = client.post(
+        f"/capture/sessions/{session_id}/csv",
+        data={"kind": "logs"},
+        files={"file": ("logs.csv", LOGS_CSV.read_bytes(), "text/csv")},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["rows_accepted"] == 5
+    assert body["session"]["logs"][0]["item"] is None
+    assert body["session"]["logs"][1]["item"] == "sandbags"
+
+
+def test_csv_import_is_rejected_once_filed(monkeypatch):
+    client = make_client(monkeypatch)
+    event_id = create_event(client)
+    session_id = create_capture(client, event_id)["id"]
+    assert client.post(f"/capture/sessions/{session_id}/file").status_code == 201
+
+    response = client.post(
+        f"/capture/sessions/{session_id}/csv",
+        data={"kind": "incidents"},
+        files={"file": ("incidents.csv", INCIDENTS_CSV.read_bytes(), "text/csv")},
+    )
+    assert response.status_code == 409

@@ -1,15 +1,25 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ConnectionAdapter, UIMessage } from '@tanstack/ai-react'
 
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { cn } from '@/lib/utils'
-
+import {
+  ChatComposer,
+  type ChatComposerAction,
+} from '@/components/chat/chat-composer'
 import { messageText } from '@/components/chat/messages'
 import {
   useAppChat,
   type ChatCustomEvent,
 } from '@/components/chat/use-app-chat'
+import { Bubble, BubbleContent } from '@/components/ui/bubble'
+import { Message, MessageContent } from '@/components/ui/message'
+import {
+  MessageScroller,
+  MessageScrollerButton,
+  MessageScrollerContent,
+  MessageScrollerItem,
+  MessageScrollerProvider,
+  MessageScrollerViewport,
+} from '@/components/ui/message-scroller'
 
 type ChatThreadProps = {
   connection: ConnectionAdapter
@@ -22,6 +32,7 @@ type ChatThreadProps = {
    * the home composer, handed off after the session is created. A ref
    * guards against a second send from React StrictMode's double effect. */
   autoSend?: string
+  actions?: ChatComposerAction[]
 }
 
 export function ChatThread({
@@ -32,6 +43,7 @@ export function ChatThread({
   placeholder = 'Describe what happened, or correct a figure…',
   threadId,
   autoSend,
+  actions,
 }: ChatThreadProps) {
   const { messages, sendMessage, isLoading, error } = useAppChat({
     connection,
@@ -40,7 +52,6 @@ export function ChatThread({
     threadId,
   })
   const [draft, setDraft] = useState('')
-  const list = useRef<HTMLDivElement>(null)
   const autoSent = useRef(false)
 
   useEffect(() => {
@@ -57,12 +68,6 @@ export function ChatThread({
     (last?.role === 'user' ||
       (last?.role === 'assistant' && !messageText(last)))
 
-  useEffect(() => {
-    const el = list.current
-    if (!el) return
-    el.scrollTop = el.scrollHeight
-  }, [messages, waiting])
-
   function submit() {
     const cleaned = draft.trim()
     if (!cleaned || disabled || isLoading) return
@@ -71,57 +76,63 @@ export function ChatThread({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div ref={list} className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={cn(
-              'rounded-lg px-3 py-2 text-sm',
-              message.role === 'user'
-                ? 'ml-8 bg-primary text-primary-foreground'
-                : 'mr-8 bg-muted',
-            )}
-          >
-            <p className="whitespace-pre-wrap">{messageText(message)}</p>
-          </div>
-        ))}
-        {waiting ? (
-          <div
-            role="status"
-            className="mr-8 rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground"
-          >
-            Capturing…
-          </div>
-        ) : null}
-      </div>
-      <div className="mt-3 shrink-0 space-y-2">
-        {error ? (
-          <p className="text-sm text-destructive">{error.message}</p>
-        ) : null}
-        <Textarea
+    <div className="flex min-h-0 flex-1 flex-col">
+      <MessageScrollerProvider autoScroll defaultScrollPosition="last-anchor">
+        <MessageScroller className="min-h-0 flex-1">
+          <MessageScrollerViewport>
+            <MessageScrollerContent aria-busy={isLoading}>
+              {messages.map((message) => (
+                <ThreadMessage key={message.id} message={message} />
+              ))}
+              {waiting ? (
+                <MessageScrollerItem messageId="capturing">
+                  <Message>
+                    <MessageContent>
+                      <Bubble variant="muted">
+                        <BubbleContent>
+                          <p role="status">Capturing…</p>
+                        </BubbleContent>
+                      </Bubble>
+                    </MessageContent>
+                  </Message>
+                </MessageScrollerItem>
+              ) : null}
+            </MessageScrollerContent>
+          </MessageScrollerViewport>
+          <MessageScrollerButton />
+        </MessageScroller>
+      </MessageScrollerProvider>
+      <div className="shrink-0 pt-3">
+        <ChatComposer
           value={draft}
+          onChange={setDraft}
+          onSubmit={submit}
           disabled={disabled || isLoading}
-          rows={3}
           placeholder={placeholder}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' && !event.shiftKey) {
-              event.preventDefault()
-              submit()
-            }
-          }}
+          error={error?.message}
+          actions={actions}
         />
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            disabled={disabled || isLoading || !draft.trim()}
-            onClick={submit}
-          >
-            {isLoading ? 'Capturing…' : 'Send'}
-          </Button>
-        </div>
       </div>
     </div>
+  )
+}
+
+function ThreadMessage({ message }: { message: UIMessage }) {
+  const fromOfficer = message.role === 'user'
+  return (
+    <MessageScrollerItem
+      messageId={message.id}
+      scrollAnchor={fromOfficer}
+    >
+      <Message align={fromOfficer ? 'end' : 'start'}>
+        <MessageContent>
+          <Bubble variant={fromOfficer ? 'default' : 'muted'}>
+            <BubbleContent>
+              <p className="whitespace-pre-wrap">{messageText(message)}</p>
+            </BubbleContent>
+          </Bubble>
+        </MessageContent>
+      </Message>
+    </MessageScrollerItem>
   )
 }

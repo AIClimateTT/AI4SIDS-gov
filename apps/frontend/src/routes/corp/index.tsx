@@ -1,19 +1,12 @@
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { EllipsisIcon } from 'lucide-react'
 
 import { Composer } from '@/components/corp/composer'
 import { CorpRoleNotice } from '@/components/identity/corp-role-notice'
 import { EmptyState, LoadingBlock, PageHeader } from '@/components/shared'
 import { ContentCard } from '@/components/shared/content-card'
 import { Badge } from '@/components/ui/badge'
-import { Button, buttonVariants } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { Button } from '@/components/ui/button'
 import {
   Table,
   TableBody,
@@ -28,8 +21,8 @@ import type { Identity } from '@/lib/identity'
 import { formatConstant } from '@/lib/format-constant'
 import { captureQueries, useCreateCaptureSession } from '@/lib/queries/capture'
 import { eventQueries, submissionQueries } from '@/lib/queries/submissions'
-import { cn } from '@/lib/utils'
-import type { EventSummary, SubmissionSummary } from '@/types/dmcu'
+import { resolveSitrepHref } from '@/lib/sitrep-href'
+import type { EventSummary, SubmissionSummary, CaptureSession } from '@/types/dmcu'
 
 type CorpIdentity = Extract<Identity, { role: 'corp' }>
 
@@ -82,25 +75,11 @@ function CorpHome({ identity }: { identity: CorpIdentity }) {
   const submissions = submissionsQuery.data ?? []
   const latestByEvent = latestSubmissionByEvent(submissions)
 
-  const handleAddManually = () => {
-    createSession.mutate(
-      { corporation: identity.corporation },
-      {
-        onSuccess: (session) =>
-          void navigate({
-            to: '/corp/c/$sessionId',
-            params: { sessionId: String(session.id) },
-            search: { open: 'record' },
-          }),
-      },
-    )
-  }
-
   return (
-    <div className="space-y-8">
+    <div className="mx-auto w-full max-w-5xl space-y-8">
       <PageHeader
         title={identityLabel(identity)}
-        description="File by conversation, then attach it to an event as the situation becomes clear."
+        description="Start a sitrep by describing what is happening. Attach it to an event as the situation becomes clear."
       />
 
       {draft ? (
@@ -122,7 +101,7 @@ function CorpHome({ identity }: { identity: CorpIdentity }) {
         </ContentCard>
       ) : null}
 
-      <div className="mx-auto flex w-full max-w-2xl items-end gap-2">
+      <div className="flex max-w-2xl mx-auto w-full justify-center">
         <Composer
           corporation={identity.corporation}
           createSession={createSession.mutateAsync}
@@ -134,26 +113,6 @@ function CorpHome({ identity }: { identity: CorpIdentity }) {
             })
           }
         />
-        <DropdownMenu>
-          {/* A native <button> styled with buttonVariants directly, rather
-              than nesting the Button component's own render prop inside
-              this trigger's -- base-ui warns about the double render-prop
-              composition even though the DOM output is a real <button>. */}
-          <DropdownMenuTrigger
-            aria-label="More ways to file"
-            className={cn(buttonVariants({ variant: 'outline', size: 'icon-sm' }), 'mb-[2px]')}
-          >
-            <EllipsisIcon />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem render={<Link to="/corp/import" />}>
-              Upload CSV
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleAddManually}>
-              Add an incident manually
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
 
       <div className="space-y-3">
@@ -170,7 +129,7 @@ function CorpHome({ identity }: { identity: CorpIdentity }) {
 
         {eventsQuery.isSuccess && running.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No events running right now. Start a conversation above -- the event gets
+            No events running right now. Start a sitrep above -- the event gets
             attached as the situation becomes clear.
           </p>
         ) : null}
@@ -203,7 +162,12 @@ function CorpHome({ identity }: { identity: CorpIdentity }) {
           />
         ) : null}
 
-        {submissions.length > 0 ? <FilingsTable submissions={submissions} /> : null}
+        {submissions.length > 0 ? (
+          <FilingsTable
+            submissions={submissions}
+            sessions={draftsQuery.data ?? []}
+          />
+        ) : null}
       </div>
     </div>
   )
@@ -241,7 +205,13 @@ function LiveEventRow({
   )
 }
 
-function FilingsTable({ submissions }: { submissions: SubmissionSummary[] }) {
+function FilingsTable({
+  submissions,
+  sessions,
+}: {
+  submissions: SubmissionSummary[]
+  sessions: CaptureSession[]
+}) {
   return (
     <Table>
       <TableHeader>
@@ -255,24 +225,31 @@ function FilingsTable({ submissions }: { submissions: SubmissionSummary[] }) {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {submissions.map((submission) => (
-          <FilingRow key={submission.id} submission={submission} />
-        ))}
+            {submissions.map((submission) => (
+              <FilingRow
+                key={submission.id}
+                submission={submission}
+                sessions={sessions}
+              />
+            ))}
       </TableBody>
     </Table>
   )
 }
 
-function FilingRow({ submission }: { submission: SubmissionSummary }) {
+function FilingRow({
+  submission,
+  sessions,
+}: {
+  submission: SubmissionSummary
+  sessions: CaptureSession[]
+}) {
   const navigate = useNavigate()
-  const goToFiling = () =>
-    void navigate({
-      to: '/corp/filings/$submissionId',
-      params: { submissionId: String(submission.id) },
-    })
+  const href = resolveSitrepHref(submission, sessions)
+  const goToSitrep = () => void navigate(href)
 
   return (
-    <TableRow className="cursor-pointer" onClick={goToFiling}>
+    <TableRow className="cursor-pointer" onClick={goToSitrep}>
       <TableCell>{new Date(submission.as_at).toLocaleString()}</TableCell>
       <TableCell>{submission.event_title ?? '—'}</TableCell>
       <TableCell>#{submission.sequence_no}</TableCell>

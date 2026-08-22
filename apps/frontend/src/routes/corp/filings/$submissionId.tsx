@@ -1,14 +1,13 @@
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { Link, Navigate, createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 
 import { CorpRoleNotice } from '@/components/identity/corp-role-notice'
 import { EmptyState, LoadingBlock, PageHeader } from '@/components/shared'
-import { ContentCard } from '@/components/shared/content-card'
-import { RowErrorsTable } from '@/components/submissions/submission-result'
 import { Button } from '@/components/ui/button'
 import { useIdentity } from '@/hooks/use-identity'
-import { formatConstant } from '@/lib/format-constant'
+import { captureQueries } from '@/lib/queries/capture'
 import { submissionQueries } from '@/lib/queries/submissions'
+import { resolveSitrepHref } from '@/lib/sitrep-href'
 
 export const Route = createFileRoute('/corp/filings/$submissionId')({
   component: FilingPage,
@@ -23,17 +22,18 @@ function FilingPage() {
     )
   }
 
-  return <FilingPageContent />
+  return <FilingRedirect corporation={identity.corporation} />
 }
 
-function FilingPageContent() {
+function FilingRedirect({ corporation }: { corporation: string }) {
   const { submissionId } = Route.useParams()
   const submissionIdNum = Number(submissionId)
   const submissionQuery = useQuery(submissionQueries.detail(submissionIdNum))
+  const sessionsQuery = useQuery(captureQueries.list(corporation))
 
   if (submissionQuery.isError) {
     return (
-      <div className="space-y-6">
+      <div className="mx-auto w-full max-w-5xl space-y-6">
         <PageHeader
           title="Situation report"
           actions={
@@ -50,70 +50,16 @@ function FilingPageContent() {
     )
   }
 
-  if (!submissionQuery.data) {
-    return <LoadingBlock rows={6} />
+  if (!submissionQuery.data || sessionsQuery.isPending) {
+    return <LoadingBlock rows={4} />
   }
 
-  const submission = submissionQuery.data
-
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title={`Situation Report #${submission.sequence_no}`}
-        description={`As at ${new Date(submission.as_at).toLocaleString()} · ${formatConstant(
-          submission.alert_level,
-        )}`}
-        actions={
-          submission.event_id != null ? (
-            <Button
-              variant="outline"
-              render={
-                <Link
-                  to="/corp/events/$eventId"
-                  params={{ eventId: String(submission.event_id) }}
-                />
-              }
-            >
-              Back to {submission.event_title ?? 'event'}
-            </Button>
-          ) : (
-            <Button variant="outline" render={<Link to="/corp" />}>
-              Back to home
-            </Button>
-          )
-        }
-      />
-
-      <ContentCard title="Situation">
-        <dl className="grid gap-4 text-sm sm:grid-cols-2">
-          <div>
-            <dt className="text-muted-foreground">Present activity</dt>
-            <dd>{submission.present_activity || '—'}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Situation overview</dt>
-            <dd>{submission.situation_overview || '—'}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Incidents</dt>
-            <dd>{submission.incident_count}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Situation logs</dt>
-            <dd>{submission.log_count}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Source</dt>
-            <dd>{submission.source_file ?? 'Conversation'}</dd>
-          </div>
-        </dl>
-      </ContentCard>
-
-      {submission.row_errors.length > 0 ? (
-        <ContentCard title="Rejected rows">
-          <RowErrorsTable rowErrors={submission.row_errors} />
-        </ContentCard>
-      ) : null}
-    </div>
-  )
+  const href = resolveSitrepHref(submissionQuery.data, sessionsQuery.data ?? [])
+  if (href.to === '/corp') {
+    return <Navigate to="/corp" />
+  }
+  if (href.to === '/corp/c/$sessionId') {
+    return <Navigate to="/corp/c/$sessionId" params={href.params} />
+  }
+  return <Navigate to="/corp/events/$eventId" params={href.params} />
 }

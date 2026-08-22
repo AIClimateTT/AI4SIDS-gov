@@ -412,3 +412,13 @@ export type CaptureFileResult = {
   session: CaptureSession
   ingest: SubmissionIngestResult
 }
+
+export type CaptureCsvKind = 'incidents' | 'logs'
+
+export type CaptureCsvImportResult = {
+  session: CaptureSession
+  kind: CaptureCsvKind
+  rows_read: number
+  rows_accepted: number
+  row_errors: Array<{ file: string; row_number: number; reason: string }>
+}

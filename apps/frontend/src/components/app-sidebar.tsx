@@ -34,9 +34,6 @@ const DMU_NAV = [
 
 export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
   const { identity } = useIdentity()
-  // The root shell only mounts this component for the DMU identity now --
-  // corp renders no sidebar at all. The DMU-only check stays here too, so
-  // this component is never wrong on its own if that changes.
   const navItems = identity?.role === 'dmu' ? DMU_NAV : []
 
   return (
