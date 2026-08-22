@@ -92,6 +92,17 @@ def test_working_set_facts_total_the_captured_damage_cost():
     assert by_metric["estimated_damage_total"].value == 1500.0
 
 
+def test_working_set_facts_omit_zero_special_needs_and_damage():
+    facts = assemble_working_set_facts(
+        _working(),
+        corporation="arima_borough_corporation",
+        event_id=2,
+    )
+    metrics = {fact.metric for fact in facts}
+    assert "special_needs_count" not in metrics
+    assert "estimated_damage_total" not in metrics
+
+
 def test_working_set_facts_keep_unmapped_incident_raw_label():
     working = _working()
     working.incidents[0].incident_type = "unmapped"

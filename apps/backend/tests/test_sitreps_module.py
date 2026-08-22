@@ -29,11 +29,10 @@ def test_sitrep_module_ingest_raises_not_implemented():
 def test_sitrep_module_list_metrics_reports_module_as_sitreps():
     specs = sitrep_module.list_metrics()
 
-    assert len(specs) == 8
     assert all(spec.module == "sitreps" for spec in specs)
-    assert {spec.name for spec in specs} == {
-        spec.name for spec in survey123_module.list_metrics()
-    } - {"data_coverage"}
+    assert {spec.name for spec in specs} == (
+        {spec.name for spec in survey123_module.list_metrics()} - {"data_coverage"}
+    ) | {"relief_stock_summary", "activity_log"}
 
 
 def test_sitrep_module_run_metric_raises_for_unknown_metric(tmp_path):
@@ -166,7 +165,7 @@ def test_a_metric_gap_reaches_the_fact_tables_data_gaps(tmp_path):
         description="d",
         params=[],
         data_requirements=[],
-        narration=NarrationConfig(system_prompt="", output_sections=[]),
+        narration=NarrationConfig.of("", output_sections=[]),
         render=RenderConfig(),
     )
     fact_table = assemble_fact_table(

@@ -63,7 +63,7 @@ def make_minister_template() -> Template:
                 params={"date_from": "{date_from}", "date_to": "{date_to}"},
             ),
         ],
-        narration=NarrationConfig(system_prompt="You are drafting a briefing.", output_sections=["headline"]),
+        narration=NarrationConfig.of("You are drafting a briefing."),
         render=RenderConfig(),
     )
 

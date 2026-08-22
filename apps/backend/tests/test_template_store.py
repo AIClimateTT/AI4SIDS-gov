@@ -24,7 +24,7 @@ def make_template(name="field_data_region_review", **overrides) -> Template:
         description="test",
         params=[TemplateParam(name="corporation", required=True)],
         data_requirements=[DataRequirement(module="survey123", metric="incident_count")],
-        narration=NarrationConfig(system_prompt="p", output_sections=["headline"]),
+        narration=NarrationConfig.of("p"),
         render=RenderConfig(),
     )
     defaults.update(overrides)

@@ -6,8 +6,9 @@ from app.core.contracts import Fact, FactTable, Template
 from app.core.engine import GeneratedReport, narrate_fact_table
 from app.core.llm import LLMClient
 from app.modules.capture.facts import assemble_working_set_facts
+from app.modules.capture.missing import missing_fields
 from app.modules.capture.models import CaptureSession
-from app.modules.capture.schemas import CaptureLog, CaptureWorkingSet
+from app.modules.capture.schemas import CaptureWorkingSet
 
 
 def sitrep_preamble(
@@ -17,7 +18,6 @@ def sitrep_preamble(
     as_at: datetime,
     situation_overview: str | None,
     present_activity: str | None,
-    logs: list[CaptureLog],
 ) -> str:
     parts = [
         f"**Event:** {event_title}",
@@ -28,11 +28,23 @@ def sitrep_preamble(
         parts.extend(["", situation_overview])
     if present_activity:
         parts.extend(["", f"Present activity: {present_activity}"])
-    statements = [log.statement for log in logs if log.statement]
-    if statements:
-        parts.extend(["", "## Situation logs", ""])
-        parts.extend(f"- {statement}" for statement in statements)
     return "\n".join(parts)
+
+
+def _location_gaps(working: CaptureWorkingSet) -> list[str]:
+    gaps: list[str] = []
+    for incident in working.incidents:
+        label = incident.row_id or incident.incident_summary or "incident"
+        if not incident.community and not incident.street:
+            gaps.append(f"Incident {label}: community and street not recorded")
+        elif not incident.community:
+            gaps.append(f"Incident {label}: community not recorded")
+        elif not incident.street:
+            gaps.append(f"Incident {label}: street not recorded")
+    for field in missing_fields(working):
+        if field.message not in gaps:
+            gaps.append(field.message)
+    return gaps
 
 
 def generate_working_set_sitrep(
@@ -53,6 +65,9 @@ def generate_working_set_sitrep(
         for gap in fact.gaps:
             if gap not in gaps:
                 gaps.append(gap)
+    for gap in _location_gaps(working):
+        if gap not in gaps:
+            gaps.append(gap)
     renumbered: list[Fact] = []
     for index, fact in enumerate(facts, start=1):
         new_citation = fact.citation.model_copy(update={"cid": f"C{index:03d}"})
@@ -90,7 +105,6 @@ def attach_sitrep_preamble(
         as_at=as_at,
         situation_overview=working.situation_overview,
         present_activity=working.present_activity,
-        logs=working.logs,
     )
     markdown = generated.markdown.replace(
         f"# {template.title}\n\n",

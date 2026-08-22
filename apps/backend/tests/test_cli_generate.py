@@ -96,7 +96,9 @@ data_requirements:
   - module: sitreps
     metric: incident_count
 narration:
-  system_prompt: Summarise the corporation's own situation reports.
+  identity: test
+  skills:
+    compose: Summarise the corporation's own situation reports.
   output_sections: [situation_overview]
 render:
   format: markdown
@@ -190,6 +192,34 @@ def test_generate_accepts_a_canonical_corporation(monkeypatch):
         )
 
         assert result.exit_code == 0, result.stdout
+    finally:
+        _reset_state()
+
+
+def test_generate_rejects_corp_situation_report():
+    _reset_state()
+    Base.metadata.create_all(db_engine)
+
+    try:
+        runner.invoke(
+            app,
+            [
+                "templates",
+                "import-all",
+                str(Path(__file__).parent.parent / "app" / "templates" / "definitions"),
+            ],
+        )
+        result = runner.invoke(
+            app,
+            [
+                "generate",
+                "corp_situation_report",
+                "--corporation",
+                "diego_martin_regional_corporati",
+            ],
+        )
+        assert result.exit_code == 1
+        assert "issued from capture" in result.output.lower()
     finally:
         _reset_state()
 

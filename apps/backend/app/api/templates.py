@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.contracts import (
     DataRequirement,
     NarrationConfig,
+    NarrationSkills,
     RenderConfig,
     Template,
     TemplateParam,
@@ -33,14 +34,21 @@ class DataRequirementInfo(BaseModel):
     params: dict = {}
 
 
+class NarrationSkillsInfo(BaseModel):
+    capture: str = ""
+    compose: str
+
+
 class NarrationInfo(BaseModel):
-    system_prompt: str
+    identity: str
+    skills: NarrationSkillsInfo
     output_sections: list[str]
 
 
 class RenderInfo(BaseModel):
     format: str = "markdown"
     include_citation_appendix: bool = True
+    layout: str = "narrative"
 
 
 class TemplateSummary(BaseModel):
@@ -82,7 +90,11 @@ def _template_to_summary(template: Template) -> TemplateSummary:
             for d in template.data_requirements
         ],
         narration=NarrationInfo(
-            system_prompt=template.narration.system_prompt,
+            identity=template.narration.identity,
+            skills=NarrationSkillsInfo(
+                capture=template.narration.skills.capture,
+                compose=template.narration.skills.compose,
+            ),
             output_sections=template.narration.output_sections,
         ),
     )
@@ -99,12 +111,17 @@ def _request_to_template(request: CreateTemplateRequest) -> Template:
             for d in request.data_requirements
         ],
         narration=NarrationConfig(
-            system_prompt=request.narration.system_prompt,
+            identity=request.narration.identity,
+            skills=NarrationSkills(
+                capture=request.narration.skills.capture,
+                compose=request.narration.skills.compose,
+            ),
             output_sections=request.narration.output_sections,
         ),
         render=RenderConfig(
             format=request.render.format,
             include_citation_appendix=request.render.include_citation_appendix,
+            layout=request.render.layout if request.render.layout in ("narrative", "filing") else "narrative",
         ),
     )
 

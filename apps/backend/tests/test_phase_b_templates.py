@@ -62,7 +62,7 @@ def test_compose_system_prompt_includes_citation_rules():
         description="test",
         params=[],
         data_requirements=[],
-        narration=NarrationConfig(system_prompt="Write a briefing.", output_sections=["headline"]),
+        narration=NarrationConfig.of("Write a briefing."),
         render=RenderConfig(),
     )
 
@@ -79,7 +79,7 @@ def test_resolve_effective_requirements_rejects_empty():
         description="test",
         params=[],
         data_requirements=[],
-        narration=NarrationConfig(system_prompt="x", output_sections=[]),
+        narration=NarrationConfig.of("x", output_sections=[]),
         render=RenderConfig(),
     )
 
@@ -108,7 +108,8 @@ def test_post_templates_creates_new_version(monkeypatch):
                 }
             ],
             "narration": {
-                "system_prompt": "Situation overview for the minister.",
+                "identity": "Minister writer",
+                "skills": {"compose": "Situation overview for the minister."},
                 "output_sections": ["situation_overview", "data_gaps"],
             },
         },
@@ -139,7 +140,11 @@ def test_get_template_versions_lists_all(monkeypatch):
                     "params": {"date_from": "{date_from}", "date_to": "{date_to}"},
                 }
             ],
-            "narration": {"system_prompt": "x", "output_sections": ["headline"]},
+            "narration": {
+                "identity": "Minister writer",
+                "skills": {"compose": "x"},
+                "output_sections": ["headline"],
+            },
         },
     )
 
@@ -218,7 +223,7 @@ def test_generate_includes_citation_rules_in_llm_prompt(tmp_path, monkeypatch):
                 params={"date_from": "{date_from}", "date_to": "{date_to}"},
             ),
         ],
-        narration=NarrationConfig(system_prompt="Custom briefing tone.", output_sections=["headline"]),
+        narration=NarrationConfig.of("Custom briefing tone."),
         render=RenderConfig(),
     )
 

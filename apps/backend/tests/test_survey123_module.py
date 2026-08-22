@@ -19,7 +19,7 @@ def test_survey123_module_has_correct_name():
 
 def test_survey123_module_list_metrics_returns_nine_specs():
     specs = survey123_module.list_metrics()
-    assert len(specs) == 9
+    assert len(specs) == 10
     assert all(spec.module == "survey123" for spec in specs)
 
 
@@ -44,7 +44,7 @@ def test_modules_endpoint_includes_survey123_after_create_app():
     body = response.json()
     assert {m["name"] for m in body} == {"survey123", "sitreps"}
     survey123_entry = next(m for m in body if m["name"] == "survey123")
-    assert len(survey123_entry["metrics"]) == 9
+    assert len(survey123_entry["metrics"]) == 10
 
 
 def test_get_survey123_module_returns_inprocess_singleton_by_default(monkeypatch):

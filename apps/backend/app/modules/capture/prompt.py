@@ -1,3 +1,4 @@
+from app.core.contracts import Template
 from app.modules.sitreps.models import ALERT_LEVELS, LOG_CATEGORIES, LOG_STATUSES
 from app.modules.sitreps.parse import CORP_INCIDENT_TYPE_SYNONYMS
 from app.modules.survey123.normalize import CANONICAL_INCIDENT_TYPES
@@ -10,9 +11,7 @@ _CATEGORIES = ", ".join(LOG_CATEGORIES)
 _STATUSES = ", ".join(LOG_STATUSES)
 _ALERTS = ", ".join(ALERT_LEVELS)
 
-SYSTEM_PROMPT = f"""You interview one regional corporation officer in Trinidad and Tobago while they file a situation report.
-
-Return ONLY JSON with this shape:
+SCHEMA_AND_ENUMS = f"""Return ONLY JSON with this shape:
 {{
   "assistant_message": "<short confirmation of what you just captured, then at most two probes>",
   "capture": {{
@@ -34,7 +33,7 @@ Return ONLY JSON with this shape:
         "deaths_count": <integer or null>,
         "building_damage": "<string or null>",
         "special_needs_occupants": <integer or null>,
-        "estimated_damage_cost": <number or null>,
+        "estimated_damage_cost": <number or null>",
         "action_taken": "<string or null>",
         "relief_supplied": <true/false/null>,
         "forwarded_to_agency": <true/false/null>,
@@ -48,7 +47,7 @@ Return ONLY JSON with this shape:
         "category": "<one of: {_CATEGORIES}>",
         "statement": "<the officer's own sentence>",
         "item": "<string or null>",
-        "quantity": <number or null>,
+        "quantity": <number or null>",
         "unit": "<string or null>",
         "status": "<one of: {_STATUSES} or null>"
       }}
@@ -73,3 +72,15 @@ RULES:
 - Field paths listed under "manual" were typed by the officer. Treat them as
   settled: you may refer to them, never restate them with a different value.
 """
+
+
+def compose_capture_prompt(template: Template) -> str:
+    return "\n\n".join(
+        part
+        for part in (
+            template.narration.identity.strip(),
+            template.narration.skills.capture.strip(),
+            SCHEMA_AND_ENUMS,
+        )
+        if part
+    )

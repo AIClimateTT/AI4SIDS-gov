@@ -11,8 +11,14 @@ export type DataRequirementInfo = {
   params: Record<string, string>
 }
 
+export type NarrationSkillsInfo = {
+  capture?: string
+  compose: string
+}
+
 export type NarrationInfo = {
-  system_prompt: string
+  identity: string
+  skills: NarrationSkillsInfo
   output_sections: string[]
 }
 

@@ -522,6 +522,53 @@ def relief_actions_summary(params: dict, session: Session | None, model=FieldObs
     ]
 
 
+def _scope_text(value) -> str:
+    if value is None:
+        return ""
+    if hasattr(value, "strftime"):
+        return value.strftime("%Y-%m-%d")
+    return str(value)
+
+
+def incident_register(params: dict, session: Session | None, model=FieldObservation, rows=None) -> list[Fact]:
+    rows = load_metric_rows(params, session, model, rows)
+    facts: list[Fact] = []
+    for index, row in enumerate(rows):
+        citation = build_citation(
+            "incident_register",
+            index,
+            params,
+            [record_ref_of(row)],
+            f"{source_label_of(model)} incident register, {build_window_label(params.get('date_from'), params.get('date_to'))}",
+            model,
+        )
+        injuries = row.injuries_count
+        deaths = row.deaths_count
+        facts.append(
+            Fact(
+                metric="incident_register",
+                value=1,
+                unit="incident",
+                scope={
+                    "date": _scope_text(getattr(row, "event_date", None)),
+                    "community": getattr(row, "community", None) or "",
+                    "street": getattr(row, "street", None) or "",
+                    "type": incident_type_label(row),
+                    "summary": getattr(row, "incident_summary", None) or "",
+                    "injuries": "" if injuries is None else str(injuries),
+                    "deaths": "" if deaths is None else str(deaths),
+                    "action": getattr(row, "action_taken", None) or "",
+                },
+                breakdown=None,
+                verification=determine_verification(
+                    [getattr(row, "validation_status", "validated")]
+                ),
+                citation=citation,
+            )
+        )
+    return facts
+
+
 def special_needs_count(params: dict, session: Session | None, model=FieldObservation, rows=None) -> list[Fact]:
     rows = load_metric_rows(params, session, model, rows)
     contributing = [r for r in rows if (r.special_needs_occupants or 0) > 0]
@@ -666,6 +713,12 @@ METRIC_SPECS: list[MetricSpec] = [
         module="survey123",
     ),
     MetricSpec(
+        name="incident_register",
+        description="One citable fact per incident row, with place, type, summary, and casualties in scope.",
+        params_schema=METRIC_PARAMS_SCHEMA,
+        module="survey123",
+    ),
+    MetricSpec(
         name="street_level_tally",
         description="Incidents grouped by community and street.",
         params_schema=METRIC_PARAMS_SCHEMA,
@@ -712,6 +765,7 @@ METRIC_FUNCTIONS = {
     "incidents_by_corporation": incidents_by_corporation,
     "homes_affected_count": homes_affected_count,
     "casualty_summary": casualty_summary,
+    "incident_register": incident_register,
     "street_level_tally": street_level_tally,
     "relief_actions_summary": relief_actions_summary,
     "special_needs_count": special_needs_count,

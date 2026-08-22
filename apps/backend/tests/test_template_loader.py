@@ -36,7 +36,8 @@ def make_minimal_template_dict() -> dict:
             {"module": "survey123", "metric": "incident_count", "params": {"date_from": "{date_from}"}}
         ],
         "narration": {
-            "system_prompt": "You are a test narrator.",
+            "identity": "test",
+            "skills": {"compose": "You are a test narrator."},
             "output_sections": ["headline"],
         },
         "render": {"format": "markdown", "include_citation_appendix": True},
@@ -78,8 +79,10 @@ data_requirements:
     metric: incident_count
     params: { date_from: "{date_from}", date_to: "{date_to}" }
 narration:
-  system_prompt: |
-    You are a test narrator.
+  identity: test
+  skills:
+    compose: |
+      You are a test narrator.
   output_sections: [headline]
 render:
   format: markdown
@@ -103,7 +106,9 @@ description: d
 params: []
 data_requirements: []
 narration:
-  system_prompt: p
+  identity: test
+  skills:
+    compose: p
   output_sections: []
 render: {}
 """
@@ -116,7 +121,9 @@ description: d
 params: []
 data_requirements: []
 narration:
-  system_prompt: p
+  identity: test
+  skills:
+    compose: p
   output_sections: []
 render: {}
 """

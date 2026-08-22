@@ -46,9 +46,23 @@ export function TemplateVersionDetails({
         </pre>
       </ContentCard>
 
-      <ContentCard title="System prompt">
+      <ContentCard title="Identity">
         <pre className="whitespace-pre-wrap text-sm">
-          {template.narration.system_prompt || '(empty)'}
+          {template.narration.identity || '(empty)'}
+        </pre>
+      </ContentCard>
+
+      {template.narration.skills.capture ? (
+        <ContentCard title="Capture">
+          <pre className="whitespace-pre-wrap text-sm">
+            {template.narration.skills.capture}
+          </pre>
+        </ContentCard>
+      ) : null}
+
+      <ContentCard title="Compose">
+        <pre className="whitespace-pre-wrap text-sm">
+          {template.narration.skills.compose || '(empty)'}
         </pre>
       </ContentCard>
 

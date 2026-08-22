@@ -4,18 +4,36 @@ from types import SimpleNamespace
 
 from app.core.contracts import Fact
 from app.modules.capture.schemas import CaptureIncident, CaptureWorkingSet
+from app.modules.sitreps.log_metrics import LOG_METRIC_FUNCTIONS
 from app.modules.sitreps.models import SitrepIncident
 from app.modules.survey123.metrics import METRIC_FUNCTIONS
 
-CORP_SITREP_METRICS = (
+CORP_INCIDENT_METRICS = (
     "incident_count",
-    "street_level_tally",
-    "homes_affected_count",
+    "incident_register",
     "casualty_summary",
-    "relief_actions_summary",
     "special_needs_count",
     "estimated_damage_total",
 )
+
+CORP_LOG_METRICS = (
+    "relief_stock_summary",
+    "activity_log",
+)
+
+CORP_SITREP_METRICS = CORP_INCIDENT_METRICS + CORP_LOG_METRICS
+
+# Appear in tables/prose only when the officer recorded a positive figure.
+_OMIT_WHEN_ZERO = frozenset({"special_needs_count", "estimated_damage_total"})
+
+
+def _is_presentable(fact: Fact) -> bool:
+    if fact.metric not in _OMIT_WHEN_ZERO:
+        return True
+    value = fact.value
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return value > 0
+    return bool(value)
 
 
 def _parse_event_date(raw: str | None) -> datetime | None:
@@ -57,6 +75,8 @@ def working_set_incident_rows(
             raw_incident_type=incident.raw_incident_type,
             community=incident.community,
             street=incident.street,
+            incident_summary=incident.incident_summary,
+            action_taken=incident.action_taken,
             event_date=_parse_event_date(incident.event_date),
             injuries_occurred=incident.injuries_occurred,
             injuries_count=incident.injuries_count,
@@ -74,24 +94,49 @@ def working_set_incident_rows(
     ]
 
 
+def working_set_log_rows(
+    working: CaptureWorkingSet,
+    *,
+    corporation: str,
+) -> list:
+    return [
+        SimpleNamespace(
+            id=index,
+            submission_id=0,
+            category=log.category,
+            statement=log.statement,
+            item=log.item,
+            quantity=log.quantity,
+            unit=log.unit,
+            status=log.status,
+            record_ref=f"{corporation}:log:{log.row_id or index}",
+            global_id=None,
+        )
+        for index, log in enumerate(working.logs, start=1)
+    ]
+
+
 def assemble_working_set_facts(
     working: CaptureWorkingSet,
     *,
     corporation: str,
     event_id: int | None,
 ) -> list[Fact]:
-    rows = working_set_incident_rows(
+    incidents = working_set_incident_rows(
         working, corporation=corporation, event_id=event_id
     )
+    logs = working_set_log_rows(working, corporation=corporation)
     params = {"corporation": corporation}
     facts: list[Fact] = []
-    for name in CORP_SITREP_METRICS:
+    for name in CORP_INCIDENT_METRICS:
         facts.extend(
             METRIC_FUNCTIONS[name](
                 params,
                 session=None,
                 model=SitrepIncident,
-                rows=rows,
+                rows=incidents,
             )
         )
-    return facts
+    for name in CORP_LOG_METRICS:
+        facts.extend(LOG_METRIC_FUNCTIONS[name](params, session=None, rows=logs))
+    return [fact for fact in facts if _is_presentable(fact)]

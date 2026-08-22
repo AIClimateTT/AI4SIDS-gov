@@ -44,7 +44,9 @@ function NewTemplateVersionPage() {
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [systemPrompt, setSystemPrompt] = useState('')
+  const [identity, setIdentity] = useState('')
+  const [capturePrompt, setCapturePrompt] = useState('')
+  const [composePrompt, setComposePrompt] = useState('')
   const [outputSectionsText, setOutputSectionsText] = useState('')
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>([])
   const [initialized, setInitialized] = useState(false)
@@ -53,7 +55,9 @@ function NewTemplateVersionPage() {
     if (!latest || initialized) return
     setTitle(latest.title)
     setDescription(latest.description)
-    setSystemPrompt(latest.narration.system_prompt)
+    setIdentity(latest.narration.identity)
+    setCapturePrompt(latest.narration.skills.capture ?? '')
+    setComposePrompt(latest.narration.skills.compose)
     setOutputSectionsText(sectionsToText(latest.narration.output_sections))
     setSelectedMetrics(selectedMetricKeys(latest.data_requirements))
     setInitialized(true)
@@ -96,7 +100,11 @@ function NewTemplateVersionPage() {
       params: latest.params,
       data_requirements: dataRequirements,
       narration: {
-        system_prompt: systemPrompt,
+        identity,
+        skills: {
+          capture: capturePrompt,
+          compose: composePrompt,
+        },
         output_sections: textToSections(outputSectionsText),
       },
     })
@@ -165,14 +173,41 @@ function NewTemplateVersionPage() {
             </pre>
           </ContentCard>
 
-          <ContentCard title="System prompt">
+          <ContentCard title="Identity">
             <div className="space-y-2">
-              <Label htmlFor="system-prompt">Prompt body</Label>
+              <Label htmlFor="identity">Who this agent is</Label>
               <Textarea
-                id="system-prompt"
-                value={systemPrompt}
-                onChange={(event) => setSystemPrompt(event.target.value)}
-                rows={10}
+                id="identity"
+                value={identity}
+                onChange={(event) => setIdentity(event.target.value)}
+                rows={6}
+                required
+              />
+            </div>
+          </ContentCard>
+
+          {capturePrompt || name === 'corp_situation_report' ? (
+            <ContentCard title="Capture">
+              <div className="space-y-2">
+                <Label htmlFor="capture-skill">Capture skill</Label>
+                <Textarea
+                  id="capture-skill"
+                  value={capturePrompt}
+                  onChange={(event) => setCapturePrompt(event.target.value)}
+                  rows={8}
+                />
+              </div>
+            </ContentCard>
+          ) : null}
+
+          <ContentCard title="Compose">
+            <div className="space-y-2">
+              <Label htmlFor="compose-skill">Compose skill</Label>
+              <Textarea
+                id="compose-skill"
+                value={composePrompt}
+                onChange={(event) => setComposePrompt(event.target.value)}
+                rows={8}
                 required
               />
             </div>

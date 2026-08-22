@@ -37,7 +37,8 @@ export const mockTemplates: TemplateInfo[] = [
       },
     ],
     narration: {
-      system_prompt: 'Draft a ministerial regional comparison briefing.',
+      identity: 'Minister writer',
+      skills: { compose: 'Draft a ministerial regional comparison briefing.' },
       output_sections: ['situation_overview', 'regional_comparison', 'data_gaps'],
     },
   },
@@ -64,7 +65,8 @@ export const mockTemplates: TemplateInfo[] = [
       },
     ],
     narration: {
-      system_prompt: 'Draft a single-region sitrep.',
+      identity: 'Field data reviewer',
+      skills: { compose: 'Draft a single-region sitrep.' },
       output_sections: ['situation_overview', 'present_activity', 'data_gaps'],
     },
   },

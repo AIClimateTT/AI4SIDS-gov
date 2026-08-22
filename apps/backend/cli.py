@@ -145,6 +145,12 @@ def generate(
         if template is None:
             typer.echo(f"unknown template: {template_name}", err=True)
             raise typer.Exit(code=1)
+        if template_name == "corp_situation_report":
+            typer.echo(
+                "corp sitreps are issued from capture, not generated here",
+                err=True,
+            )
+            raise typer.Exit(code=1)
 
         params = {
             "date_from": date_from,
