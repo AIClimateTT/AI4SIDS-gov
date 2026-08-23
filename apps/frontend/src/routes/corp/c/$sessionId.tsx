@@ -10,6 +10,7 @@ import {
 } from 'react'
 
 import { CaptureRecord } from '@/components/capture/capture-record'
+import { EventConfirmBanner } from '@/components/capture/event-confirm-banner'
 import { SitrepDraftPane } from '@/components/capture/sitrep-draft-pane'
 import { ChatThread } from '@/components/chat/chat-thread'
 import { toChatMessages } from '@/components/chat/messages'
@@ -203,6 +204,15 @@ function CaptureChatSession({
       onCustomEvent={onCustomEvent}
       threadId={String(session.id)}
       autoSend={autoSend}
+      banner={
+        session.event_id == null && !isFiled ? (
+          <EventConfirmBanner
+            session={session}
+            events={events}
+            disabled={busy}
+          />
+        ) : null
+      }
       actions={[
         {
           label: 'Upload incidents CSV',

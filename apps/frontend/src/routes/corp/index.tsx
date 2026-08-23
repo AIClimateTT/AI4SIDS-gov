@@ -79,7 +79,7 @@ function CorpHome({ identity }: { identity: CorpIdentity }) {
     <div className="mx-auto w-full max-w-5xl space-y-8">
       <PageHeader
         title={identityLabel(identity)}
-        description="Start a sitrep by describing what is happening. Attach it to an event as the situation becomes clear."
+        description="Start a sitrep by describing what is happening. After the first update, confirm the event — the card stays until you do."
       />
 
       {draft ? (
@@ -129,8 +129,8 @@ function CorpHome({ identity }: { identity: CorpIdentity }) {
 
         {eventsQuery.isSuccess && running.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No events running right now. Start a sitrep above -- the event gets
-            attached as the situation becomes clear.
+            No events running right now. Start a sitrep above — you will confirm
+            the event in the conversation.
           </p>
         ) : null}
 
