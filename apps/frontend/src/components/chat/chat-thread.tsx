@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { ConnectionAdapter, UIMessage } from '@tanstack/ai-react'
 
 import {
@@ -33,6 +33,8 @@ type ChatThreadProps = {
    * guards against a second send from React StrictMode's double effect. */
   autoSend?: string
   actions?: ChatComposerAction[]
+  /** Sticky strip above the composer — stays visible while the thread scrolls. */
+  banner?: ReactNode
 }
 
 export function ChatThread({
@@ -44,6 +46,7 @@ export function ChatThread({
   threadId,
   autoSend,
   actions,
+  banner,
 }: ChatThreadProps) {
   const { messages, sendMessage, isLoading, error } = useAppChat({
     connection,
@@ -102,6 +105,7 @@ export function ChatThread({
           <MessageScrollerButton />
         </MessageScroller>
       </MessageScrollerProvider>
+      {banner ? <div className="shrink-0 pt-3">{banner}</div> : null}
       <div className="shrink-0 pt-3">
         <ChatComposer
           value={draft}
