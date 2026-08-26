@@ -109,7 +109,11 @@ export function CorpSidebar() {
 
         {eventId != null ? (
           <SidebarGroup>
-            <SidebarGroupLabel>{eventTitle ?? 'This event'}</SidebarGroupLabel>
+            <SidebarGroupLabel title={eventTitle ?? undefined}>
+              <span className="min-w-0 truncate">
+                {eventTitle ?? 'This event'}
+              </span>
+            </SidebarGroupLabel>
             <SidebarMenu>
               {sitreps.length === 0 ? (
                 <SidebarMenuItem>

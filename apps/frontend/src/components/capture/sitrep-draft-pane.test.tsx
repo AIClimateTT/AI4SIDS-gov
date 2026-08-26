@@ -69,6 +69,8 @@ function sitrep(overrides: Partial<CaptureSitrep> = {}): CaptureSitrep {
   return {
     markdown:
       '# Corporation Situation Report\n\n**Event:** Flooding in Arima\n\n1 incident [C001].',
+    final_markdown:
+      '# Corporation Situation Report\n\n**Event:** Flooding in Arima\n\n1 incident.',
     fact_table: { facts: [] },
     violations: [],
     status: 'ok',
@@ -185,6 +187,55 @@ describe('SitrepDraftPane', () => {
     )
     expect(screen.getByRole('button', { name: 'Issued' })).not.toBeNull()
     expect(screen.queryByRole('button', { name: 'Refresh' })).toBeNull()
+  })
+
+  it('shows the draft view with citations and cited facts by default', () => {
+    render(
+      <SitrepDraftPane session={session({ sitrep: sitrep() })} {...paneProps} />,
+    )
+    expect(screen.getByText('C001')).not.toBeNull()
+    expect(screen.getByText('Cited facts')).not.toBeNull()
+  })
+
+  it('swaps to the citation-free final markdown when Final is chosen', () => {
+    render(
+      <SitrepDraftPane
+        session={session({
+          sitrep: sitrep({
+            markdown: 'Draft body [C001].',
+            final_markdown: 'Final body.',
+          }),
+        })}
+        {...paneProps}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Final' }))
+    expect(screen.getByText(/Final body\./)).not.toBeNull()
+    expect(screen.queryByText('C001')).toBeNull()
+    expect(screen.queryByText('Cited facts')).toBeNull()
+  })
+
+  it('names the corporation in the final view header', () => {
+    render(
+      <SitrepDraftPane session={session({ sitrep: sitrep() })} {...paneProps} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Final' }))
+    expect(screen.getByText('Arima Borough Corporation')).not.toBeNull()
+  })
+
+  it('offers a PDF download only from the final view', () => {
+    const onDownloadPdf = vi.fn()
+    render(
+      <SitrepDraftPane
+        session={session({ sitrep: sitrep() })}
+        {...paneProps}
+        onDownloadPdf={onDownloadPdf}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: 'Download PDF' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Final' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }))
+    expect(onDownloadPdf).toHaveBeenCalledTimes(1)
   })
 
   it('disables issue while a preview is pending', () => {

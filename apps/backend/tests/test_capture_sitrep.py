@@ -57,3 +57,52 @@ def test_working_set_sitrep_markdown_cites_incident_count():
     assert "River overtopped overnight." in report.markdown
     assert "[C001]" in report.markdown
     assert report.fact_table.facts[0].citation.cid == "C001"
+
+
+def test_preamble_puts_each_field_on_its_own_line():
+    text = sitrep_preamble(
+        event_title="Flooding in Arima",
+        alert_level="yellow",
+        as_at=datetime(2026, 8, 21, 12, 0),
+        situation_overview=None,
+        present_activity=None,
+    )
+    # Markdown collapses single newlines into one run-on paragraph; the
+    # filing header needs a hard break after each field.
+    assert "**Event:** Flooding in Arima  \n" in text
+    assert "**Alert:** yellow  \n" in text
+
+
+def test_working_set_sitrep_carries_a_final_variant_with_the_same_preamble():
+    working = CaptureWorkingSet(
+        as_at=datetime(2026, 8, 21, 12),
+        alert_level="yellow",
+        present_activity="Shelter open.",
+        situation_overview="River overtopped overnight.",
+        incidents=[
+            CaptureIncident(
+                row_id="1",
+                community="Arima",
+                incident_type="flooding",
+                incident_summary="Five houses flooded",
+                injuries_count=0,
+                deaths_count=0,
+            )
+        ],
+        logs=[],
+        manual_fields=[],
+    )
+    report = generate_working_set_sitrep(
+        working,
+        corporation="arima_borough_corporation",
+        event_id=2,
+        event_title="Flooding in Arima",
+        template=TEMPLATE,
+        llm_client=FakeLLMClient(),
+        request_id="preview-test",
+    )
+
+    assert "Flooding in Arima" in report.final_markdown
+    assert "River overtopped overnight." in report.final_markdown
+    assert "[C001]" not in report.final_markdown
+    assert "Citation Appendix" not in report.final_markdown
