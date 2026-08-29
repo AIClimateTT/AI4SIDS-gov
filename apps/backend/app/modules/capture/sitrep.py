@@ -19,11 +19,14 @@ def sitrep_preamble(
     situation_overview: str | None,
     present_activity: str | None,
 ) -> str:
-    parts = [
+    # Two trailing spaces are a markdown hard break. Without them these three
+    # fields collapse into one run-on paragraph instead of a filing header.
+    fields = [
         f"**Event:** {event_title}",
         f"**Alert:** {alert_level}",
         f"**As at:** {as_at.strftime('%Y-%m-%d %H:%M')}",
     ]
+    parts = ["  \n".join(fields)]
     if situation_overview:
         parts.extend(["", situation_overview])
     if present_activity:
@@ -106,12 +109,19 @@ def attach_sitrep_preamble(
         situation_overview=working.situation_overview,
         present_activity=working.present_activity,
     )
-    markdown = generated.markdown.replace(
-        f"# {template.title}\n\n",
-        f"# {template.title}\n\n{preamble}\n\n",
-        1,
+    def with_preamble(markdown: str) -> str:
+        return markdown.replace(
+            f"# {template.title}\n\n",
+            f"# {template.title}\n\n{preamble}\n\n",
+            1,
+        )
+
+    return generated.model_copy(
+        update={
+            "markdown": with_preamble(generated.markdown),
+            "final_markdown": with_preamble(generated.final_markdown),
+        }
     )
-    return generated.model_copy(update={"markdown": markdown})
 
 
 def _naive(value: datetime) -> datetime:
@@ -134,6 +144,7 @@ def apply_sitrep_to_session(
     report_id: str | None = None,
 ) -> None:
     row.sitrep_markdown = generated.markdown
+    row.sitrep_final_markdown = generated.final_markdown
     row.sitrep_fact_table = generated.fact_table.model_dump(mode="json")
     row.sitrep_violations = [item.model_dump(mode="json") for item in generated.violations]
     row.sitrep_status = generated.status

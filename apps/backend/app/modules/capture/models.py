@@ -33,6 +33,7 @@ class CaptureSession(Base):
         nullable=True,
     )
     sitrep_markdown: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sitrep_final_markdown: Mapped[str | None] = mapped_column(Text, nullable=True)
     sitrep_fact_table: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     sitrep_violations: Mapped[list | None] = mapped_column(
         JSON, nullable=True, default=list

@@ -60,6 +60,7 @@ class CaptureMessageOut(BaseModel):
 
 class SitrepOut(BaseModel):
     markdown: str
+    final_markdown: str
     fact_table: dict
     violations: list
     status: str
@@ -139,6 +140,9 @@ def _sitrep_out(row: CaptureSession) -> SitrepOut | None:
     stale = source is None or source < row.updated_at
     return SitrepOut(
         markdown=row.sitrep_markdown,
+        # Sitreps drafted before the final variant existed have no stored
+        # copy; the draft stands in until the officer refreshes.
+        final_markdown=row.sitrep_final_markdown or row.sitrep_markdown,
         fact_table=row.sitrep_fact_table or {},
         violations=row.sitrep_violations or [],
         status=row.sitrep_status or "",

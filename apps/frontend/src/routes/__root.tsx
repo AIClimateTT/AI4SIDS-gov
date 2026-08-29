@@ -49,6 +49,12 @@ function AppShell() {
   const showSidebar = identity?.role === 'dmu' || isCorp
   const { eventTitle } = useCorpChatWorkspace()
 
+  // The print view is the document alone — no sidebar, header, or devtools,
+  // so what the browser puts on the page is only the filing.
+  if (pathname.startsWith('/corp/print/')) {
+    return <Outlet />
+  }
+
   return (
     <TooltipProvider>
       <SidebarProvider className="h-svh overflow-hidden">

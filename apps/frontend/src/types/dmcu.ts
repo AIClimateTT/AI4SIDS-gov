@@ -371,6 +371,8 @@ export type CaptureMissingField = {
 
 export type CaptureSitrep = {
   markdown: string
+  /** Same facts rendered for issue: no citation markers, no appendix. */
+  final_markdown: string
   fact_table: FactTable
   violations: CitationViolation[]
   status: string

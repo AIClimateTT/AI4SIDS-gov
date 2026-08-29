@@ -181,6 +181,11 @@ function CaptureChatSession({
     () => issue.mutate(sessionId),
     [issue, sessionId],
   )
+  const handleDownloadPdf = useCallback(() => {
+    // A separate tab so the officer keeps their place in the conversation;
+    // ?auto=true opens the browser's print dialog on arrival.
+    window.open(`/corp/print/${sessionId}?auto=true`, '_blank', 'noopener')
+  }, [sessionId])
 
   if (sessionQuery.isError) {
     return (
@@ -256,6 +261,7 @@ function CaptureChatSession({
                 onSave={handleSave}
                 onPreview={handlePreview}
                 onIssue={handleIssue}
+                onDownloadPdf={handleDownloadPdf}
               />
             </div>
           </ResizablePanel>
@@ -279,7 +285,9 @@ function CaptureChatSession({
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent side="bottom" className="flex h-[85svh] flex-col gap-0 p-0">
           <SheetHeader className="border-b">
-            <SheetTitle>{eventTitle ?? 'Sitrep'}</SheetTitle>
+            <SheetTitle className="truncate" title={eventTitle ?? undefined}>
+              {eventTitle ?? 'Sitrep'}
+            </SheetTitle>
           </SheetHeader>
           <div className="flex min-h-0 flex-1 flex-col">
             <ArtifactPane
@@ -293,6 +301,7 @@ function CaptureChatSession({
               onSave={handleSave}
               onPreview={handlePreview}
               onIssue={handleIssue}
+              onDownloadPdf={handleDownloadPdf}
             />
           </div>
         </SheetContent>
@@ -312,6 +321,7 @@ function ArtifactPane({
   onSave,
   onPreview,
   onIssue,
+  onDownloadPdf,
 }: {
   session: CaptureSession
   events: EventSummary[]
@@ -323,6 +333,7 @@ function ArtifactPane({
   onSave: (payload: CaptureSessionUpdate) => void
   onPreview: () => void
   onIssue: () => void
+  onDownloadPdf: () => void
 }) {
   const autoPreviewedFor = useRef<number | null>(null)
 
@@ -362,6 +373,7 @@ function ArtifactPane({
           eventTitle={eventTitle}
           onPreview={onPreview}
           onIssue={onIssue}
+          onDownloadPdf={onDownloadPdf}
           previewPending={previewPending}
           issuePending={issuePending}
         />
