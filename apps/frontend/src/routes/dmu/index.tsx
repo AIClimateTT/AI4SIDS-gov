@@ -5,6 +5,7 @@ import { FileTextIcon, UploadIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
+  AlertLevelBadge,
   EmptyState,
   LoadingBlock,
   PageHeader,
@@ -23,7 +24,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ContentCard } from '@/components/shared/content-card'
 import { RoleMismatchNotice } from '@/components/identity/role-mismatch-notice'
-import { formatConstant } from '@/lib/format-constant'
 import { overviewQueries } from '@/lib/queries/overview'
 import { submissionQueries } from '@/lib/queries/submissions'
 import { deriveWhoReported } from '@/lib/who-reported'
@@ -42,7 +42,9 @@ function defaultWindow(): { from: string; to: string } {
 }
 
 function OverviewPage() {
-  const { data, isPending, isError, error } = useQuery(overviewQueries.summary())
+  const { data, isPending, isError, error } = useQuery(
+    overviewQueries.summary(),
+  )
 
   return (
     <div className="space-y-6">
@@ -103,7 +105,11 @@ function OverviewPage() {
             title="Recent reports"
             description="Latest generated briefings"
             action={
-              <Button variant="outline" size="sm" render={<Link to="/dmu/reports" />}>
+              <Button
+                variant="outline"
+                size="sm"
+                render={<Link to="/dmu/reports" />}
+              >
                 View all
               </Button>
             }
@@ -246,7 +252,9 @@ function WhoHasReportedCard() {
                     <TableCell>
                       {new Date(row.latest.as_at).toLocaleString()}
                     </TableCell>
-                    <TableCell>{formatConstant(row.latest.alert_level)}</TableCell>
+                    <TableCell>
+                      <AlertLevelBadge level={row.latest.alert_level} />
+                    </TableCell>
                     <TableCell>{row.latest.incident_count}</TableCell>
                     <TableCell>{row.latest.log_count}</TableCell>
                   </>

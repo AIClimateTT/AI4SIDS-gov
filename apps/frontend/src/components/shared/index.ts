@@ -1,3 +1,8 @@
+export {
+  AlertLevelBadge,
+  alertSeverity,
+  isAlertLevel,
+} from './alert-level-badge'
 export { AppDialog } from './app-dialog'
 export { ContentCard } from './content-card'
 export { EmptyState } from './empty-state'

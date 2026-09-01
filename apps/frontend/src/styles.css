@@ -54,6 +54,30 @@ body {
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
+  /* Alert levels. These are ALERT_LEVELS in
+     apps/backend/app/modules/sitreps/models.py, not a palette choice — the six
+     values a corporation files against every submission. Registered here so
+     `bg-alert-red/10`, `text-alert-red` and friends exist as utilities. */
+  --color-alert-green: var(--alert-green);
+  --color-alert-green-surface: var(--alert-green-surface);
+  --color-alert-yellow: var(--alert-yellow);
+  --color-alert-yellow-surface: var(--alert-yellow-surface);
+  --color-alert-orange: var(--alert-orange);
+  --color-alert-orange-surface: var(--alert-orange-surface);
+  --color-alert-red: var(--alert-red);
+  --color-alert-red-surface: var(--alert-red-surface);
+  --color-alert-discontinued: var(--alert-discontinued);
+  --color-alert-discontinued-surface: var(--alert-discontinued-surface);
+  --color-alert-none: var(--alert-none);
+  --color-alert-none-surface: var(--alert-none-surface);
+
+  /* Source authority. The architecture forbids merging these two; the interface
+     should not render them identically. */
+  --color-source-sitrep: var(--source-sitrep);
+  --color-source-sitrep-surface: var(--source-sitrep-surface);
+  --color-source-field: var(--source-field);
+  --color-source-field-surface: var(--source-field-surface);
+
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -96,6 +120,30 @@ body {
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* Alert levels, light. Foreground pairs are tinted from their own hue rather
+     than grey: grey on a coloured ground reads as broken, not de-emphasised. */
+  --alert-green: oklch(0.52 0.11 155);
+  --alert-green-surface: oklch(0.95 0.025 155);
+  --alert-yellow: oklch(0.6 0.115 88);
+  --alert-yellow-surface: oklch(0.96 0.045 92);
+  --alert-orange: oklch(0.6 0.14 55);
+  --alert-orange-surface: oklch(0.95 0.04 60);
+  --alert-red: oklch(0.52 0.175 27);
+  --alert-red-surface: oklch(0.95 0.03 27);
+  /* Discontinued is a stood-down state, not an active level: cool and quiet, so
+     it never competes with green for attention. */
+  --alert-discontinued: oklch(0.5 0.03 250);
+  --alert-discontinued-surface: oklch(0.94 0.008 250);
+  /* "None" means the officer never stated a level. Deliberately the dimmest
+     token in the set — an unanswered question, not a safe condition. */
+  --alert-none: oklch(0.63 0.012 85);
+  --alert-none-surface: oklch(0.95 0.006 85);
+
+  --source-sitrep: oklch(0.42 0.06 190);
+  --source-sitrep-surface: oklch(0.95 0.02 190);
+  --source-field: oklch(0.5 0.07 305);
+  --source-field-surface: oklch(0.95 0.022 305);
 }
 
 .dark {
@@ -130,6 +178,27 @@ body {
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  /* Alert levels, dark. Lightness rises and chroma drops so each hue keeps its
+     identity against a dark ground without glowing; surfaces are dark tints of
+     the same hue rather than the light values dimmed. */
+  --alert-green: oklch(0.78 0.13 155);
+  --alert-green-surface: oklch(0.28 0.045 155);
+  --alert-yellow: oklch(0.83 0.13 92);
+  --alert-yellow-surface: oklch(0.3 0.05 92);
+  --alert-orange: oklch(0.78 0.13 55);
+  --alert-orange-surface: oklch(0.3 0.055 55);
+  --alert-red: oklch(0.72 0.16 25);
+  --alert-red-surface: oklch(0.3 0.07 25);
+  --alert-discontinued: oklch(0.75 0.035 250);
+  --alert-discontinued-surface: oklch(0.3 0.018 250);
+  --alert-none: oklch(0.62 0.012 85);
+  --alert-none-surface: oklch(0.27 0.006 85);
+
+  --source-sitrep: oklch(0.78 0.09 190);
+  --source-sitrep-surface: oklch(0.29 0.04 190);
+  --source-field: oklch(0.78 0.09 305);
+  --source-field-surface: oklch(0.29 0.04 305);
 }
 
 @layer base {
