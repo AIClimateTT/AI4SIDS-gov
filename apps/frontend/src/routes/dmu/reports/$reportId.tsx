@@ -1,5 +1,6 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
+import { useMemo } from 'react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -27,6 +28,17 @@ function ReportDetailPage() {
     reportQueries.detail(reportId),
   )
 
+  // cid → source module, so each citation marker in the narrative can be tinted
+  // by the authority of the fact behind it. Derived from the report's own
+  // stored fact table, which is why it needs no extra request.
+  const sourceByCid = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const fact of data?.fact_table.facts ?? []) {
+      map[fact.citation.cid] = fact.citation.module
+    }
+    return map
+  }, [data])
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -42,10 +54,7 @@ function ReportDetailPage() {
       {isPending ? <LoadingBlock rows={6} /> : null}
 
       {isError ? (
-        <EmptyState
-          title="Could not load report"
-          description={error.message}
-        />
+        <EmptyState title="Could not load report" description={error.message} />
       ) : null}
 
       {data ? (
@@ -112,6 +121,7 @@ function ReportDetailPage() {
                   <CitationMarkdown
                     markdown={data.markdown}
                     violations={data.violations}
+                    sourceByCid={sourceByCid}
                   />
                 </ContentCard>
                 <ContentCard

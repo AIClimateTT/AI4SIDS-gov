@@ -1,8 +1,5 @@
-import {
-  CANONICAL_CORPORATIONS,
-  CORPORATION_LABELS,
-  type CanonicalCorporation,
-} from '@/lib/corporations'
+import { CORPORATION_LABELS, isCanonicalCorporation } from '@/lib/corporations'
+import type { CanonicalCorporation } from '@/lib/corporations'
 
 export const IDENTITY_STORAGE_KEY = 'dmcu.identity'
 
@@ -11,18 +8,13 @@ export const IDENTITY_STORAGE_KEY = 'dmcu.identity'
  * there is no authentication in this system and nothing here enforces access.
  */
 export type Identity =
-  | { role: 'dmu' }
-  | { role: 'corp'; corporation: CanonicalCorporation }
+  { role: 'dmu' } | { role: 'corp'; corporation: CanonicalCorporation }
 
 /** The slice of the Storage API we use, injected so this is testable without a DOM. */
-export type IdentityStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
-
-function isCanonicalCorporation(value: unknown): value is CanonicalCorporation {
-  return (
-    typeof value === 'string' &&
-    (CANONICAL_CORPORATIONS as readonly string[]).includes(value)
-  )
-}
+export type IdentityStorage = Pick<
+  Storage,
+  'getItem' | 'setItem' | 'removeItem'
+>
 
 export function parseIdentity(raw: string | null): Identity | null {
   if (!raw) return null
@@ -60,7 +52,10 @@ export function loadIdentity(storage: IdentityStorage): Identity | null {
   }
 }
 
-export function saveIdentity(storage: IdentityStorage, identity: Identity): void {
+export function saveIdentity(
+  storage: IdentityStorage,
+  identity: Identity,
+): void {
   try {
     storage.setItem(IDENTITY_STORAGE_KEY, serializeIdentity(identity))
   } catch {

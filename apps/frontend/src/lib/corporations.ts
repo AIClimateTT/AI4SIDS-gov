@@ -18,6 +18,25 @@ export const CANONICAL_CORPORATIONS = [
 
 export type CanonicalCorporation = (typeof CANONICAL_CORPORATIONS)[number]
 
+/**
+ * Whether a value is one of the fourteen.
+ *
+ * Lives here rather than beside each caller because a slug outside this set is
+ * never merely "not found": it matches no rows, so every count comes back zero
+ * and the screen reads as an authoritative "nothing happened" for a region that
+ * may have filed plenty. `POST /reports` rejects unknown corporations
+ * server-side for exactly this reason; routes that take a corporation in the
+ * URL need the same guard before they render anything.
+ */
+export function isCanonicalCorporation(
+  value: unknown,
+): value is CanonicalCorporation {
+  return (
+    typeof value === 'string' &&
+    (CANONICAL_CORPORATIONS as readonly string[]).includes(value)
+  )
+}
+
 export type CorporationOption = {
   value: CanonicalCorporation
   label: string
@@ -33,7 +52,8 @@ export const CORPORATION_LABELS: Record<CanonicalCorporation, string> = {
   tunapuna_piarco_regional_corpor: 'Tunapuna/Piarco Regional Corporation',
   sangre_grande_regional_corporat: 'Sangre Grande Regional Corporation',
   penal_debe_regional_corporation: 'Penal/Debe Regional Corporation',
-  couva_tabaquite_talparo_regiona: 'Couva/Tabaquite/Talparo Regional Corporation',
+  couva_tabaquite_talparo_regiona:
+    'Couva/Tabaquite/Talparo Regional Corporation',
   mayaro_rio_claro_regional_corpo: 'Mayaro/Rio Claro Regional Corporation',
   siparia_regional_corporation: 'Siparia Regional Corporation',
   princes_town_regional_corporati: 'Princes Town Regional Corporation',
@@ -45,6 +65,8 @@ export const CORPORATION_LABELS: Record<CanonicalCorporation, string> = {
   arima_borough_corporation: 'Arima Borough Corporation',
 }
 
-export const CORPORATION_OPTIONS: CorporationOption[] = CANONICAL_CORPORATIONS.map(
-  (value) => ({ value, label: CORPORATION_LABELS[value] }),
-).sort((a, b) => a.label.localeCompare(b.label))
+export const CORPORATION_OPTIONS: CorporationOption[] =
+  CANONICAL_CORPORATIONS.map((value) => ({
+    value,
+    label: CORPORATION_LABELS[value],
+  })).sort((a, b) => a.label.localeCompare(b.label))

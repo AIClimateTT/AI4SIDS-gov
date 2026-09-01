@@ -5,6 +5,8 @@ import rehypeRaw from 'rehype-raw'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 
 import { cn } from '@/lib/utils'
+import { sourceLabel, sourceOf } from '@/components/shared/source-badge'
+import type { FactSource } from '@/components/shared/source-badge'
 import type { CitationViolation } from '@/types/dmcu'
 import {
   prepareReportMarkdown,
@@ -33,7 +35,30 @@ const reportSanitizeSchema = {
 type CitationMarkdownProps = {
   markdown: string
   violations?: CitationViolation[]
+  /**
+   * cid → the data module that produced that fact, from the report's own fact
+   * table. Supplied, each marker is tinted by its source, so a reader can see
+   * which half of a sentence rests on a corporation's signed-off figures and
+   * which on unverified field observation without opening the appendix.
+   *
+   * Optional: omitted, markers fall back to the neutral styling, which is what
+   * a report rendered without its fact table gets.
+   */
+  sourceByCid?: Record<string, string>
   className?: string
+}
+
+/**
+ * Marker styling per source. Kept here rather than in a cva because the marker
+ * is a button inside prose and needs its own hover and size treatment; the
+ * colour tokens are the same ones SourceBadge uses.
+ */
+const MARKER_CLASS: Record<FactSource, string> = {
+  sitreps:
+    'bg-source-sitrep-surface text-source-sitrep hover:bg-source-sitrep/20',
+  survey123:
+    'bg-source-field-surface text-source-field hover:bg-source-field/20',
+  other: 'bg-primary/10 text-primary hover:bg-primary/20',
 }
 
 function isCitationHash(href: string | undefined): string | null {
@@ -45,6 +70,7 @@ function isCitationHash(href: string | undefined): string | null {
 export function CitationMarkdown({
   markdown,
   violations = [],
+  sourceByCid,
   className,
 }: CitationMarkdownProps) {
   const prepared = prepareReportMarkdown(markdown, violations)
@@ -66,10 +92,19 @@ export function CitationMarkdown({
           a: ({ href, children, ...props }) => {
             const cid = isCitationHash(href)
             if (cid) {
+              const source = sourceOf(sourceByCid?.[cid])
               return (
                 <button
                   type="button"
-                  className="inline cursor-pointer rounded-sm bg-primary/10 px-1 font-mono text-[0.85em] font-medium text-primary hover:bg-primary/20"
+                  data-source={source}
+                  // The title carries the source in words. Colour alone must
+                  // never be the only encoding, and the marker is too small to
+                  // hold a label.
+                  title={`${cid} — ${sourceLabel(sourceByCid?.[cid])}`}
+                  className={cn(
+                    'inline cursor-pointer rounded-sm px-1 font-mono text-[0.85em] font-medium',
+                    MARKER_CLASS[source],
+                  )}
                   onClick={(event: MouseEvent<HTMLButtonElement>) => {
                     event.preventDefault()
                     scrollToCitation(cid)

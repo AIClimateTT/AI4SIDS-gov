@@ -18,6 +18,7 @@ import { Route as DmuFieldDataRouteImport } from './routes/dmu/field-data'
 import { Route as DmuReportsIndexRouteImport } from './routes/dmu/reports/index'
 import { Route as DmuReportsNewRouteImport } from './routes/dmu/reports/new'
 import { Route as DmuReportsReportIdRouteImport } from './routes/dmu/reports/$reportId'
+import { Route as DmuCorporationsCorporationRouteImport } from './routes/dmu/corporations/$corporation'
 import { Route as DmuAdminModulesRouteImport } from './routes/dmu/admin/modules'
 import { Route as CorpPrintSessionIdRouteImport } from './routes/corp/print.$sessionId'
 import { Route as CorpFilingsSubmissionIdRouteImport } from './routes/corp/filings/$submissionId'
@@ -73,6 +74,12 @@ const DmuReportsReportIdRoute = DmuReportsReportIdRouteImport.update({
   path: '/dmu/reports/$reportId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DmuCorporationsCorporationRoute =
+  DmuCorporationsCorporationRouteImport.update({
+    id: '/dmu/corporations/$corporation',
+    path: '/dmu/corporations/$corporation',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const DmuAdminModulesRoute = DmuAdminModulesRouteImport.update({
   id: '/dmu/admin/modules',
   path: '/dmu/admin/modules',
@@ -133,6 +140,7 @@ export interface FileRoutesByFullPath {
   '/corp/filings/$submissionId': typeof CorpFilingsSubmissionIdRoute
   '/corp/print/$sessionId': typeof CorpPrintSessionIdRoute
   '/dmu/admin/modules': typeof DmuAdminModulesRoute
+  '/dmu/corporations/$corporation': typeof DmuCorporationsCorporationRoute
   '/dmu/reports/$reportId': typeof DmuReportsReportIdRoute
   '/dmu/reports/new': typeof DmuReportsNewRoute
   '/dmu/reports/': typeof DmuReportsIndexRoute
@@ -153,6 +161,7 @@ export interface FileRoutesByTo {
   '/corp/filings/$submissionId': typeof CorpFilingsSubmissionIdRoute
   '/corp/print/$sessionId': typeof CorpPrintSessionIdRoute
   '/dmu/admin/modules': typeof DmuAdminModulesRoute
+  '/dmu/corporations/$corporation': typeof DmuCorporationsCorporationRoute
   '/dmu/reports/$reportId': typeof DmuReportsReportIdRoute
   '/dmu/reports/new': typeof DmuReportsNewRoute
   '/dmu/reports': typeof DmuReportsIndexRoute
@@ -174,6 +183,7 @@ export interface FileRoutesById {
   '/corp/filings/$submissionId': typeof CorpFilingsSubmissionIdRoute
   '/corp/print/$sessionId': typeof CorpPrintSessionIdRoute
   '/dmu/admin/modules': typeof DmuAdminModulesRoute
+  '/dmu/corporations/$corporation': typeof DmuCorporationsCorporationRoute
   '/dmu/reports/$reportId': typeof DmuReportsReportIdRoute
   '/dmu/reports/new': typeof DmuReportsNewRoute
   '/dmu/reports/': typeof DmuReportsIndexRoute
@@ -196,6 +206,7 @@ export interface FileRouteTypes {
     | '/corp/filings/$submissionId'
     | '/corp/print/$sessionId'
     | '/dmu/admin/modules'
+    | '/dmu/corporations/$corporation'
     | '/dmu/reports/$reportId'
     | '/dmu/reports/new'
     | '/dmu/reports/'
@@ -216,6 +227,7 @@ export interface FileRouteTypes {
     | '/corp/filings/$submissionId'
     | '/corp/print/$sessionId'
     | '/dmu/admin/modules'
+    | '/dmu/corporations/$corporation'
     | '/dmu/reports/$reportId'
     | '/dmu/reports/new'
     | '/dmu/reports'
@@ -236,6 +248,7 @@ export interface FileRouteTypes {
     | '/corp/filings/$submissionId'
     | '/corp/print/$sessionId'
     | '/dmu/admin/modules'
+    | '/dmu/corporations/$corporation'
     | '/dmu/reports/$reportId'
     | '/dmu/reports/new'
     | '/dmu/reports/'
@@ -257,6 +270,7 @@ export interface RootRouteChildren {
   CorpFilingsSubmissionIdRoute: typeof CorpFilingsSubmissionIdRoute
   CorpPrintSessionIdRoute: typeof CorpPrintSessionIdRoute
   DmuAdminModulesRoute: typeof DmuAdminModulesRoute
+  DmuCorporationsCorporationRoute: typeof DmuCorporationsCorporationRoute
   DmuReportsReportIdRoute: typeof DmuReportsReportIdRoute
   DmuReportsNewRoute: typeof DmuReportsNewRoute
   DmuReportsIndexRoute: typeof DmuReportsIndexRoute
@@ -330,6 +344,13 @@ declare module '@tanstack/react-router' {
       path: '/dmu/reports/$reportId'
       fullPath: '/dmu/reports/$reportId'
       preLoaderRoute: typeof DmuReportsReportIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dmu/corporations/$corporation': {
+      id: '/dmu/corporations/$corporation'
+      path: '/dmu/corporations/$corporation'
+      fullPath: '/dmu/corporations/$corporation'
+      preLoaderRoute: typeof DmuCorporationsCorporationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dmu/admin/modules': {
@@ -409,6 +430,7 @@ const rootRouteChildren: RootRouteChildren = {
   CorpFilingsSubmissionIdRoute: CorpFilingsSubmissionIdRoute,
   CorpPrintSessionIdRoute: CorpPrintSessionIdRoute,
   DmuAdminModulesRoute: DmuAdminModulesRoute,
+  DmuCorporationsCorporationRoute: DmuCorporationsCorporationRoute,
   DmuReportsReportIdRoute: DmuReportsReportIdRoute,
   DmuReportsNewRoute: DmuReportsNewRoute,
   DmuReportsIndexRoute: DmuReportsIndexRoute,

@@ -14,9 +14,39 @@ import {
 import { ContentCard } from '@/components/shared/content-card'
 import { DataTable } from '@/components/data-table'
 import { reportQueries } from '@/lib/queries/reports'
-import type { ReportListItem } from '@/types/dmcu'
+import type { ReportListItem, ReportStatus } from '@/types/dmcu'
 
-export const Route = createFileRoute('/dmu/reports/')({ component: ReportsPage })
+/**
+ * `status` lives in the URL rather than in component state so the needs-review
+ * band on the dashboard can link straight to the filtered queue, and so an
+ * officer can bookmark or share it. The backend has always accepted this
+ * parameter (`GET /reports?status=`); nothing in the interface sent it.
+ */
+/**
+ * Optional, not required: a bare `/dmu/reports` is still a valid link, and
+ * every existing one across the app keeps working. Absent means "all".
+ */
+type ReportsSearch = { status?: ReportStatus | 'all' }
+
+const FILTERABLE: ReadonlyArray<ReportStatus | 'all'> = [
+  'all',
+  'needs_review',
+  'ok',
+]
+
+function toStatus(value: unknown): ReportStatus | 'all' {
+  return typeof value === 'string' &&
+    (FILTERABLE as ReadonlyArray<string>).includes(value)
+    ? (value as ReportStatus | 'all')
+    : 'all'
+}
+
+export const Route = createFileRoute('/dmu/reports/')({
+  component: ReportsPage,
+  validateSearch: (search: Record<string, unknown>): ReportsSearch => ({
+    status: toStatus(search.status),
+  }),
+})
 
 const columns: ColumnDef<ReportListItem>[] = [
   {
@@ -50,8 +80,7 @@ const columns: ColumnDef<ReportListItem>[] = [
   {
     accessorKey: 'created_at',
     header: 'Created',
-    cell: ({ row }) =>
-      new Date(row.original.created_at).toLocaleString(),
+    cell: ({ row }) => new Date(row.original.created_at).toLocaleString(),
   },
 ]
 
@@ -61,11 +90,15 @@ function ReportsPage() {
     pageSize: 10,
   })
   const [q, setQ] = useState<string | undefined>()
+  const search = Route.useSearch()
+  const status = search.status ?? 'all'
+  const navigate = Route.useNavigate()
 
   const listParams = {
     page: pagination.pageIndex + 1,
     pageSize: pagination.pageSize,
     q,
+    status,
   }
 
   const { data, isPending, isError, error, isFetching } = useQuery(
@@ -86,6 +119,34 @@ function ReportsPage() {
       />
 
       <ContentCard contentClassName="space-y-4">
+        <div
+          role="group"
+          aria-label="Filter reports by status"
+          className="flex flex-wrap items-center gap-2"
+        >
+          {FILTERABLE.map((value) => (
+            <Button
+              key={value}
+              size="sm"
+              variant={status === value ? 'default' : 'outline'}
+              aria-pressed={status === value}
+              onClick={() => {
+                // Filtering changes how many pages exist, so go back to the
+                // first one rather than stranding the officer on a page the
+                // narrowed list no longer has.
+                setPagination((prev) => ({ ...prev, pageIndex: 0 }))
+                void navigate({ search: { status: value }, replace: true })
+              }}
+            >
+              {value === 'all'
+                ? 'All'
+                : value === 'needs_review'
+                  ? 'Needs review'
+                  : 'OK'}
+            </Button>
+          ))}
+        </div>
+
         {isPending && !data ? <LoadingBlock rows={5} /> : null}
 
         {isError ? (

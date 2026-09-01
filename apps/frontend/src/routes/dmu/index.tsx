@@ -8,6 +8,7 @@ import {
   AlertLevelBadge,
   EmptyState,
   LoadingBlock,
+  NeedsReviewBand,
   PageHeader,
   StatCard,
   StatusBadge,
@@ -78,6 +79,8 @@ function OverviewPage() {
 
       {data ? (
         <>
+          <NeedsReviewBand count={data.needs_review_count} />
+
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard
               label="Survey123 incidents"
@@ -89,10 +92,14 @@ function OverviewPage() {
               value={data.incident_count_sitreps}
               hint="Corporation situation reports"
             />
+            {/* The needs-review count deliberately does not appear here. It is
+                the one number on this screen that asks for action, and a
+                sub-label on a card is where it goes to be skimmed past — the
+                band above owns it. */}
             <StatCard
               label="Reports"
               value={data.report_count}
-              hint={`${data.needs_review_count} need review`}
+              hint="Generated briefings"
             />
             <StatCard
               label="API"
@@ -246,7 +253,18 @@ function WhoHasReportedCard() {
           <TableBody>
             {rows.map((row) => (
               <TableRow key={row.corporation}>
-                <TableCell className="font-medium">{row.label}</TableCell>
+                <TableCell className="font-medium">
+                  {/* A real link, not an onClick on the row: keyboard and
+                      assistive-technology users get the same navigation, and
+                      the target is visible on hover. */}
+                  <Link
+                    to="/dmu/corporations/$corporation"
+                    params={{ corporation: row.corporation }}
+                    className="underline-offset-4 hover:underline"
+                  >
+                    {row.label}
+                  </Link>
+                </TableCell>
                 {row.latest ? (
                   <>
                     <TableCell>
