@@ -78,8 +78,19 @@ export function CitationMarkdown({
   return (
     <div
       className={cn(
-        'prose prose-sm max-w-none dark:prose-invert',
+        // Base size, not prose-sm: this is a document for a Minister, and the
+        // fact table has its own column so the briefing never needed to be
+        // squeezed. max-w-[68ch] holds the measure near 65 characters — it was
+        // running to ~99, which is well past comfortable for continuous prose.
+        'prose max-w-[68ch] dark:prose-invert',
         'prose-headings:scroll-mt-20',
+        // Section titles need to read as sections. repairReportStructure
+        // promotes the model's bold-paragraph titles to h3, so this is what
+        // gives them their weight.
+        'prose-h3:mt-8 prose-h3:mb-2 prose-h3:text-base prose-h3:font-semibold prose-h3:tracking-tight',
+        'prose-p:my-3 prose-li:my-0.5',
+        // Figures in a briefing are scanned down the page, not read.
+        'prose-td:tabular-nums prose-th:text-xs prose-th:uppercase prose-th:tracking-wide',
         'prose-a:font-medium prose-a:text-primary prose-a:no-underline hover:prose-a:underline',
         '[&_mark.violation-mark]:rounded-sm [&_mark.violation-mark]:bg-destructive/20 [&_mark.violation-mark]:px-0.5 [&_mark.violation-mark]:text-foreground',
         className,

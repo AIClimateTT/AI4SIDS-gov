@@ -80,16 +80,20 @@ export function ReportFactTable({
                 <TableRow
                   key={cid}
                   id={citationAnchorId(cid)}
-                  // The leading edge carries the source. Authoritative SITREP
-                  // figures and unverified field observation must never read as
-                  // one undifferentiated list — that separation is the whole
-                  // point of keeping the two modules apart in the backend.
-                  className={cn(
-                    'scroll-mt-24 border-l-4 transition-colors',
-                    sourceEdgeClass(fact.citation.module),
-                  )}
+                  className="scroll-mt-24 transition-colors"
                 >
-                  <TableCell className="font-mono text-xs font-medium">
+                  {/* The leading edge carries the source, and it lives on the
+                      first cell rather than the row. The table sets
+                      border-collapse: collapse, where a border declared on a
+                      <tr> collapses against the cell grid and paints behind the
+                      first cell — measured at zero visual width. Cell borders
+                      resolve predictably against the table edge. */}
+                  <TableCell
+                    className={cn(
+                      'border-l-4 font-mono text-xs font-medium',
+                      sourceEdgeClass(fact.citation.module),
+                    )}
+                  >
                     {cid}
                   </TableCell>
                   <TableCell>
