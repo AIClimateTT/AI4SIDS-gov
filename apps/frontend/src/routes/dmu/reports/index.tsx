@@ -1,4 +1,4 @@
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { PlusIcon } from 'lucide-react'
@@ -6,6 +6,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 
 import { Button } from '@/components/ui/button'
 import {
+  ButtonLink,
   EmptyState,
   LoadingBlock,
   PageHeader,
@@ -112,10 +113,10 @@ function ReportsPage() {
         title="Reports"
         description="Browse generated briefings and open citation-checked markdown."
         actions={
-          <Button render={<Link to="/dmu/reports/new" />}>
+          <ButtonLink to="/dmu/reports/new">
             <PlusIcon />
             Generate
-          </Button>
+          </ButtonLink>
         }
       />
 
@@ -193,9 +194,9 @@ function ReportsPage() {
                 placeholder: 'Search reports…',
               },
               actions: (
-                <Button size="sm" render={<Link to="/dmu/reports/new" />}>
+                <ButtonLink size="sm" to="/dmu/reports/new">
                   Generate
-                </Button>
+                </ButtonLink>
               ),
             }}
             filterValues={{ q }}
@@ -204,18 +205,14 @@ function ReportsPage() {
               enableColumnVisibility: true,
             }}
             rowActions={(row) => (
-              <Button
+              <ButtonLink
                 variant="ghost"
                 size="sm"
-                render={
-                  <Link
-                    to="/dmu/reports/$reportId"
-                    params={{ reportId: row.id }}
-                  />
-                }
+                to="/dmu/reports/$reportId"
+                params={{ reportId: row.id }}
               >
                 Open
-              </Button>
+              </ButtonLink>
             )}
           />
         ) : null}

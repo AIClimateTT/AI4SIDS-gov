@@ -45,7 +45,7 @@ export function ReportFactTable({
   return (
     <div className={cn('space-y-4', className)}>
       {/* Shown only when both sources are present, which is when the distinction
-          is load-bearing — a single-source report needs no key. */}
+          is load-bearing - a single-source report needs no key. */}
       {hasBothSources ? (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">

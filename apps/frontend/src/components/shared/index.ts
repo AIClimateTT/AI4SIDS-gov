@@ -4,6 +4,7 @@ export {
   isAlertLevel,
 } from './alert-level-badge'
 export { AppDialog } from './app-dialog'
+export { ButtonLink } from './button-link'
 export { ContentCard } from './content-card'
 export { EmptyState } from './empty-state'
 export { FormPlaceholder } from './form-placeholder'

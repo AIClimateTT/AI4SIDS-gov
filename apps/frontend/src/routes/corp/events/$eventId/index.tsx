@@ -5,6 +5,7 @@ import { MessageSquareIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   AlertLevelBadge,
+  ButtonLink,
   EmptyState,
   LoadingBlock,
   PageHeader,
@@ -75,9 +76,9 @@ function EventPageContent({ identity }: { identity: CorpIdentity }) {
         <PageHeader
           title={event?.title ?? 'Event'}
           actions={
-            <Button variant="outline" render={<Link to="/corp" />}>
+            <ButtonLink variant="outline" to="/corp">
               Back to home
-            </Button>
+            </ButtonLink>
           }
         />
         <EmptyState
@@ -101,9 +102,9 @@ function EventPageContent({ identity }: { identity: CorpIdentity }) {
         }
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" render={<Link to="/corp" />}>
+            <ButtonLink variant="outline" to="/corp">
               Back to home
-            </Button>
+            </ButtonLink>
             <StartSitrepButton
               corporation={identity.corporation}
               eventId={eventIdNum}

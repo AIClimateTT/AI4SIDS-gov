@@ -1,16 +1,11 @@
-import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useStore } from '@tanstack/react-form'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
 import { z } from 'zod'
 
-import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import {
-  EmptyState,
-  LoadingBlock,
-  PageHeader,
-} from '@/components/shared'
+import { ButtonLink, EmptyState, LoadingBlock, PageHeader } from '@/components/shared'
 import { ContentCard } from '@/components/shared/content-card'
 import { Label } from '@/components/ui/label'
 import { useAppForm } from '@/hooks/form'
@@ -156,9 +151,9 @@ function AdminGeneratePage() {
         description="Full template picker with dynamic params and optional metric overrides."
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" render={<Link to="/dmu/reports" />}>
+            <ButtonLink variant="outline" to="/dmu/reports">
               Back to reports
-            </Button>
+            </ButtonLink>
           </div>
         }
       />

@@ -1,17 +1,10 @@
-import { Link, createFileRoute, notFound } from '@tanstack/react-router'
+import { createFileRoute, notFound } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  AlertLevelBadge,
-  EmptyState,
-  LoadingBlock,
-  PageHeader,
-  StatCard,
-} from '@/components/shared'
+import { AlertLevelBadge, ButtonLink, EmptyState, LoadingBlock, PageHeader, StatCard } from '@/components/shared'
 import { ContentCard } from '@/components/shared/content-card'
 import { AlertTrajectory } from '@/components/dmu/alert-trajectory'
 import {
@@ -95,9 +88,9 @@ function CorporationPage() {
         title={label}
         description="Everything this corporation filed in the selected window."
         actions={
-          <Button variant="outline" render={<Link to="/dmu" />}>
+          <ButtonLink variant="outline" to="/dmu">
             Back to overview
-          </Button>
+          </ButtonLink>
         }
       />
 

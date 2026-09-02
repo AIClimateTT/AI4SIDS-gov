@@ -3,16 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { FileTextIcon, UploadIcon } from 'lucide-react'
 
-import { Button } from '@/components/ui/button'
-import {
-  AlertLevelBadge,
-  EmptyState,
-  LoadingBlock,
-  NeedsReviewBand,
-  PageHeader,
-  StatCard,
-  StatusBadge,
-} from '@/components/shared'
+import { AlertLevelBadge, ButtonLink, EmptyState, LoadingBlock, NeedsReviewBand, PageHeader, StatCard, StatusBadge } from '@/components/shared'
 import {
   Table,
   TableBody,
@@ -55,14 +46,14 @@ function OverviewPage() {
         description="Status of ingested incident data and recent cited briefings."
         actions={
           <>
-            <Button variant="outline" render={<Link to="/dmu/field-data" />}>
+            <ButtonLink variant="outline" to="/dmu/field-data">
               <UploadIcon />
               Field data
-            </Button>
-            <Button render={<Link to="/dmu/reports/new" />}>
+            </ButtonLink>
+            <ButtonLink to="/dmu/reports/new">
               <FileTextIcon />
               Generate report
-            </Button>
+            </ButtonLink>
           </>
         }
       />
@@ -113,13 +104,9 @@ function OverviewPage() {
             title="Recent reports"
             description="Latest generated briefings"
             action={
-              <Button
-                variant="outline"
-                size="sm"
-                render={<Link to="/dmu/reports" />}
-              >
+              <ButtonLink variant="outline" size="sm" to="/dmu/reports">
                 View all
-              </Button>
+              </ButtonLink>
             }
           >
             {data.recent_reports.length === 0 ? (
@@ -159,18 +146,14 @@ function OverviewPage() {
                         {formatWhen(report.created_at)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
+                        <ButtonLink
                           variant="ghost"
                           size="sm"
-                          render={
-                            <Link
-                              to="/dmu/reports/$reportId"
-                              params={{ reportId: report.id }}
-                            />
-                          }
+                          to="/dmu/reports/$reportId"
+                          params={{ reportId: report.id }}
                         >
                           Open
-                        </Button>
+                        </ButtonLink>
                       </TableCell>
                     </TableRow>
                   ))}

@@ -1,9 +1,9 @@
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 
-import { Button } from '@/components/ui/button'
 import {
+  ButtonLink,
   EmptyState,
   LoadingBlock,
   PageHeader,
@@ -46,9 +46,9 @@ function ReportDetailPage() {
         title={data ? `Report ${data.id}` : 'Report'}
         description="Citation-checked briefing with linked fact table."
         actions={
-          <Button variant="outline" render={<Link to="/dmu/reports" />}>
+          <ButtonLink variant="outline" to="/dmu/reports">
             Back to reports
-          </Button>
+          </ButtonLink>
         }
       />
 

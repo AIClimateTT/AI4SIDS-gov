@@ -1,11 +1,6 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
-import {
-  EmptyState,
-  LoadingBlock,
-  PageHeader,
-} from '@/components/shared'
+import { ButtonLink, EmptyState, LoadingBlock, PageHeader } from '@/components/shared'
 import { templateQueries } from '@/lib/queries/templates'
-import { Button } from '@/components/ui/button'
 import { formatWhen } from '@/lib/format-when'
 import { useQuery } from '@tanstack/react-query'
 
@@ -26,16 +21,12 @@ function TemplateHistoryPage() {
         description="Immutable template versions. Edit by creating a new version."
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" render={<Link to="/dmu/admin/templates" />}>
+            <ButtonLink variant="outline" to="/dmu/admin/templates">
               All templates
-            </Button>
-            <Button
-              render={
-                <Link to="/dmu/admin/templates/$name/new" params={{ name }} />
-              }
-            >
+            </ButtonLink>
+            <ButtonLink to="/dmu/admin/templates/$name/new" params={{ name }}>
               Create new version
-            </Button>
+            </ButtonLink>
           </div>
         }
       />
