@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { EventChip } from '@/components/capture/event-chip'
 import { IncidentCard } from '@/components/capture/incident-card'
 import { LogCard } from '@/components/capture/log-card'
+import { AlertLevelBadge } from '@/components/shared'
 import { Button } from '@/components/ui/button'
 import {
   Popover,
@@ -23,6 +24,7 @@ import {
   toIsoDateTime,
 } from '@/lib/capture-mapping'
 import { formatConstant } from '@/lib/format-constant'
+import { formatWhen } from '@/lib/format-when'
 import type {
   CaptureMissingField,
   CaptureSession,
@@ -94,7 +96,9 @@ export function CaptureRecord({
   onSave,
   onReview,
 }: CaptureRecordProps) {
-  const alertMissing = session.missing.find((item) => item.path === 'alert_level')
+  const alertMissing = session.missing.find(
+    (item) => item.path === 'alert_level',
+  )
   const asAtMissing = session.missing.find((item) => item.path === 'as_at')
 
   const saveIncidents = (incidents: CaptureSessionUpdate['incidents']) =>
@@ -136,7 +140,9 @@ export function CaptureRecord({
 
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4">
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-muted-foreground">Situation</h2>
+          <h2 className="text-sm font-semibold text-muted-foreground">
+            Situation
+          </h2>
           <SituationField
             label="Situation overview"
             value={session.situation_overview}
@@ -146,7 +152,10 @@ export function CaptureRecord({
               onSave(
                 payloadOf(session, {
                   situation_overview: value,
-                  manual_fields: withManual(session.manual_fields, 'situation_overview'),
+                  manual_fields: withManual(
+                    session.manual_fields,
+                    'situation_overview',
+                  ),
                 }),
               )
             }
@@ -160,7 +169,10 @@ export function CaptureRecord({
               onSave(
                 payloadOf(session, {
                   present_activity: value,
-                  manual_fields: withManual(session.manual_fields, 'present_activity'),
+                  manual_fields: withManual(
+                    session.manual_fields,
+                    'present_activity',
+                  ),
                 }),
               )
             }
@@ -201,7 +213,9 @@ export function CaptureRecord({
             ) : null}
           </div>
           {session.incidents.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No incidents captured yet.</p>
+            <p className="text-sm text-muted-foreground">
+              No incidents captured yet.
+            </p>
           ) : null}
           {session.incidents.map((incident, index) => (
             <IncidentCard
@@ -215,13 +229,18 @@ export function CaptureRecord({
                     incidents: session.incidents.map((row) =>
                       row.row_id === incident.row_id ? next : row,
                     ),
-                    manual_fields: withManualPaths(session.manual_fields, paths),
+                    manual_fields: withManualPaths(
+                      session.manual_fields,
+                      paths,
+                    ),
                   }),
                 )
               }}
               onRemove={() =>
                 saveIncidents(
-                  session.incidents.filter((row) => row.row_id !== incident.row_id),
+                  session.incidents.filter(
+                    (row) => row.row_id !== incident.row_id,
+                  ),
                 )
               }
             />
@@ -259,7 +278,9 @@ export function CaptureRecord({
             ) : null}
           </div>
           {session.logs.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No situation logs captured yet.</p>
+            <p className="text-sm text-muted-foreground">
+              No situation logs captured yet.
+            </p>
           ) : null}
           {session.logs.map((log, index) => (
             <LogCard
@@ -270,8 +291,13 @@ export function CaptureRecord({
               onEdit={(next, paths) => {
                 onSave(
                   payloadOf(session, {
-                    logs: session.logs.map((row) => (row.row_id === log.row_id ? next : row)),
-                    manual_fields: withManualPaths(session.manual_fields, paths),
+                    logs: session.logs.map((row) =>
+                      row.row_id === log.row_id ? next : row,
+                    ),
+                    manual_fields: withManualPaths(
+                      session.manual_fields,
+                      paths,
+                    ),
                   }),
                 )
               }}
@@ -279,7 +305,9 @@ export function CaptureRecord({
                 // Removal is by row_id, never index -- indices shift as rows
                 // are added and removed, but row_id is stable for the life
                 // of the session (F3).
-                saveLogs(session.logs.filter((row) => row.row_id !== log.row_id))
+                saveLogs(
+                  session.logs.filter((row) => row.row_id !== log.row_id),
+                )
               }
             />
           ))}
@@ -288,7 +316,11 @@ export function CaptureRecord({
 
       {onReview ? (
         <div className="sticky bottom-0 flex flex-wrap items-center justify-end gap-2 border-t bg-background px-4 py-3">
-          <Button type="button" disabled={disabled || pending} onClick={onReview}>
+          <Button
+            type="button"
+            disabled={disabled || pending}
+            onClick={onReview}
+          >
             Review & file
           </Button>
         </div>
@@ -310,11 +342,27 @@ function SituationField({
   disabled?: boolean
   onCommit: (value: string | null) => void
 }) {
-  const [draft, setDraft] = useState(value ?? '')
+  const serverValue = value ?? ''
+  const [draft, setDraft] = useState(serverValue)
+  // Whether the officer's cursor is in this box right now. A ref, not state:
+  // it gates the sync below without being a dependency of it, so losing focus
+  // can never itself re-run the sync -- which would revert the officer's text
+  // to the server value in the window before their commit round-trips.
+  const hasFocus = useRef(false)
 
   useEffect(() => {
-    setDraft(value ?? '')
-  }, [value])
+    // Every chat turn saves and refetches the session, and a turn can extract
+    // a situation overview into this very field -- while the officer may be
+    // mid-sentence in it. Adopting the server value unconditionally erased
+    // what they had typed: the edit loss 46e4d8e fixed once, reintroduced by
+    // the pane -> record rewrite.
+    //
+    // Focus is the right guard because it is the actual invariant: never pull
+    // text out from under a cursor. An unfocused field still follows the
+    // server, so chat extraction still lands on fields nobody is holding.
+    if (hasFocus.current) return
+    setDraft(serverValue)
+  }, [serverValue])
 
   return (
     <label className="block space-y-1">
@@ -326,7 +374,11 @@ function SituationField({
         disabled={disabled}
         rows={2}
         onChange={(event) => setDraft(event.target.value)}
+        onFocus={() => {
+          hasFocus.current = true
+        }}
         onBlur={() => {
+          hasFocus.current = false
           const next = draft.trim() || null
           const previous = value?.trim() || null
           if (next === previous) return
@@ -351,7 +403,8 @@ function TallyStrip({ incidents }: { incidents: CaptureSession['incidents'] }) {
         : `${tallies.unknownCasualties} with unknown casualties`,
     )
   }
-  if (tallies.reliefSupplied > 0) parts.push(`${tallies.reliefSupplied} relief given`)
+  if (tallies.reliefSupplied > 0)
+    parts.push(`${tallies.reliefSupplied} relief given`)
   if (tallies.furtherAssessment > 0) {
     parts.push(`${tallies.furtherAssessment} need assessment`)
   }
@@ -377,13 +430,22 @@ function AlertLevelChip({
         render={
           <Button
             type="button"
-            variant={missing ? 'outline' : 'secondary'}
+            variant={missing ? 'outline' : 'ghost'}
             size="sm"
             disabled={disabled}
+            // When the level is missing the trigger's own text says so; when
+            // it is set the trigger is a badge, whose word alone ("Yellow")
+            // does not say what it is the level of.
+            aria-label={
+              missing ? undefined : `Alert level: ${formatConstant(value)}`
+            }
           />
         }
       >
-        {missing ? missing.message : formatConstant(value)}
+        {/* The chip that sets the level is the one place the level was still
+            rendered as plain text, so the officer choosing it saw less than
+            anyone reading it downstream. */}
+        {missing ? missing.message : <AlertLevelBadge level={value} />}
       </PopoverTrigger>
       <PopoverContent className="w-56">
         <PopoverHeader>
@@ -434,7 +496,7 @@ function AsAtChip({
           />
         }
       >
-        {missing ? missing.message : toDatetimeLocal(value).replace('T', ' ')}
+        {missing ? missing.message : formatWhen(value)}
       </PopoverTrigger>
       <PopoverContent className="w-64">
         <PopoverHeader>

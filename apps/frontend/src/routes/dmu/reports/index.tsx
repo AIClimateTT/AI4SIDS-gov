@@ -15,6 +15,7 @@ import { ContentCard } from '@/components/shared/content-card'
 import { DataTable } from '@/components/data-table'
 import { reportQueries } from '@/lib/queries/reports'
 import type { ReportListItem, ReportStatus } from '@/types/dmcu'
+import { formatWhen } from '@/lib/format-when'
 
 /**
  * `status` lives in the URL rather than in component state so the needs-review
@@ -80,7 +81,7 @@ const columns: ColumnDef<ReportListItem>[] = [
   {
     accessorKey: 'created_at',
     header: 'Created',
-    cell: ({ row }) => new Date(row.original.created_at).toLocaleString(),
+    cell: ({ row }) => formatWhen(row.original.created_at),
   },
 ]
 

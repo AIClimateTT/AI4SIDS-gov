@@ -16,6 +16,7 @@ import {
 import { captureQueries } from '@/lib/queries/capture'
 import { eventQueries } from '@/lib/queries/submissions'
 import { Button } from '@/components/ui/button'
+import { formatWhen } from '@/lib/format-when'
 import {
   Sidebar,
   SidebarContent,
@@ -32,9 +33,15 @@ import {
 export function CorpSidebar() {
   const { identity, forgetIdentity } = useIdentity()
   const navigate = useNavigate()
-  const pathname = useRouterState({ select: (state) => state.location.pathname })
-  const { sessionId, eventId: chatEventId, eventTitle: chatEventTitle, corporation } =
-    useCorpChatWorkspace()
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
+  const {
+    sessionId,
+    eventId: chatEventId,
+    eventTitle: chatEventTitle,
+    corporation,
+  } = useCorpChatWorkspace()
   const eventPageId = useCorpEventPageId()
   const eventId = chatEventId ?? eventPageId
   const eventsQuery = useQuery(eventQueries.list(corporation))
@@ -135,7 +142,7 @@ export function CorpSidebar() {
                     <SidebarMenuItem key={sitrep.id}>
                       <SidebarMenuButton
                         isActive={sitrep.id === sessionId}
-                        tooltip={`${label} · ${when.toLocaleString()}`}
+                        tooltip={`${label} · ${formatWhen(sitrep.as_at)}`}
                         render={
                           <Link
                             to="/corp/c/$sessionId"
@@ -163,7 +170,9 @@ export function CorpSidebar() {
             {otherEvents.length === 0 ? (
               <SidebarMenuItem>
                 <SidebarMenuButton disabled>
-                  <span>{eventId != null ? 'No other events' : 'No events'}</span>
+                  <span>
+                    {eventId != null ? 'No other events' : 'No events'}
+                  </span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ) : (
@@ -216,7 +225,9 @@ export function CorpSidebar() {
         </SidebarGroup>
         <div className="flex items-center gap-2 px-2 py-1.5">
           <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-medium">{identityLabel(identity)}</span>
+            <span className="truncate font-medium">
+              {identityLabel(identity)}
+            </span>
           </div>
           <Button
             variant="ghost"

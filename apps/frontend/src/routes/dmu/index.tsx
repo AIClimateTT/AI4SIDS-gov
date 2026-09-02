@@ -28,6 +28,7 @@ import { RoleMismatchNotice } from '@/components/identity/role-mismatch-notice'
 import { overviewQueries } from '@/lib/queries/overview'
 import { submissionQueries } from '@/lib/queries/submissions'
 import { deriveWhoReported } from '@/lib/who-reported'
+import { formatWhen } from '@/lib/format-when'
 
 export const Route = createFileRoute('/dmu/')({ component: OverviewPage })
 
@@ -155,7 +156,7 @@ function OverviewPage() {
                           .join(', ')}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {new Date(report.created_at).toLocaleString()}
+                        {formatWhen(report.created_at)}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button
@@ -268,7 +269,7 @@ function WhoHasReportedCard() {
                 {row.latest ? (
                   <>
                     <TableCell>
-                      {new Date(row.latest.as_at).toLocaleString()}
+                      {formatWhen(row.latest.as_at)}
                     </TableCell>
                     <TableCell>
                       <AlertLevelBadge level={row.latest.alert_level} />

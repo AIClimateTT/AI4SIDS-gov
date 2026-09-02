@@ -1,5 +1,6 @@
 import { isAlertLevel } from '@/components/shared/alert-level-badge'
 import { formatConstant } from '@/lib/format-constant'
+import { formatDay, formatWhen } from '@/lib/format-when'
 import { cn } from '@/lib/utils'
 import type { SubmissionSummary } from '@/types/dmcu'
 
@@ -54,7 +55,6 @@ export function AlertTrajectory({
           const level = isAlertLevel(submission.alert_level)
             ? submission.alert_level
             : 'none'
-          const when = new Date(submission.as_at)
           return (
             <li
               key={submission.id}
@@ -65,13 +65,13 @@ export function AlertTrajectory({
                 className={cn('h-2 w-full rounded-sm', BLOCK_CLASS[level])}
                 // Colour is never the only encoding: the level is written
                 // underneath, and the title carries it for pointer users.
-                title={`${formatConstant(submission.alert_level)} as at ${when.toLocaleString()}`}
+                title={`${formatConstant(submission.alert_level)} as at ${formatWhen(submission.as_at)}`}
               />
               <p className="mt-1.5 text-[0.7rem] font-medium">
                 {formatConstant(submission.alert_level)}
               </p>
               <p className="text-[0.65rem] text-muted-foreground tabular-nums">
-                {when.toLocaleDateString()}
+                {formatDay(submission.as_at)}
               </p>
             </li>
           )

@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { IncidentCard } from '@/components/capture/incident-card'
@@ -65,7 +71,12 @@ describe('IncidentCard', () => {
 
   it('does not claim zero injuries when casualties are unknown', () => {
     render(
-      <IncidentCard incident={bareIncident} missing={[]} onEdit={vi.fn()} onRemove={vi.fn()} />,
+      <IncidentCard
+        incident={bareIncident}
+        missing={[]}
+        onEdit={vi.fn()}
+        onRemove={vi.fn()}
+      />,
     )
     expect(screen.queryByText(/0 injured/)).toBeNull()
     expect(screen.getByText('Casualties unknown')).not.toBeNull()
@@ -80,7 +91,12 @@ describe('IncidentCard', () => {
     // "occurred" flag on a later chat turn.
     const onEdit = vi.fn()
     render(
-      <IncidentCard incident={incident} missing={[]} onEdit={onEdit} onRemove={vi.fn()} />,
+      <IncidentCard
+        incident={incident}
+        missing={[]}
+        onEdit={onEdit}
+        onRemove={vi.fn()}
+      />,
     )
     fireEvent.click(screen.getByRole('button', { name: /edit/i }))
     fireEvent.change(screen.getByLabelText('Injuries count'), {
@@ -93,7 +109,10 @@ describe('IncidentCard', () => {
     expect(next.injuries_count).toBe(4)
     expect(next.injuries_occurred).toBe(true)
     expect(paths).toEqual(
-      expect.arrayContaining(['incident:1.injuries_count', 'incident:1.injuries_occurred']),
+      expect.arrayContaining([
+        'incident:1.injuries_count',
+        'incident:1.injuries_occurred',
+      ]),
     )
     expect(paths.length).toBe(2)
   })
@@ -101,7 +120,12 @@ describe('IncidentCard', () => {
   it('reports the derived deaths_occurred flag alongside deaths_count when it changes', async () => {
     const onEdit = vi.fn()
     render(
-      <IncidentCard incident={incident} missing={[]} onEdit={onEdit} onRemove={vi.fn()} />,
+      <IncidentCard
+        incident={incident}
+        missing={[]}
+        onEdit={onEdit}
+        onRemove={vi.fn()}
+      />,
     )
     fireEvent.click(screen.getByRole('button', { name: /edit/i }))
     fireEvent.change(screen.getByLabelText('Deaths count'), {
@@ -114,7 +138,10 @@ describe('IncidentCard', () => {
     expect(next.deaths_count).toBe(1)
     expect(next.deaths_occurred).toBe(true)
     expect(paths).toEqual(
-      expect.arrayContaining(['incident:1.deaths_count', 'incident:1.deaths_occurred']),
+      expect.arrayContaining([
+        'incident:1.deaths_count',
+        'incident:1.deaths_occurred',
+      ]),
     )
     expect(paths.length).toBe(2)
   })
@@ -130,10 +157,17 @@ describe('IncidentCard', () => {
     } satisfies CaptureIncident
     const onEdit = vi.fn()
     render(
-      <IncidentCard incident={injuredIncident} missing={[]} onEdit={onEdit} onRemove={vi.fn()} />,
+      <IncidentCard
+        incident={injuredIncident}
+        missing={[]}
+        onEdit={onEdit}
+        onRemove={vi.fn()}
+      />,
     )
     fireEvent.click(screen.getByRole('button', { name: /edit/i }))
-    fireEvent.change(screen.getByLabelText('Injuries count'), { target: { value: '' } })
+    fireEvent.change(screen.getByLabelText('Injuries count'), {
+      target: { value: '' },
+    })
     fireEvent.click(screen.getByRole('button', { name: /save/i }))
 
     await waitFor(() => expect(onEdit).toHaveBeenCalled())
@@ -141,7 +175,10 @@ describe('IncidentCard', () => {
     expect(next.injuries_count).toBeNull()
     expect(next.injuries_occurred).toBeNull()
     expect(paths).toEqual(
-      expect.arrayContaining(['incident:1.injuries_count', 'incident:1.injuries_occurred']),
+      expect.arrayContaining([
+        'incident:1.injuries_count',
+        'incident:1.injuries_occurred',
+      ]),
     )
     expect(paths.length).toBe(2)
   })
@@ -155,7 +192,12 @@ describe('IncidentCard', () => {
     // count, which legitimately produce two).
     const onEdit = vi.fn()
     render(
-      <IncidentCard incident={incident} missing={[]} onEdit={onEdit} onRemove={vi.fn()} />,
+      <IncidentCard
+        incident={incident}
+        missing={[]}
+        onEdit={onEdit}
+        onRemove={vi.fn()}
+      />,
     )
     fireEvent.click(screen.getByRole('button', { name: /edit/i }))
     fireEvent.change(screen.getByLabelText('Community'), {
@@ -173,12 +215,16 @@ describe('IncidentCard', () => {
     render(
       <IncidentCard
         incident={incident}
-        missing={[{ path: 'incidents[0].event_date', message: 'Date of the incident' }]}
+        missing={[
+          { path: 'incidents[0].event_date', message: 'Date of the incident' },
+        ]}
         onEdit={vi.fn()}
         onRemove={vi.fn()}
       />,
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Date of the incident' }))
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Date of the incident' }),
+    )
     expect(screen.getByLabelText('Date')).not.toBeNull()
   })
 
@@ -187,14 +233,19 @@ describe('IncidentCard', () => {
       <IncidentCard
         incident={incident}
         missing={[
-          { path: 'incidents[0].casualties', message: 'Whether injuries or deaths occurred' },
+          {
+            path: 'incidents[0].casualties',
+            message: 'Whether injuries or deaths occurred',
+          },
         ]}
         onEdit={vi.fn()}
         onRemove={vi.fn()}
       />,
     )
     fireEvent.click(
-      screen.getByRole('button', { name: 'Whether injuries or deaths occurred' }),
+      screen.getByRole('button', {
+        name: 'Whether injuries or deaths occurred',
+      }),
     )
     expect(screen.getByLabelText('Injuries count')).not.toBeNull()
   })
@@ -202,21 +253,33 @@ describe('IncidentCard', () => {
   it('does not call onEdit when the officer opens and saves with no changes', async () => {
     const onEdit = vi.fn()
     render(
-      <IncidentCard incident={incident} missing={[]} onEdit={onEdit} onRemove={vi.fn()} />,
+      <IncidentCard
+        incident={incident}
+        missing={[]}
+        onEdit={onEdit}
+        onRemove={vi.fn()}
+      />,
     )
     fireEvent.click(screen.getByRole('button', { name: /edit/i }))
     fireEvent.click(screen.getByRole('button', { name: /save/i }))
 
     // The card closes (the edit form unmounts) once the submit resolves,
     // which is the deterministic signal that the async save handler ran.
-    await waitFor(() => expect(screen.queryByRole('button', { name: /cancel/i })).toBeNull())
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /cancel/i })).toBeNull(),
+    )
     expect(onEdit).not.toHaveBeenCalled()
   })
 
   it('does not read an empty text input as a change from null', async () => {
     const onEdit = vi.fn()
     render(
-      <IncidentCard incident={incident} missing={[]} onEdit={onEdit} onRemove={vi.fn()} />,
+      <IncidentCard
+        incident={incident}
+        missing={[]}
+        onEdit={onEdit}
+        onRemove={vi.fn()}
+      />,
     )
     fireEvent.click(screen.getByRole('button', { name: /edit/i }))
     // Street is null on the incident and starts as an empty input; touching
@@ -224,14 +287,21 @@ describe('IncidentCard', () => {
     fireEvent.change(screen.getByLabelText('Street'), { target: { value: '' } })
     fireEvent.click(screen.getByRole('button', { name: /save/i }))
 
-    await waitFor(() => expect(screen.queryByRole('button', { name: /cancel/i })).toBeNull())
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /cancel/i })).toBeNull(),
+    )
     expect(onEdit).not.toHaveBeenCalled()
   })
 
   it('calls onRemove when Remove is clicked', () => {
     const onRemove = vi.fn()
     render(
-      <IncidentCard incident={incident} missing={[]} onEdit={vi.fn()} onRemove={onRemove} />,
+      <IncidentCard
+        incident={incident}
+        missing={[]}
+        onEdit={vi.fn()}
+        onRemove={onRemove}
+      />,
     )
     fireEvent.click(screen.getByRole('button', { name: 'Remove' }))
     expect(onRemove).toHaveBeenCalled()
@@ -243,19 +313,31 @@ describe('IncidentCard', () => {
     // edited on save, permanently pinning 'other' as a manual value.
     const onEdit = vi.fn()
     render(
-      <IncidentCard incident={bareIncident} missing={[]} onEdit={onEdit} onRemove={vi.fn()} />,
+      <IncidentCard
+        incident={bareIncident}
+        missing={[]}
+        onEdit={onEdit}
+        onRemove={vi.fn()}
+      />,
     )
     fireEvent.click(screen.getByRole('button', { name: /edit/i }))
     fireEvent.click(screen.getByRole('button', { name: /save/i }))
 
-    await waitFor(() => expect(screen.queryByRole('button', { name: /cancel/i })).toBeNull())
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /cancel/i })).toBeNull(),
+    )
     expect(onEdit).not.toHaveBeenCalled()
   })
 
   it('does not call onEdit when a field is typed into and cleared back to empty', async () => {
     const onEdit = vi.fn()
     render(
-      <IncidentCard incident={bareIncident} missing={[]} onEdit={onEdit} onRemove={vi.fn()} />,
+      <IncidentCard
+        incident={bareIncident}
+        missing={[]}
+        onEdit={onEdit}
+        onRemove={vi.fn()}
+      />,
     )
     fireEvent.click(screen.getByRole('button', { name: /edit/i }))
     const community = screen.getByLabelText('Community')
@@ -263,7 +345,9 @@ describe('IncidentCard', () => {
     fireEvent.change(community, { target: { value: '' } })
     fireEvent.click(screen.getByRole('button', { name: /save/i }))
 
-    await waitFor(() => expect(screen.queryByRole('button', { name: /cancel/i })).toBeNull())
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /cancel/i })).toBeNull(),
+    )
     expect(onEdit).not.toHaveBeenCalled()
   })
 
@@ -274,10 +358,17 @@ describe('IncidentCard', () => {
     // editing one field doesn't disturb incident_type.
     const onEdit = vi.fn()
     render(
-      <IncidentCard incident={incident} missing={[]} onEdit={onEdit} onRemove={vi.fn()} />,
+      <IncidentCard
+        incident={incident}
+        missing={[]}
+        onEdit={onEdit}
+        onRemove={vi.fn()}
+      />,
     )
     fireEvent.click(screen.getByRole('button', { name: /edit/i }))
-    fireEvent.change(screen.getByLabelText('Street'), { target: { value: 'Main Road' } })
+    fireEvent.change(screen.getByLabelText('Street'), {
+      target: { value: 'Main Road' },
+    })
     fireEvent.click(screen.getByRole('button', { name: /save/i }))
 
     await waitFor(() => expect(onEdit).toHaveBeenCalled())
@@ -298,5 +389,112 @@ describe('IncidentCard', () => {
     )
     expect(screen.queryByRole('button', { name: /edit/i })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Remove' })).toBeNull()
+  })
+})
+
+describe('IncidentEditForm under a live chat turn', () => {
+  it('keeps a chat-extracted value the officer never touched', async () => {
+    // TanStack Form snapshots defaultValues at mount and stops re-applying
+    // them the moment any one field is touched. So an officer typing a street
+    // froze the other six fields at their mount values, and saving wrote those
+    // stale values back over whatever the chat turn had extracted.
+    const onEdit = vi.fn()
+    const { rerender } = render(
+      <IncidentCard
+        incident={incident}
+        missing={[]}
+        onEdit={onEdit}
+        onRemove={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /edit/i }))
+    fireEvent.change(screen.getByLabelText('Street'), {
+      target: { value: 'Main Road' },
+    })
+
+    // A chat turn lands while the form is open, extracting the casualties.
+    rerender(
+      <IncidentCard
+        incident={{ ...incident, injuries_occurred: true, injuries_count: 3 }}
+        missing={[]}
+        onEdit={onEdit}
+        onRemove={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /save/i }))
+    await waitFor(() => expect(onEdit).toHaveBeenCalled())
+
+    const [next, paths] = onEdit.mock.calls[0] as [CaptureIncident, string[]]
+    expect(next.injuries_count).toBe(3)
+    expect(next.injuries_occurred).toBe(true)
+    expect(next.street).toBe('Main Road')
+    // And only the officer's own edit is pinned as manual -- reporting the
+    // extracted figure here would mark a number they never typed as confirmed.
+    expect(paths).toStrictEqual(['incident:1.street'])
+  })
+
+  it('shows the chat-extracted value in the open form', async () => {
+    const { rerender } = render(
+      <IncidentCard
+        incident={incident}
+        missing={[]}
+        onEdit={vi.fn()}
+        onRemove={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /edit/i }))
+    fireEvent.change(screen.getByLabelText('Street'), {
+      target: { value: 'Main Road' },
+    })
+
+    rerender(
+      <IncidentCard
+        incident={{ ...incident, injuries_occurred: true, injuries_count: 3 }}
+        missing={[]}
+        onEdit={vi.fn()}
+        onRemove={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(
+        (screen.getByLabelText('Injuries count') as HTMLInputElement).value,
+      ).toBe('3'),
+    )
+  })
+
+  it('lets the officer win when the chat turn touches the same field', async () => {
+    const onEdit = vi.fn()
+    const { rerender } = render(
+      <IncidentCard
+        incident={incident}
+        missing={[]}
+        onEdit={onEdit}
+        onRemove={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /edit/i }))
+    fireEvent.change(screen.getByLabelText('Community'), {
+      target: { value: 'Diego Martin' },
+    })
+
+    rerender(
+      <IncidentCard
+        incident={{ ...incident, community: 'Carenage' }}
+        missing={[]}
+        onEdit={onEdit}
+        onRemove={vi.fn()}
+      />,
+    )
+
+    expect((screen.getByLabelText('Community') as HTMLInputElement).value).toBe(
+      'Diego Martin',
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /save/i }))
+    await waitFor(() => expect(onEdit).toHaveBeenCalled())
+    const [next] = onEdit.mock.calls[0] as [CaptureIncident, string[]]
+    expect(next.community).toBe('Diego Martin')
   })
 })

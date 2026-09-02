@@ -6,6 +6,7 @@ import {
 } from '@/components/shared'
 import { templateQueries } from '@/lib/queries/templates'
 import { Button } from '@/components/ui/button'
+import { formatWhen } from '@/lib/format-when'
 import { useQuery } from '@tanstack/react-query'
 
 export const Route = createFileRoute('/dmu/admin/templates/$name/')({
@@ -62,7 +63,7 @@ function TemplateHistoryPage() {
                   <p className="font-medium">{version.title}</p>
                   <p className="text-sm text-muted-foreground">
                     v{version.version} ·{' '}
-                    {new Date(version.created_at).toLocaleString()}
+                    {formatWhen(version.created_at)}
                   </p>
                 </div>
                 <span className="text-sm text-muted-foreground">View</span>

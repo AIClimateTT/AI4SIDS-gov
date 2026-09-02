@@ -25,6 +25,7 @@ import {
 import { submissionQueries, eventQueries } from '@/lib/queries/submissions'
 import { CORPORATION_LABELS, isCanonicalCorporation } from '@/lib/corporations'
 import { formatConstant } from '@/lib/format-constant'
+import { formatDay, formatWhen } from '@/lib/format-when'
 
 export const Route = createFileRoute('/dmu/corporations/$corporation')({
   component: CorporationPage,
@@ -156,7 +157,7 @@ function CorporationPage() {
               <StatCard
                 label="Current alert level"
                 value={formatConstant(rows[0].alert_level)}
-                hint={`As at ${new Date(rows[0].as_at).toLocaleString()}`}
+                hint={`As at ${formatWhen(rows[0].as_at)}`}
               />
               <StatCard
                 label="Submissions"
@@ -205,7 +206,7 @@ function CorporationPage() {
                           {row.sequence_no}
                         </TableCell>
                         <TableCell>
-                          {new Date(row.as_at).toLocaleString()}
+                          {formatWhen(row.as_at)}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {row.event_title ?? (
@@ -252,11 +253,11 @@ function CorporationPage() {
                     <TableCell className="font-medium">{event.title}</TableCell>
                     <TableCell>{formatConstant(event.hazard_type)}</TableCell>
                     <TableCell className="text-muted-foreground">
-                      {new Date(event.started_at).toLocaleDateString()}
+                      {formatDay(event.started_at)}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {event.ended_at ? (
-                        new Date(event.ended_at).toLocaleDateString()
+                        formatDay(event.ended_at)
                       ) : (
                         <span className="italic">Still running</span>
                       )}

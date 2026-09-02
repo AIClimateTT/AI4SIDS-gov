@@ -20,6 +20,7 @@ import { SubmissionResult } from '@/components/submissions/submission-result'
 import { useAppForm } from '@/hooks/form'
 import { CORPORATION_OPTIONS } from '@/lib/corporations'
 import { isReportJobPending, reportQueries } from '@/lib/queries/reports'
+import { formatWhen } from '@/lib/format-when'
 import {
   useAdjustWhatsAppDraft,
   useExtractWhatsApp,
@@ -137,7 +138,7 @@ function UploadView({ onOpened }: { onOpened: (id: number) => void }) {
                     <span className="text-sm font-medium">{item.filename}</span>
                     <span className="text-xs text-muted-foreground">
                       {item.incident_count} incidents · {item.log_count} logs ·{' '}
-                      {new Date(item.updated_at).toLocaleString()}
+                      {formatWhen(item.updated_at)}
                     </span>
                   </span>
                 </Button>

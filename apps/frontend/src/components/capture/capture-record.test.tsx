@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import type { ReactElement } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -72,22 +78,30 @@ const session: CaptureSession = {
 describe('CaptureRecord', () => {
   it('saves an incident edit immediately with its manual path recorded', async () => {
     const onSave = vi.fn()
-    renderRecord(<CaptureRecord session={session} onSave={onSave} onReview={vi.fn()} />)
+    renderRecord(
+      <CaptureRecord session={session} onSave={onSave} onReview={vi.fn()} />,
+    )
 
     fireEvent.click(screen.getByRole('button', { name: /edit/i }))
-    fireEvent.change(screen.getByLabelText('Injuries count'), { target: { value: '4' } })
+    fireEvent.change(screen.getByLabelText('Injuries count'), {
+      target: { value: '4' },
+    })
     fireEvent.click(screen.getByRole('button', { name: /save/i }))
 
     await waitFor(() =>
       expect(onSave).toHaveBeenCalledWith(
-        expect.objectContaining({ manual_fields: ['incident:1.injuries_count'] }),
+        expect.objectContaining({
+          manual_fields: ['incident:1.injuries_count'],
+        }),
       ),
     )
   })
 
   it('offers review without repeating the incident count in the footer', () => {
     const onReview = vi.fn()
-    renderRecord(<CaptureRecord session={session} onSave={vi.fn()} onReview={onReview} />)
+    renderRecord(
+      <CaptureRecord session={session} onSave={vi.fn()} onReview={onReview} />,
+    )
     expect(screen.queryByText(/details needed/)).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: /review & file/i }))
     expect(onReview).toHaveBeenCalled()
@@ -96,10 +110,12 @@ describe('CaptureRecord', () => {
   it('shows empty placeholders for overview and present activity', () => {
     renderRecord(<CaptureRecord session={session} onSave={vi.fn()} />)
     expect(
-      (screen.getByLabelText('Situation overview') as HTMLTextAreaElement).placeholder,
+      (screen.getByLabelText('Situation overview') as HTMLTextAreaElement)
+        .placeholder,
     ).toMatch(/Add a situation overview/)
     expect(
-      (screen.getByLabelText('Present activity') as HTMLTextAreaElement).placeholder,
+      (screen.getByLabelText('Present activity') as HTMLTextAreaElement)
+        .placeholder,
     ).toMatch(/What is happening now/)
   })
 
@@ -107,7 +123,9 @@ describe('CaptureRecord', () => {
     const onSave = vi.fn()
     renderRecord(<CaptureRecord session={session} onSave={onSave} />)
     const field = screen.getByLabelText('Situation overview')
-    fireEvent.change(field, { target: { value: 'River overtopped overnight.' } })
+    fireEvent.change(field, {
+      target: { value: 'River overtopped overnight.' },
+    })
     fireEvent.blur(field)
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -121,7 +139,9 @@ describe('CaptureRecord', () => {
     const onSave = vi.fn()
     renderRecord(<CaptureRecord session={session} onSave={onSave} />)
     const field = screen.getByLabelText('Present activity')
-    fireEvent.change(field, { target: { value: 'Shelter open at the centre.' } })
+    fireEvent.change(field, {
+      target: { value: 'Shelter open at the centre.' },
+    })
     fireEvent.blur(field)
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -138,12 +158,14 @@ describe('CaptureRecord', () => {
 
   it('does not let a filed session edit situation prose', () => {
     renderRecord(<CaptureRecord session={session} onSave={vi.fn()} disabled />)
-    expect((screen.getByLabelText('Situation overview') as HTMLTextAreaElement).disabled).toBe(
-      true,
-    )
-    expect((screen.getByLabelText('Present activity') as HTMLTextAreaElement).disabled).toBe(
-      true,
-    )
+    expect(
+      (screen.getByLabelText('Situation overview') as HTMLTextAreaElement)
+        .disabled,
+    ).toBe(true)
+    expect(
+      (screen.getByLabelText('Present activity') as HTMLTextAreaElement)
+        .disabled,
+    ).toBe(true)
   })
 
   it('does not render a separate still-needed list', () => {
@@ -151,14 +173,21 @@ describe('CaptureRecord', () => {
       <CaptureRecord
         session={{
           ...session,
-          missing: [{ path: 'incidents[0].event_date', message: 'Date of the incident' }],
+          missing: [
+            {
+              path: 'incidents[0].event_date',
+              message: 'Date of the incident',
+            },
+          ],
         }}
         onSave={vi.fn()}
         onReview={vi.fn()}
       />,
     )
     expect(screen.queryByText('Still needed')).toBeNull()
-    expect(screen.getByRole('button', { name: 'Date of the incident' })).not.toBeNull()
+    expect(
+      screen.getByRole('button', { name: 'Date of the incident' }),
+    ).not.toBeNull()
   })
 
   it('removes a situation log by row_id, not by its position in the list', () => {
@@ -199,7 +228,9 @@ describe('CaptureRecord', () => {
     fireEvent.click(removeButtons[1])
 
     const payload = onSave.mock.calls[0][0]
-    expect(payload.logs.map((log: { row_id: string }) => log.row_id)).toEqual(['7'])
+    expect(payload.logs.map((log: { row_id: string }) => log.row_id)).toEqual([
+      '7',
+    ])
   })
 
   it('filters missing-field chips to the incident at the matching array index', () => {
@@ -215,7 +246,12 @@ describe('CaptureRecord', () => {
               incident_summary: 'Second incident',
             },
           ],
-          missing: [{ path: 'incidents[1].event_date', message: 'Date of the incident' }],
+          missing: [
+            {
+              path: 'incidents[1].event_date',
+              message: 'Date of the incident',
+            },
+          ],
         }}
         onSave={vi.fn()}
         onReview={vi.fn()}
@@ -223,6 +259,108 @@ describe('CaptureRecord', () => {
     )
 
     // Only the second incident's card should offer the missing-field chip.
-    expect(screen.getAllByRole('button', { name: 'Date of the incident' }).length).toBe(1)
+    expect(
+      screen.getAllByRole('button', { name: 'Date of the incident' }).length,
+    ).toBe(1)
+  })
+})
+
+describe('CaptureRecord situation fields under a live chat turn', () => {
+  it('does not overwrite the officer mid-sentence when a chat turn extracts an overview', () => {
+    // The edit loss this reproduces: every chat turn saves and refetches the
+    // session, so the `value` prop changes under a field the officer may have
+    // their cursor in. Adopting it unconditionally erased their typing.
+    const { rerender } = renderRecord(
+      <CaptureRecord session={session} onSave={vi.fn()} onReview={vi.fn()} />,
+    )
+
+    const field = screen.getByLabelText('Situation overview')
+    fireEvent.focus(field)
+    fireEvent.change(field, { target: { value: 'Riverbank overtopped at' } })
+
+    rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <CaptureRecord
+          session={{
+            ...session,
+            situation_overview: 'Extracted by the assistant',
+          }}
+          onSave={vi.fn()}
+          onReview={vi.fn()}
+        />
+      </QueryClientProvider>,
+    )
+
+    expect((field as HTMLTextAreaElement).value).toBe('Riverbank overtopped at')
+  })
+
+  it('still adopts an extracted overview into a field nobody is holding', () => {
+    // The other half of the contract: chat extraction has to keep landing, or
+    // the officer never sees what the assistant pulled out of their message.
+    const { rerender } = renderRecord(
+      <CaptureRecord session={session} onSave={vi.fn()} onReview={vi.fn()} />,
+    )
+
+    rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <CaptureRecord
+          session={{
+            ...session,
+            situation_overview: 'Extracted by the assistant',
+          }}
+          onSave={vi.fn()}
+          onReview={vi.fn()}
+        />
+      </QueryClientProvider>,
+    )
+
+    expect(
+      (screen.getByLabelText('Situation overview') as HTMLTextAreaElement)
+        .value,
+    ).toBe('Extracted by the assistant')
+  })
+
+  it('follows the server again once the officer leaves the field', () => {
+    const { rerender } = renderRecord(
+      <CaptureRecord session={session} onSave={vi.fn()} onReview={vi.fn()} />,
+    )
+
+    const field = screen.getByLabelText('Present activity')
+    fireEvent.focus(field)
+    fireEvent.change(field, { target: { value: 'Crews deploying' } })
+    fireEvent.blur(field)
+
+    rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <CaptureRecord
+          session={{
+            ...session,
+            present_activity: 'Crews deployed to Petit Valley',
+          }}
+          onSave={vi.fn()}
+          onReview={vi.fn()}
+        />
+      </QueryClientProvider>,
+    )
+
+    expect((field as HTMLTextAreaElement).value).toBe(
+      'Crews deployed to Petit Valley',
+    )
+  })
+
+  it('commits on blur only when the text actually changed', () => {
+    const onSave = vi.fn()
+    renderRecord(
+      <CaptureRecord
+        session={{ ...session, situation_overview: 'Unchanged' }}
+        onSave={onSave}
+        onReview={vi.fn()}
+      />,
+    )
+
+    const field = screen.getByLabelText('Situation overview')
+    fireEvent.focus(field)
+    fireEvent.blur(field)
+    expect(onSave).not.toHaveBeenCalled()
   })
 })

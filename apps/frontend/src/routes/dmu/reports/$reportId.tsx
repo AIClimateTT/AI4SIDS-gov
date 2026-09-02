@@ -17,6 +17,7 @@ import {
 } from '@/components/reports'
 import { reportQueries } from '@/lib/queries/reports'
 import { formatConstant } from '@/lib/format-constant'
+import { formatWhen } from '@/lib/format-when'
 
 export const Route = createFileRoute('/dmu/reports/$reportId')({
   component: ReportDetailPage,
@@ -65,7 +66,7 @@ function ReportDetailPage() {
               {data.template} v{data.template_version}
             </span>
             <span className="text-sm text-muted-foreground">
-              {new Date(data.created_at).toLocaleString()}
+              {formatWhen(data.created_at)}
             </span>
           </div>
 
