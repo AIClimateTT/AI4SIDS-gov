@@ -8,6 +8,11 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { citationAnchorId } from '@/components/reports/citation-utils'
+import {
+  SourceBadge,
+  sourceEdgeClass,
+  sourceOf,
+} from '@/components/shared/source-badge'
 import { cn } from '@/lib/utils'
 import type { Fact, FactTable } from '@/types/dmcu'
 
@@ -21,7 +26,10 @@ function formatValue(fact: Fact): string {
   return `${fact.value}${unit}`
 }
 
-export function ReportFactTable({ factTable, className }: ReportFactTableProps) {
+export function ReportFactTable({
+  factTable,
+  className,
+}: ReportFactTableProps) {
   const facts = factTable.facts ?? []
 
   if (facts.length === 0) {
@@ -30,13 +38,33 @@ export function ReportFactTable({ factTable, className }: ReportFactTableProps) 
     )
   }
 
+  const hasBothSources =
+    facts.some((f) => sourceOf(f.citation.module) === 'sitreps') &&
+    facts.some((f) => sourceOf(f.citation.module) === 'survey123')
+
   return (
     <div className={cn('space-y-4', className)}>
+      {/* Shown only when both sources are present, which is when the distinction
+          is load-bearing - a single-source report needs no key. */}
+      {hasBothSources ? (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <SourceBadge module="sitreps" />
+            corporations&rsquo; signed-off figures
+          </span>
+          <span className="flex items-center gap-1.5">
+            <SourceBadge module="survey123" />
+            unverified field observation
+          </span>
+        </div>
+      ) : null}
+
       <div className="overflow-x-auto rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="w-[72px]">CID</TableHead>
+              <TableHead className="w-[84px]">Source</TableHead>
               <TableHead>Metric</TableHead>
               <TableHead>Value</TableHead>
               <TableHead>Verification</TableHead>
@@ -54,8 +82,22 @@ export function ReportFactTable({ factTable, className }: ReportFactTableProps) 
                   id={citationAnchorId(cid)}
                   className="scroll-mt-24 transition-colors"
                 >
-                  <TableCell className="font-mono text-xs font-medium">
+                  {/* The leading edge carries the source, and it lives on the
+                      first cell rather than the row. The table sets
+                      border-collapse: collapse, where a border declared on a
+                      <tr> collapses against the cell grid and paints behind the
+                      first cell — measured at zero visual width. Cell borders
+                      resolve predictably against the table edge. */}
+                  <TableCell
+                    className={cn(
+                      'border-l-4 font-mono text-xs font-medium',
+                      sourceEdgeClass(fact.citation.module),
+                    )}
+                  >
                     {cid}
+                  </TableCell>
+                  <TableCell>
+                    <SourceBadge module={fact.citation.module} />
                   </TableCell>
                   <TableCell className="font-medium">{fact.metric}</TableCell>
                   <TableCell className="tabular-nums">
@@ -86,12 +128,16 @@ export function ReportFactTable({ factTable, className }: ReportFactTableProps) 
             return (
               <div
                 key={`${fact.citation.cid}-breakdown`}
-                className="rounded-lg border p-3"
+                className={cn(
+                  'rounded-lg border border-l-4 p-3',
+                  sourceEdgeClass(fact.citation.module),
+                )}
               >
-                <p className="mb-2 text-sm font-medium">
+                <p className="mb-2 flex flex-wrap items-center gap-2 text-sm font-medium">
                   <span className="font-mono text-xs text-primary">
                     {fact.citation.cid}
-                  </span>{' '}
+                  </span>
+                  <SourceBadge module={fact.citation.module} />
                   {fact.metric}
                 </p>
                 <dl className="grid gap-1 text-sm sm:grid-cols-2">

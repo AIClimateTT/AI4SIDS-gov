@@ -1,9 +1,13 @@
-import { Link, Navigate, createFileRoute } from '@tanstack/react-router'
+import { Navigate, createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 
 import { CorpRoleNotice } from '@/components/identity/corp-role-notice'
-import { EmptyState, LoadingBlock, PageHeader } from '@/components/shared'
-import { Button } from '@/components/ui/button'
+import {
+  ButtonLink,
+  EmptyState,
+  LoadingBlock,
+  PageHeader,
+} from '@/components/shared'
 import { useIdentity } from '@/hooks/use-identity'
 import { captureQueries } from '@/lib/queries/capture'
 import { submissionQueries } from '@/lib/queries/submissions'
@@ -37,9 +41,9 @@ function FilingRedirect({ corporation }: { corporation: string }) {
         <PageHeader
           title="Situation report"
           actions={
-            <Button variant="outline" render={<Link to="/corp" />}>
+            <ButtonLink variant="outline" to="/corp">
               Back to home
-            </Button>
+            </ButtonLink>
           }
         />
         <EmptyState

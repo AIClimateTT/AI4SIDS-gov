@@ -32,7 +32,9 @@ describe('deriveWhoReported', () => {
 
   it('uses the display label from CORPORATION_LABELS', () => {
     const rows = deriveWhoReported([])
-    const arima = rows.find((row) => row.corporation === 'arima_borough_corporation')
+    const arima = rows.find(
+      (row) => row.corporation === 'arima_borough_corporation',
+    )
 
     expect(arima?.label).toBe(CORPORATION_LABELS.arima_borough_corporation)
   })
@@ -52,7 +54,9 @@ describe('deriveWhoReported', () => {
     })
 
     const rows = deriveWhoReported([late, early])
-    const arima = rows.find((row) => row.corporation === 'arima_borough_corporation')
+    const arima = rows.find(
+      (row) => row.corporation === 'arima_borough_corporation',
+    )
     expect(arima?.latest?.id).toBe(2)
 
     const rowsReversed = deriveWhoReported([early, late])
@@ -77,5 +81,66 @@ describe('deriveWhoReported', () => {
   it('preserves canonical order within the unreported group', () => {
     const rows = deriveWhoReported([])
     expect(rows.map((row) => row.corporation)).toEqual(CANONICAL_CORPORATIONS)
+  })
+
+  it('sorts the most severe alert level first', () => {
+    // The reason this ordering exists: an officer opening the console during an
+    // event is answering "where is it worst", and should not read fourteen rows
+    // to find out.
+    const rows = deriveWhoReported([
+      submission({
+        id: 1,
+        corporation: 'arima_borough_corporation',
+        alert_level: 'green',
+      }),
+      submission({
+        id: 2,
+        corporation: 'siparia_regional_corporation',
+        alert_level: 'red',
+      }),
+      submission({
+        id: 3,
+        corporation: 'chaguanas_borough_corporation',
+        alert_level: 'yellow',
+      }),
+    ])
+
+    expect(rows.slice(0, 3).map((row) => row.latest?.alert_level)).toEqual([
+      'red',
+      'yellow',
+      'green',
+    ])
+  })
+
+  it('keeps a stood-down corporation above one that was never affected', () => {
+    const rows = deriveWhoReported([
+      submission({
+        id: 1,
+        corporation: 'arima_borough_corporation',
+        alert_level: 'green',
+      }),
+      submission({
+        id: 2,
+        corporation: 'siparia_regional_corporation',
+        alert_level: 'discontinued',
+      }),
+    ])
+
+    expect(rows[0].corporation).toBe('siparia_regional_corporation')
+  })
+
+  it('keeps corporations that filed above every unreported one, whatever the level', () => {
+    // A green filing still outranks silence: "nothing to report" is an answer,
+    // and a blank row is a gap to chase.
+    const rows = deriveWhoReported([
+      submission({
+        id: 1,
+        corporation: 'arima_borough_corporation',
+        alert_level: 'green',
+      }),
+    ])
+
+    expect(rows[0].corporation).toBe('arima_borough_corporation')
+    expect(rows.slice(1).every((row) => row.latest === null)).toBe(true)
   })
 })

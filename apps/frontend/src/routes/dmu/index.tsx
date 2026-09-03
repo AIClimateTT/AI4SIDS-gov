@@ -3,14 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { FileTextIcon, UploadIcon } from 'lucide-react'
 
-import { Button } from '@/components/ui/button'
-import {
-  EmptyState,
-  LoadingBlock,
-  PageHeader,
-  StatCard,
-  StatusBadge,
-} from '@/components/shared'
+import { AlertLevelBadge, ButtonLink, EmptyState, LoadingBlock, NeedsReviewBand, PageHeader, StatCard, StatusBadge } from '@/components/shared'
 import {
   Table,
   TableBody,
@@ -23,10 +16,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ContentCard } from '@/components/shared/content-card'
 import { RoleMismatchNotice } from '@/components/identity/role-mismatch-notice'
-import { formatConstant } from '@/lib/format-constant'
 import { overviewQueries } from '@/lib/queries/overview'
 import { submissionQueries } from '@/lib/queries/submissions'
 import { deriveWhoReported } from '@/lib/who-reported'
+import { formatWhen } from '@/lib/format-when'
 
 export const Route = createFileRoute('/dmu/')({ component: OverviewPage })
 
@@ -42,7 +35,9 @@ function defaultWindow(): { from: string; to: string } {
 }
 
 function OverviewPage() {
-  const { data, isPending, isError, error } = useQuery(overviewQueries.summary())
+  const { data, isPending, isError, error } = useQuery(
+    overviewQueries.summary(),
+  )
 
   return (
     <div className="space-y-6">
@@ -51,14 +46,14 @@ function OverviewPage() {
         description="Status of ingested incident data and recent cited briefings."
         actions={
           <>
-            <Button variant="outline" render={<Link to="/dmu/field-data" />}>
+            <ButtonLink variant="outline" to="/dmu/field-data">
               <UploadIcon />
               Field data
-            </Button>
-            <Button render={<Link to="/dmu/reports/new" />}>
+            </ButtonLink>
+            <ButtonLink to="/dmu/reports/new">
               <FileTextIcon />
               Generate report
-            </Button>
+            </ButtonLink>
           </>
         }
       />
@@ -76,6 +71,8 @@ function OverviewPage() {
 
       {data ? (
         <>
+          <NeedsReviewBand count={data.needs_review_count} />
+
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard
               label="Survey123 incidents"
@@ -87,10 +84,14 @@ function OverviewPage() {
               value={data.incident_count_sitreps}
               hint="Corporation situation reports"
             />
+            {/* The needs-review count deliberately does not appear here. It is
+                the one number on this screen that asks for action, and a
+                sub-label on a card is where it goes to be skimmed past — the
+                band above owns it. */}
             <StatCard
               label="Reports"
               value={data.report_count}
-              hint={`${data.needs_review_count} need review`}
+              hint="Generated briefings"
             />
             <StatCard
               label="API"
@@ -103,9 +104,9 @@ function OverviewPage() {
             title="Recent reports"
             description="Latest generated briefings"
             action={
-              <Button variant="outline" size="sm" render={<Link to="/dmu/reports" />}>
+              <ButtonLink variant="outline" size="sm" to="/dmu/reports">
                 View all
-              </Button>
+              </ButtonLink>
             }
           >
             {data.recent_reports.length === 0 ? (
@@ -142,21 +143,17 @@ function OverviewPage() {
                           .join(', ')}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {new Date(report.created_at).toLocaleString()}
+                        {formatWhen(report.created_at)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
+                        <ButtonLink
                           variant="ghost"
                           size="sm"
-                          render={
-                            <Link
-                              to="/dmu/reports/$reportId"
-                              params={{ reportId: report.id }}
-                            />
-                          }
+                          to="/dmu/reports/$reportId"
+                          params={{ reportId: report.id }}
                         >
                           Open
-                        </Button>
+                        </ButtonLink>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -240,13 +237,26 @@ function WhoHasReportedCard() {
           <TableBody>
             {rows.map((row) => (
               <TableRow key={row.corporation}>
-                <TableCell className="font-medium">{row.label}</TableCell>
+                <TableCell className="font-medium">
+                  {/* A real link, not an onClick on the row: keyboard and
+                      assistive-technology users get the same navigation, and
+                      the target is visible on hover. */}
+                  <Link
+                    to="/dmu/corporations/$corporation"
+                    params={{ corporation: row.corporation }}
+                    className="underline-offset-4 hover:underline"
+                  >
+                    {row.label}
+                  </Link>
+                </TableCell>
                 {row.latest ? (
                   <>
                     <TableCell>
-                      {new Date(row.latest.as_at).toLocaleString()}
+                      {formatWhen(row.latest.as_at)}
                     </TableCell>
-                    <TableCell>{formatConstant(row.latest.alert_level)}</TableCell>
+                    <TableCell>
+                      <AlertLevelBadge level={row.latest.alert_level} />
+                    </TableCell>
                     <TableCell>{row.latest.incident_count}</TableCell>
                     <TableCell>{row.latest.log_count}</TableCell>
                   </>

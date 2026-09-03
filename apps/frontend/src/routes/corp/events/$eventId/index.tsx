@@ -3,17 +3,21 @@ import { useQuery } from '@tanstack/react-query'
 import { MessageSquareIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { EmptyState, LoadingBlock, PageHeader } from '@/components/shared'
+import {
+  AlertLevelBadge,
+  ButtonLink,
+  EmptyState,
+  LoadingBlock,
+  PageHeader,
+} from '@/components/shared'
 import { ContentCard } from '@/components/shared/content-card'
 import { CorpRoleNotice } from '@/components/identity/corp-role-notice'
 import { Badge } from '@/components/ui/badge'
 import { useIdentity } from '@/hooks/use-identity'
 import type { Identity } from '@/lib/identity'
 import { formatConstant } from '@/lib/format-constant'
-import {
-  captureQueries,
-  useCreateCaptureSession,
-} from '@/lib/queries/capture'
+import { formatDay, formatWhen } from '@/lib/format-when'
+import { captureQueries, useCreateCaptureSession } from '@/lib/queries/capture'
 import { eventQueries, submissionQueries } from '@/lib/queries/submissions'
 import type { CaptureSession } from '@/types/dmcu'
 
@@ -47,7 +51,9 @@ function EventPageContent({ identity }: { identity: CorpIdentity }) {
     submissionQueries.list({ event_id: eventIdNum }),
   )
 
-  const event = eventsQuery.data?.find((candidate) => candidate.id === eventIdNum)
+  const event = eventsQuery.data?.find(
+    (candidate) => candidate.id === eventIdNum,
+  )
   const sessions = (sessionsQuery.data ?? [])
     .slice()
     .sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))
@@ -58,7 +64,9 @@ function EventPageContent({ identity }: { identity: CorpIdentity }) {
   const latest = latestDetailQuery.data
 
   const isPending =
-    eventsQuery.isPending || sessionsQuery.isPending || submissionsQuery.isPending
+    eventsQuery.isPending ||
+    sessionsQuery.isPending ||
+    submissionsQuery.isPending
   const isError = eventsQuery.isError || sessionsQuery.isError
   const error = eventsQuery.error ?? sessionsQuery.error
 
@@ -68,9 +76,9 @@ function EventPageContent({ identity }: { identity: CorpIdentity }) {
         <PageHeader
           title={event?.title ?? 'Event'}
           actions={
-            <Button variant="outline" render={<Link to="/corp" />}>
+            <ButtonLink variant="outline" to="/corp">
               Back to home
-            </Button>
+            </ButtonLink>
           }
         />
         <EmptyState
@@ -87,16 +95,16 @@ function EventPageContent({ identity }: { identity: CorpIdentity }) {
         title={event?.title ?? 'Event'}
         description={
           event
-            ? `${formatConstant(event.hazard_type)} · started ${new Date(
+            ? `${formatConstant(event.hazard_type)} · started ${formatDay(
                 event.started_at,
-              ).toLocaleDateString()}`
+              )}`
             : undefined
         }
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" render={<Link to="/corp" />}>
+            <ButtonLink variant="outline" to="/corp">
               Back to home
-            </Button>
+            </ButtonLink>
             <StartSitrepButton
               corporation={identity.corporation}
               eventId={eventIdNum}
@@ -123,11 +131,13 @@ function EventPageContent({ identity }: { identity: CorpIdentity }) {
               </div>
               <div>
                 <dt className="text-muted-foreground">Alert level</dt>
-                <dd>{formatConstant(latest.alert_level)}</dd>
+                <dd>
+                  <AlertLevelBadge level={latest.alert_level} />
+                </dd>
               </div>
               <div>
                 <dt className="text-muted-foreground">As at</dt>
-                <dd>{new Date(latest.as_at).toLocaleString()}</dd>
+                <dd className="tabular-nums">{formatWhen(latest.as_at)}</dd>
               </div>
             </dl>
           ) : null}
@@ -203,13 +213,16 @@ function SitrepRow({ session }: { session: CaptureSession }) {
     >
       <ContentCard
         title={session.status === 'draft' ? 'Draft sitrep' : 'Filed sitrep'}
-        description={`Updated ${new Date(session.updated_at).toLocaleString()} · ${formatConstant(
-          session.alert_level,
-        )}`}
+        description={`Updated ${formatWhen(session.updated_at)}`}
         action={
-          <Badge variant={session.status === 'draft' ? 'outline' : 'secondary'}>
-            {session.status === 'draft' ? 'Draft' : 'Filed'}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <AlertLevelBadge level={session.alert_level} />
+            <Badge
+              variant={session.status === 'draft' ? 'outline' : 'secondary'}
+            >
+              {session.status === 'draft' ? 'Draft' : 'Filed'}
+            </Badge>
+          </div>
         }
       >
         <p className="text-sm text-muted-foreground">

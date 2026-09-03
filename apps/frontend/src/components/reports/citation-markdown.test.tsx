@@ -16,7 +16,9 @@ import { CitationMarkdown } from '@/components/reports/citation-markdown'
 describe('CitationMarkdown', () => {
   it('does not execute or render a model-authored script tag', () => {
     const { container } = render(
-      <CitationMarkdown markdown={'Incidents rose.\n\n<script>window.alert(1)</script>'} />,
+      <CitationMarkdown
+        markdown={'Incidents rose.\n\n<script>window.alert(1)</script>'}
+      />,
     )
 
     expect(container.querySelector('script')).toBeNull()
@@ -25,7 +27,9 @@ describe('CitationMarkdown', () => {
 
   it('strips an event-handler attribute from model-authored HTML', () => {
     const { container } = render(
-      <CitationMarkdown markdown={'<img src="x" onerror="window.alert(1)" />'} />,
+      <CitationMarkdown
+        markdown={'<img src="x" onerror="window.alert(1)" />'}
+      />,
     )
 
     expect(container.innerHTML).not.toContain('onerror')
@@ -64,5 +68,40 @@ describe('CitationMarkdown', () => {
     )
 
     expect(container.querySelector('button')?.textContent).toBe('C001')
+  })
+})
+
+describe('CitationMarkdown source identity', () => {
+  const markdown =
+    'Corporations reported 55 incidents [C001]. Field observation recorded 34 [C007].'
+
+  it('tints each marker by the source of the fact it cites', () => {
+    const { container } = render(
+      <CitationMarkdown
+        markdown={markdown}
+        sourceByCid={{ C001: 'sitreps', C007: 'survey123' }}
+      />,
+    )
+    expect(container.querySelector('[data-source="sitreps"]')).not.toBeNull()
+    expect(container.querySelector('[data-source="survey123"]')).not.toBeNull()
+  })
+
+  it('states the source in words on each marker', () => {
+    // Colour is redundant encoding. The marker is too small for a label, so the
+    // title carries it.
+    const { container } = render(
+      <CitationMarkdown
+        markdown={markdown}
+        sourceByCid={{ C001: 'sitreps' }}
+      />,
+    )
+    const marker = container.querySelector('[data-source="sitreps"]')
+    expect(marker?.getAttribute('title')).toContain('SITREP')
+  })
+
+  it('falls back to neutral markers when no map is supplied', () => {
+    const { container } = render(<CitationMarkdown markdown={markdown} />)
+    expect(container.querySelector('[data-source="other"]')).not.toBeNull()
+    expect(container.querySelector('[data-source="sitreps"]')).toBeNull()
   })
 })

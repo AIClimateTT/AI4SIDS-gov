@@ -1,14 +1,10 @@
-import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import {
-  EmptyState,
-  LoadingBlock,
-  PageHeader,
-} from '@/components/shared'
+import { ButtonLink, EmptyState, LoadingBlock, PageHeader } from '@/components/shared'
 import { ContentCard } from '@/components/shared/content-card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -120,12 +116,13 @@ function NewTemplateVersionPage() {
         title={`New version · ${name}`}
         description="Creates an immutable template version. Citation rules stay locked in the engine."
         actions={
-          <Button
+          <ButtonLink
             variant="outline"
-            render={<Link to="/dmu/admin/templates/$name" params={{ name }} />}
+            to="/dmu/admin/templates/$name"
+            params={{ name }}
           >
             Cancel
-          </Button>
+          </ButtonLink>
         }
       />
 

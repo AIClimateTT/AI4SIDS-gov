@@ -1,8 +1,9 @@
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
+import { useMemo } from 'react'
 
-import { Button } from '@/components/ui/button'
 import {
+  ButtonLink,
   EmptyState,
   LoadingBlock,
   PageHeader,
@@ -16,6 +17,7 @@ import {
 } from '@/components/reports'
 import { reportQueries } from '@/lib/queries/reports'
 import { formatConstant } from '@/lib/format-constant'
+import { formatWhen } from '@/lib/format-when'
 
 export const Route = createFileRoute('/dmu/reports/$reportId')({
   component: ReportDetailPage,
@@ -27,25 +29,33 @@ function ReportDetailPage() {
     reportQueries.detail(reportId),
   )
 
+  // cid → source module, so each citation marker in the narrative can be tinted
+  // by the authority of the fact behind it. Derived from the report's own
+  // stored fact table, which is why it needs no extra request.
+  const sourceByCid = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const fact of data?.fact_table.facts ?? []) {
+      map[fact.citation.cid] = fact.citation.module
+    }
+    return map
+  }, [data])
+
   return (
     <div className="space-y-6">
       <PageHeader
         title={data ? `Report ${data.id}` : 'Report'}
         description="Citation-checked briefing with linked fact table."
         actions={
-          <Button variant="outline" render={<Link to="/dmu/reports" />}>
+          <ButtonLink variant="outline" to="/dmu/reports">
             Back to reports
-          </Button>
+          </ButtonLink>
         }
       />
 
       {isPending ? <LoadingBlock rows={6} /> : null}
 
       {isError ? (
-        <EmptyState
-          title="Could not load report"
-          description={error.message}
-        />
+        <EmptyState title="Could not load report" description={error.message} />
       ) : null}
 
       {data ? (
@@ -56,7 +66,7 @@ function ReportDetailPage() {
               {data.template} v{data.template_version}
             </span>
             <span className="text-sm text-muted-foreground">
-              {new Date(data.created_at).toLocaleString()}
+              {formatWhen(data.created_at)}
             </span>
           </div>
 
@@ -112,6 +122,7 @@ function ReportDetailPage() {
                   <CitationMarkdown
                     markdown={data.markdown}
                     violations={data.violations}
+                    sourceByCid={sourceByCid}
                   />
                 </ContentCard>
                 <ContentCard

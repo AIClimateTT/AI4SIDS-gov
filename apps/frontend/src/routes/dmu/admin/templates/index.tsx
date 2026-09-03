@@ -1,12 +1,7 @@
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 
-import { Button } from '@/components/ui/button'
-import {
-  EmptyState,
-  LoadingBlock,
-  PageHeader,
-} from '@/components/shared'
+import { ButtonLink, EmptyState, LoadingBlock, PageHeader } from '@/components/shared'
 import { ContentCard } from '@/components/shared/content-card'
 import { Badge } from '@/components/ui/badge'
 import { templateQueries } from '@/lib/queries/templates'
@@ -48,21 +43,17 @@ function TemplatesPage() {
                     {template.name}
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    <Button
+                    <ButtonLink
                       size="sm"
                       variant="outline"
-                      render={
-                        <Link
-                          to="/dmu/admin/templates/$name"
-                          params={{ name: template.name }}
-                        />
-                      }
+                      to="/dmu/admin/templates/$name"
+                      params={{ name: template.name }}
                     >
                       Version history
-                    </Button>
-                    <Button size="sm" render={<Link to="/dmu/reports/new" />}>
+                    </ButtonLink>
+                    <ButtonLink size="sm" to="/dmu/reports/new">
                       Generate
-                    </Button>
+                    </ButtonLink>
                   </div>
                 </div>
               }

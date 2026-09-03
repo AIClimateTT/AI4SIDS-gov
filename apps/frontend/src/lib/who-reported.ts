@@ -1,5 +1,6 @@
 import { CANONICAL_CORPORATIONS, CORPORATION_LABELS } from '@/lib/corporations'
 import type { CanonicalCorporation } from '@/lib/corporations'
+import { alertSeverity } from '@/components/shared/alert-level-badge'
 import type { SubmissionSummary } from '@/types/dmcu'
 
 export type CorporationReportStatus = {
@@ -16,8 +17,8 @@ export type CorporationReportStatus = {
  * filed nothing in the window still gets a row instead of silently vanishing
  * — that's the whole point of a "who has reported" panel.
  *
- * Reported corporations sort before unreported ones; within each group the
- * canonical order is preserved.
+ * Reported corporations sort before unreported ones; within each group the most
+ * severe alert level comes first, and equal severities keep canonical order.
  */
 export function deriveWhoReported(
   submissions: SubmissionSummary[],
@@ -35,5 +36,23 @@ export function deriveWhoReported(
     corporation,
     label: CORPORATION_LABELS[corporation],
     latest: latestByCorporation.get(corporation) ?? null,
-  })).sort((a, b) => Number(b.latest !== null) - Number(a.latest !== null))
+  })).sort((a, b) => {
+    // Corporations that filed stay above those that did not, as before: a row
+    // reading "No reports at this time" is a gap to chase, not a severity.
+    const reported = Number(b.latest !== null) - Number(a.latest !== null)
+    if (reported !== 0) return reported
+
+    // Then most severe first. An officer opening this during an event is
+    // answering "where is it worst", and reading fourteen rows to find the red
+    // one is the thing this ordering exists to remove.
+    // Equal severity returns 0 rather than falling through to another key.
+    // Array.prototype.sort is stable, so ties keep the canonical order this
+    // list was built in — which is what keeps the unreported block in
+    // CANONICAL_CORPORATIONS order and stops equal-severity rows reshuffling
+    // on every refetch.
+    return (
+      alertSeverity(b.latest?.alert_level ?? 'none') -
+      alertSeverity(a.latest?.alert_level ?? 'none')
+    )
+  })
 }
