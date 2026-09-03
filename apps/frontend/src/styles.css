@@ -175,3 +175,33 @@ body {
     animation: citation-flash 1.2s ease-out;
   }
 }
+
+/* Print view (/corp/print/:id). The route already renders the document
+   alone; these rules set the page box and stop tables and headings from
+   being split across sheets. */
+@media print {
+  @page {
+    size: A4;
+    margin: 18mm 16mm;
+  }
+
+  html,
+  body {
+    height: auto;
+    overflow: visible;
+    background: #fff;
+    color: #000;
+  }
+
+  table,
+  tr,
+  img {
+    break-inside: avoid;
+  }
+
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+  }
+}

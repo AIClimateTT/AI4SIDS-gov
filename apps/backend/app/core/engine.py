@@ -115,6 +115,10 @@ class GeneratedReport(BaseModel):
     status: Literal["ok", "needs_review"]
     violations: list[CitationViolation]
     markdown: str
+    # The same facts rendered for issue: no citation markers, no appendix.
+    # Produced here rather than by a consumer so the draft and the issued
+    # document can never come from two different renderers.
+    final_markdown: str = ""
 
 
 def _fact_table_for_llm(fact_table: FactTable) -> FactTable:
@@ -181,6 +185,9 @@ def narrate_fact_table(
 
     status: Literal["ok", "needs_review"] = "ok" if result.passed else "needs_review"
     markdown = render_report(template, fact_table, narrative)
+    final_markdown = render_report(
+        template, fact_table, narrative, include_citations=False
+    )
 
     return GeneratedReport(
         request_id=fact_table.request_id,
@@ -193,4 +200,5 @@ def narrate_fact_table(
         status=status,
         violations=result.violations,
         markdown=markdown,
+        final_markdown=final_markdown,
     )
