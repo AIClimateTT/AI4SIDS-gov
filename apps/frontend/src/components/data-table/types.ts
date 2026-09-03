@@ -84,6 +84,7 @@ export type FilterConfig =
   | SelectFilterConfig
   | FacetedFilterConfig
   | DateFilterConfig
+  | ToggleFilterConfig
 
 interface BaseFilterConfig {
   /** URL param key */
@@ -97,6 +98,14 @@ interface BaseFilterConfig {
  */
 export interface SelectFilterConfig extends BaseFilterConfig {
   type: 'select'
+  options: Array<{ label: string; value: string }>
+}
+
+/**
+ * Exclusive button-group filter. `all` (or a missing value) means no restriction.
+ */
+export interface ToggleFilterConfig extends BaseFilterConfig {
+  type: 'toggle'
   options: Array<{ label: string; value: string }>
 }
 
@@ -174,6 +183,15 @@ export interface DataTableSearchProps {
  */
 export interface DataTableFilterSelectProps {
   filter: SelectFilterConfig
+  value: string | undefined
+  onChange: (value: string | undefined) => void
+}
+
+/**
+ * Props for DataTableFilterToggle
+ */
+export interface DataTableFilterToggleProps {
+  filter: ToggleFilterConfig
   value: string | undefined
   onChange: (value: string | undefined) => void
 }

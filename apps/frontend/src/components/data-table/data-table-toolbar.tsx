@@ -5,12 +5,14 @@ import { DataTableSearch } from "./data-table-search"
 import { DataTableFilterSelect } from "./data-table-filter-select"
 import { DataTableFilterFaceted } from "./data-table-filter-faceted"
 import { DataTableFilterDate } from "./data-table-filter-date"
+import { DataTableFilterToggle } from "./data-table-filter-toggle"
 import { DataTableViewOptions } from "./data-table-view-options"
 import type {
   DataTableToolbarProps,
   SelectFilterConfig,
   FacetedFilterConfig,
   DateFilterConfig,
+  ToggleFilterConfig,
 } from "./types"
 
 /**
@@ -40,6 +42,10 @@ export function DataTableToolbar<TData>({
       if (filter.type === "faceted") {
         const value = filterValues[filter.key]
         return Array.isArray(value) ? value.length > 0 : !!value
+      }
+      if (filter.type === "toggle") {
+        const value = filterValues[filter.key]
+        return !!value && value !== "all"
       }
       return !!filterValues[filter.key]
     })
@@ -90,9 +96,23 @@ export function DataTableToolbar<TData>({
 
   // Render individual filter based on type
   const renderFilter = (
-    filter: SelectFilterConfig | FacetedFilterConfig | DateFilterConfig
+    filter:
+      | SelectFilterConfig
+      | FacetedFilterConfig
+      | DateFilterConfig
+      | ToggleFilterConfig
   ) => {
     switch (filter.type) {
+      case "toggle":
+        return (
+          <DataTableFilterToggle
+            key={filter.key}
+            filter={filter}
+            value={filterValues[filter.key] as string | undefined}
+            onChange={(value) => handleFilterChange(filter.key, value)}
+          />
+        )
+
       case "select":
         return (
           <DataTableFilterSelect

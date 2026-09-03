@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { PlusIcon } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 
-import { Button } from '@/components/ui/button'
 import {
   ButtonLink,
   EmptyState,
@@ -30,15 +29,15 @@ import { formatWhen } from '@/lib/format-when'
  */
 type ReportsSearch = { status?: ReportStatus | 'all' }
 
-const FILTERABLE: ReadonlyArray<ReportStatus | 'all'> = [
-  'all',
-  'needs_review',
-  'ok',
+const STATUS_OPTIONS = [
+  { value: 'all' as const, label: 'All' },
+  { value: 'needs_review' as const, label: 'Needs review' },
+  { value: 'ok' as const, label: 'OK' },
 ]
 
 function toStatus(value: unknown): ReportStatus | 'all' {
   return typeof value === 'string' &&
-    (FILTERABLE as ReadonlyArray<string>).includes(value)
+    STATUS_OPTIONS.some((option) => option.value === value)
     ? (value as ReportStatus | 'all')
     : 'all'
 }
@@ -121,34 +120,6 @@ function ReportsPage() {
       />
 
       <ContentCard contentClassName="space-y-4">
-        <div
-          role="group"
-          aria-label="Filter reports by status"
-          className="flex flex-wrap items-center gap-2"
-        >
-          {FILTERABLE.map((value) => (
-            <Button
-              key={value}
-              size="sm"
-              variant={status === value ? 'default' : 'outline'}
-              aria-pressed={status === value}
-              onClick={() => {
-                // Filtering changes how many pages exist, so go back to the
-                // first one rather than stranding the officer on a page the
-                // narrowed list no longer has.
-                setPagination((prev) => ({ ...prev, pageIndex: 0 }))
-                void navigate({ search: { status: value }, replace: true })
-              }}
-            >
-              {value === 'all'
-                ? 'All'
-                : value === 'needs_review'
-                  ? 'Needs review'
-                  : 'OK'}
-            </Button>
-          ))}
-        </div>
-
         {isPending && !data ? <LoadingBlock rows={5} /> : null}
 
         {isError ? (
@@ -187,6 +158,16 @@ function ReportsPage() {
                 )
                 setPagination((prev) => ({ ...prev, pageIndex: 0 }))
               }
+              if ('status' in updates) {
+                // Filtering changes how many pages exist, so go back to the
+                // first one rather than stranding the officer on a page the
+                // narrowed list no longer has.
+                void navigate({
+                  search: { status: toStatus(updates.status) },
+                  replace: true,
+                })
+                setPagination((prev) => ({ ...prev, pageIndex: 0 }))
+              }
             }}
             toolbar={{
               search: {
@@ -199,7 +180,15 @@ function ReportsPage() {
                 </ButtonLink>
               ),
             }}
-            filterValues={{ q }}
+            filters={[
+              {
+                type: 'toggle',
+                key: 'status',
+                label: 'Status',
+                options: STATUS_OPTIONS,
+              },
+            ]}
+            filterValues={{ q, status }}
             features={{
               enablePageSizeSelector: true,
               enableColumnVisibility: true,

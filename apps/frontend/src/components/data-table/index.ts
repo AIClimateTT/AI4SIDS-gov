@@ -9,6 +9,7 @@ export { DataTableSearch } from './data-table-search'
 export { DataTableFilterSelect } from './data-table-filter-select'
 export { DataTableFilterFaceted } from './data-table-filter-faceted'
 export { DataTableFilterDate } from './data-table-filter-date'
+export { DataTableFilterToggle } from './data-table-filter-toggle'
 export { DataTableViewOptions } from './data-table-view-options'
 
 // // Hooks
@@ -25,6 +26,7 @@ export type {
   SelectFilterConfig,
   FacetedFilterConfig,
   DateFilterConfig,
+  ToggleFilterConfig,
   DataTableToolbarProps,
   DataTablePaginationProps,
   DataTableColumnHeaderProps,
@@ -32,6 +34,7 @@ export type {
   DataTableFilterSelectProps,
   DataTableFilterFacetedProps,
   DataTableFilterDateProps,
+  DataTableFilterToggleProps,
   DataTableViewOptionsProps,
 } from './types'
 
