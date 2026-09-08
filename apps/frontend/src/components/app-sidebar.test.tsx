@@ -30,6 +30,7 @@ const DMU_PATHS = [
   '/dmu/whatsapp',
   '/dmu/admin/templates',
   '/dmu/admin/modules',
+  '/dmu/admin/users',
 ]
 
 function storageWith(raw: string | null): IdentityStorage {
@@ -112,7 +113,7 @@ describe('AppSidebar', () => {
       },
       {
         label: 'Administration',
-        links: ['Templates', 'Modules'],
+        links: ['Templates', 'Modules', 'Users'],
       },
     ])
   })

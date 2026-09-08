@@ -62,6 +62,8 @@ def test_every_table_exists_after_upgrade_head(tmp_path):
         "situation_logs",
         "whatsapp_drafts",
         "capture_sessions",
+        "users",
+        "refresh_tokens",
     } <= names
 
 

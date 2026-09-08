@@ -16,6 +16,11 @@ function getApi(): AxiosInstance {
       if (config.data instanceof FormData) {
         delete config.headers['Content-Type']
       }
+      const token =
+        typeof window === 'undefined' ? null : window.localStorage.getItem('auth_token')
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`
+      }
       return config
     })
   }

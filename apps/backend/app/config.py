@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     database_url: str = "sqlite:///./dev.db"
+    secret_key: str = "dev-only-change-me-use-a-long-random-value-in-production"
+    access_token_expire_minutes: int = 720
     llm_provider: Literal["fake", "ollama", "nim"] = "ollama"
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "gemma3:4b"

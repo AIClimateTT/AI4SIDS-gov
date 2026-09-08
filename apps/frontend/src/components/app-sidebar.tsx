@@ -9,6 +9,7 @@ import {
   LibraryIcon,
   MessageSquareIcon,
   UploadIcon,
+  UsersIcon,
 } from 'lucide-react'
 
 import { useIdentity } from '@/hooks/use-identity'
@@ -70,6 +71,7 @@ const DMU_NAV: NavGroup[] = [
     items: [
       { title: 'Templates', to: '/dmu/admin/templates', icon: LibraryIcon },
       { title: 'Modules', to: '/dmu/admin/modules', icon: DatabaseIcon },
+      { title: 'Users', to: '/dmu/admin/users', icon: UsersIcon },
     ],
   },
 ]
