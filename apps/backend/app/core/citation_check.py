@@ -4,6 +4,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 from app.core.contracts import FactTable
+from app.quality.denominators import WORD_NUMBERS
 
 ISO_DATE_RE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
 # A newline ends a unit of text as surely as a full stop does. Splitting only
@@ -116,6 +117,10 @@ def _split_sentences(text: str) -> list[str]:
     return [s.strip() for s in SENTENCE_SPLIT_RE.split(stripped) if s.strip()]
 
 
+def split_narrative_units(text: str) -> list[str]:
+    return _split_sentences(text)
+
+
 def _matches_any(value: float, candidates: set[float], epsilon: float = 1e-6) -> bool:
     return any(abs(value - c) < epsilon for c in candidates)
 
@@ -134,10 +139,20 @@ def _cids_in(text: str) -> set[str]:
         for cid in group.split(",")
         if cid.strip()
     }
+
+
+def cids_in(text: str) -> set[str]:
+    return _cids_in(text)
 # \b so a digit run glued to a word is not a figure: "Survey123" must not
 # yield "123", and a bare "C001" marker must not yield "001". Real figures
 # ("15", "115,800", "66.7%") always follow a boundary.
 NUMBER_TOKEN_RE = re.compile(r"\b\d[\d,]*(?:\.\d+)?%?")
+_WORD_RE = re.compile(
+    r"\b("
+    + "|".join(re.escape(word) for word in sorted(WORD_NUMBERS, key=len, reverse=True))
+    + r")\b",
+    re.IGNORECASE,
+)
 
 
 def check_citations(narrative: str, fact_table: FactTable) -> CitationCheckResult:
@@ -162,9 +177,15 @@ def check_citations(narrative: str, fact_table: FactTable) -> CitationCheckResul
 
         text_for_numbers = CITATION_MARKER_RE.sub("", sentence)
         text_for_numbers = _strip_dates(text_for_numbers)
-        tokens = NUMBER_TOKEN_RE.findall(text_for_numbers)
+        figures: list[tuple[str, float]] = [
+            (token, _parse_number_token(token))
+            for token in NUMBER_TOKEN_RE.findall(text_for_numbers)
+        ]
+        for match in _WORD_RE.finditer(text_for_numbers):
+            word = match.group(0)
+            figures.append((word, WORD_NUMBERS[word.lower()]))
 
-        if not tokens:
+        if not figures:
             continue
 
         if not has_valid_citation:
@@ -177,8 +198,7 @@ def check_citations(narrative: str, fact_table: FactTable) -> CitationCheckResul
                 )
             )
 
-        for token in tokens:
-            value = _parse_number_token(token)
+        for token, value in figures:
             if not _matches_any(value, fact_numbers):
                 violations.append(
                     CitationViolation(

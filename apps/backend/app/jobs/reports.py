@@ -1,6 +1,7 @@
 from app.core.contracts import DataRequirement
 from app.core.engine import generate_report
 from app.core.report_store import apply_generated_report, get_report, mark_report_failed, mark_report_running
+from app.quality.store import record_event
 from app.core.template_store import get_template_version
 from app.db import SessionLocal
 
@@ -32,11 +33,25 @@ def run_generate_report(report_id: str) -> None:
             request_id=row.id,
         )
         apply_generated_report(row, generated, session)
+        record_event(
+            session,
+            workflow="dmu_generate_report",
+            step="generate",
+            outcome="succeeded",
+            subject_id=row.id,
+        )
     except Exception as exc:
         session.rollback()
         row = get_report(report_id, session)
         if row is not None:
             mark_report_failed(row, session, str(exc))
+            record_event(
+                session,
+                workflow="dmu_generate_report",
+                step="generate",
+                outcome="failed",
+                subject_id=row.id,
+            )
         else:
             raise
     finally:

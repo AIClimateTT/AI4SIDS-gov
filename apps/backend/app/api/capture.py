@@ -13,6 +13,7 @@ from app.core.llm import get_llm_client
 from app.core.report_store import add_report
 from app.core.template_store import get_latest_template_version
 from app.db import get_session
+from app.quality.store import record_event
 from app.modules.capture.csv_import import import_csv_rows, read_csv_bytes
 from app.modules.capture.file import working_set_to_ingest_rows
 from app.modules.capture.models import CaptureSession
@@ -244,6 +245,13 @@ def post_session(
                 detail=f"event not found for this corporation: {request.event_id}",
             )
     row = create_session(db, corporation=corporation, event_id=request.event_id)
+    record_event(
+        db,
+        workflow="corp_capture_issue",
+        step="create",
+        outcome="started",
+        subject_id=str(row.id),
+    )
     return _to_response(row)
 
 
@@ -621,5 +629,12 @@ def issue_session(
         generated,
         report_id=saved.id,
         source_updated_at=row.updated_at,
+    )
+    record_event(
+        db,
+        workflow="corp_capture_issue",
+        step="issue",
+        outcome="succeeded",
+        subject_id=saved.id,
     )
     return FileSessionResponse(session=_to_response(row), ingest=ingest)

@@ -3,6 +3,8 @@ import { withApiError } from '@/lib/api/errors'
 import type {
   GenerateReportInput,
   GenerateReportResult,
+  RatingInput,
+  RatingResult,
   ReportDetail,
   ReportListParams,
   ReportListResponse,
@@ -39,6 +41,19 @@ export async function createReport(
   return withApiError(async () => {
     const { data } = await apiClient.post<GenerateReportResult>(
       '/reports',
+      payload,
+    )
+    return data
+  })
+}
+
+export async function postReportRating(
+  reportId: string,
+  payload: RatingInput,
+): Promise<RatingResult> {
+  return withApiError(async () => {
+    const { data } = await apiClient.post<RatingResult>(
+      `/reports/${reportId}/rating`,
       payload,
     )
     return data

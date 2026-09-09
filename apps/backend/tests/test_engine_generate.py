@@ -83,6 +83,8 @@ def test_generate_report_with_auto_narrative_fake_client_passes(tmp_path):
     assert "# Regional Comparison Briefing" in report.markdown
     assert "## Citation Appendix" in report.markdown
     assert report.request_id
+    assert report.quality_eval is not None
+    assert report.quality_eval.citations.rate >= 0.0
 
 
 def test_generate_report_corrupted_narrative_twice_needs_review(tmp_path):

@@ -173,6 +173,40 @@ def generate(
         typer.echo(f"violations: {len(report.violations)}", err=True)
 
 
+@app.command("quality-rescore")
+def quality_rescore() -> None:
+    from app.core.citation_check import check_citations
+    from app.core.contracts import FactTable
+    from app.core.report_models import Report
+    from app.core.template_store import get_template_version
+    from app.quality.score import score_quality
+
+    session = SessionLocal()
+    try:
+        rows = list(session.query(Report).all())
+        updated = 0
+        skipped = 0
+        for row in rows:
+            if not row.narrative:
+                skipped += 1
+                continue
+            template = get_template_version(row.template, row.template_version, session)
+            if template is None:
+                skipped += 1
+                continue
+            fact_table = FactTable.model_validate(row.fact_table)
+            result = check_citations(row.narrative, fact_table)
+            eval_ = score_quality(
+                template, fact_table, row.narrative, row.markdown, result
+            )
+            row.quality_eval = eval_.model_dump(mode="json")
+            updated += 1
+        session.commit()
+        typer.echo(f"rescored={updated} skipped={skipped}")
+    finally:
+        session.close()
+
+
 users_app = typer.Typer()
 app.add_typer(users_app, name="users")
 

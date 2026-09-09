@@ -65,6 +65,8 @@ def test_every_table_exists_after_upgrade_head(tmp_path):
         "users",
         "refresh_tokens",
         "login_otps",
+        "workflow_events",
+        "report_ratings",
     } <= names
 
 
@@ -87,6 +89,8 @@ def test_the_backfilled_columns_keep_their_shape(tmp_path):
 
     assert "error" in reports
     assert reports["error"][3] == 0
+    assert "quality_eval" in reports
+    assert reports["quality_eval"][3] == 0
 
     drafts = {r[1]: r for r in conn.execute("PRAGMA table_info(whatsapp_drafts)")}
     assert "status" in drafts

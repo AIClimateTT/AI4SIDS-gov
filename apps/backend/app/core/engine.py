@@ -11,6 +11,8 @@ from app.core.contracts import DataRequirement, Fact, FactTable, Template
 from app.core.llm import LLMClient
 from app.core.registry import get_module
 from app.core.renderer import render_report
+from app.quality.contracts import QualityEval
+from app.quality.score import score_quality
 
 PLACEHOLDER_RE = re.compile(r"^\{(\w+)\}$")
 
@@ -119,6 +121,7 @@ class GeneratedReport(BaseModel):
     # Produced here rather than by a consumer so the draft and the issued
     # document can never come from two different renderers.
     final_markdown: str = ""
+    quality_eval: QualityEval | None = None
 
 
 def _fact_table_for_llm(fact_table: FactTable) -> FactTable:
@@ -188,6 +191,7 @@ def narrate_fact_table(
     final_markdown = render_report(
         template, fact_table, narrative, include_citations=False
     )
+    quality_eval = score_quality(template, fact_table, narrative, markdown, result)
 
     return GeneratedReport(
         request_id=fact_table.request_id,
@@ -201,4 +205,5 @@ def narrate_fact_table(
         violations=result.violations,
         markdown=markdown,
         final_markdown=final_markdown,
+        quality_eval=quality_eval,
     )

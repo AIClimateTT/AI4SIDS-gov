@@ -33,6 +33,7 @@ def make_client() -> TestClient:
     return TestClient(app)
 
 
+@pytest.mark.workflow("survey123_ingest")
 def test_post_ingest_survey123_returns_ingest_result():
     client = make_client()
 

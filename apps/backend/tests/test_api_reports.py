@@ -50,6 +50,7 @@ def _ingest_fixture():
     session.close()
 
 
+@pytest.mark.workflow("dmu_generate_report")
 def test_post_reports_returns_id_status_markdown(monkeypatch):
     client = make_client(monkeypatch)
     _ingest_fixture()

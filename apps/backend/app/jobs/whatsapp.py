@@ -1,4 +1,5 @@
 from app.core.report_store import apply_generated_report, get_report, mark_report_failed, mark_report_running
+from app.quality.store import record_event
 from app.db import SessionLocal
 from app.modules.whatsapp.briefing import BriefingError, generate_briefing
 from app.modules.whatsapp.extract import extract_proposals, to_draft_incidents, to_draft_logs
@@ -59,6 +60,13 @@ def run_briefing(draft_id: int, report_id: str) -> None:
         )
         generated = generated.model_copy(update={"request_id": report_id})
         apply_generated_report(row, generated, session)
+        record_event(
+            session,
+            workflow="whatsapp_briefing",
+            step="briefing",
+            outcome="succeeded",
+            subject_id=report_id,
+        )
     except BriefingError as exc:
         session.rollback()
         row = get_report(report_id, session)

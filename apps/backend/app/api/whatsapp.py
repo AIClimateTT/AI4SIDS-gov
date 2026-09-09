@@ -10,6 +10,7 @@ from app.core.jobs import enqueue
 from app.core.llm import get_llm_client
 from app.core.report_store import get_report, save_placeholder_report
 from app.db import get_session
+from app.quality.store import record_event
 from app.modules.whatsapp.adjust import adjust_working_set
 from app.modules.whatsapp.briefing import BRIEFING_TEMPLATE
 from app.modules.whatsapp.confirm import ConfirmError, confirm_proposals
@@ -145,6 +146,13 @@ async def post_extract(
         source_text=text,
     )
     enqueue("extract_whatsapp", draft_id=draft.id)
+    record_event(
+        session,
+        workflow="whatsapp_briefing",
+        step="extract",
+        outcome="started",
+        subject_id=str(draft.id),
+    )
     session.expire_all()
     draft = _require_draft(session, draft.id)
     return _as_response(draft)
@@ -233,6 +241,13 @@ def post_briefing(
         data_requirements=[],
     )
     enqueue("generate_briefing", draft_id=draft.id, report_id=report_id)
+    record_event(
+        session,
+        workflow="whatsapp_briefing",
+        step="briefing",
+        outcome="started",
+        subject_id=report_id,
+    )
     session.expire_all()
     row = get_report(report_id, session)
     if row is None:

@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import { CitationMarkdown } from '@/components/reports/citation-markdown'
 import { ReportFactTable } from '@/components/reports/fact-table'
+import { ReportRatingField } from '@/components/reports/report-rating'
 import { ViolationsPanel } from '@/components/reports/violations-panel'
 import { EmptyState } from '@/components/shared'
 import { Badge } from '@/components/ui/badge'
@@ -143,6 +144,10 @@ export function SitrepDraftPane({
             </div>
           </>
         )}
+
+        {filed && session.report_id ? (
+          <ReportRatingField reportId={session.report_id} />
+        ) : null}
       </div>
       <div className="flex shrink-0 items-center justify-end gap-2 border-t bg-background px-4 py-3">
         {filed ? null : (
