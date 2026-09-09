@@ -2,8 +2,10 @@ from datetime import datetime
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
+
+from app.auth.dependencies import CurrentUser
 
 from app.core.contracts import DataRequirement
 from app.core.engine import PLACEHOLDER_RE, resolve_effective_requirements, validate_params
@@ -12,7 +14,7 @@ from app.core.report_store import get_report, list_reports, save_placeholder_rep
 from app.core.template_store import get_latest_template_version, get_template_version
 from app.db import get_session
 from app.modules.survey123.normalize import CANONICAL_CORPORATIONS
-from app.quality.store import record_event
+from app.quality.store import record_event, save_rating
 
 router = APIRouter()
 
@@ -202,3 +204,41 @@ def read_report(report_id: str, session: Session = Depends(get_session)) -> Repo
         error=db_report.error,
         created_at=db_report.created_at,
     )
+
+
+class RatingIn(BaseModel):
+    rating: int
+    comment: str | None = None
+
+    @field_validator("rating")
+    @classmethod
+    def one_to_five(cls, value: int) -> int:
+        if value < 1 or value > 5:
+            raise ValueError("rating must be 1..5")
+        return value
+
+
+class RatingOut(BaseModel):
+    id: str
+    report_id: str
+    rating: int
+
+
+@router.post("/reports/{report_id}/rating", response_model=RatingOut)
+def post_report_rating(
+    report_id: str,
+    body: RatingIn,
+    current_user: CurrentUser,
+    session: Session = Depends(get_session),
+) -> RatingOut:
+    db_report = get_report(report_id, session)
+    if db_report is None:
+        raise HTTPException(status_code=404, detail=f"report not found: {report_id}")
+    saved = save_rating(
+        session,
+        report_id=report_id,
+        user_id=current_user.user_id,
+        rating=body.rating,
+        comment=body.comment,
+    )
+    return RatingOut(id=saved.id, report_id=saved.report_id, rating=saved.rating)

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.quality.claims import recompute_claim_rates
 from app.quality.contracts import QualityEval
-from app.quality.models import WorkflowEvent
+from app.quality.models import ReportRating, WorkflowEvent
 from app.core.report_models import Report
 
 
@@ -61,6 +61,37 @@ def set_assisted(session: Session, event_id: str, assisted: bool) -> WorkflowEve
     session.commit()
     session.refresh(row)
     return row
+
+
+def save_rating(
+    session: Session,
+    *,
+    report_id: str,
+    user_id: uuid.UUID,
+    rating: int,
+    comment: str | None = None,
+) -> ReportRating:
+    existing = (
+        session.query(ReportRating)
+        .filter(ReportRating.report_id == report_id, ReportRating.user_id == user_id)
+        .one_or_none()
+    )
+    if existing is None:
+        existing = ReportRating(
+            id=str(uuid.uuid4()),
+            report_id=report_id,
+            user_id=user_id,
+            rating=rating,
+            comment=comment,
+            created_at=datetime.now(timezone.utc),
+        )
+        session.add(existing)
+    else:
+        existing.rating = rating
+        existing.comment = comment
+    session.commit()
+    session.refresh(existing)
+    return existing
 
 
 def apply_claim_verdict(

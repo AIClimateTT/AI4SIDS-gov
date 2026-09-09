@@ -121,3 +121,39 @@ def test_patch_assisted_excludes_event_from_unaided_success(monkeypatch):
     assert patched.status_code == 200
     summary = client.get("/quality/summary").json()
     assert summary["task_succeeded_unaided"] == 0
+
+
+def test_rating_requires_auth(monkeypatch):
+    client = make_client(monkeypatch)
+    response = client.post("/reports/nope/rating", json={"rating": 5})
+    assert response.status_code == 401
+
+
+def test_authenticated_user_can_rate_a_report(monkeypatch):
+    from app.auth.tokens import create_access_token
+    from tests.auth_helpers import create_user
+
+    client = make_client(monkeypatch)
+    _ingest_fixture()
+    created = _generate(client)
+    report_id = created.json()["id"]
+    user = create_user()
+    token = create_access_token(
+        user_id=user.user_id,
+        role=user.role,
+        email=user.email,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        corporation=user.corporation,
+    )
+    rated = client.post(
+        f"/reports/{report_id}/rating",
+        json={"rating": 5},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert rated.status_code == 200, rated.text
+    assert rated.json()["rating"] == 5
+    summary = client.get("/quality/summary").json()
+    assert summary["rating_count"] == 1
+    assert summary["rating_mean"] == 5.0
+    assert summary["rating_positive_rate"] == 1.0
