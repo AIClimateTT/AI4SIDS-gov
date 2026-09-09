@@ -64,6 +64,7 @@ def test_every_table_exists_after_upgrade_head(tmp_path):
         "capture_sessions",
         "users",
         "refresh_tokens",
+        "login_otps",
     } <= names
 
 

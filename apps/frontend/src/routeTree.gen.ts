@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WhoAreYouRouteImport } from './routes/who-are-you'
+import { Route as SystemUnavailableRouteImport } from './routes/system-unavailable'
+import { Route as DmuRouteImport } from './routes/dmu'
+import { Route as CorpRouteImport } from './routes/corp'
+import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DmuIndexRouteImport } from './routes/dmu/index'
 import { Route as CorpIndexRouteImport } from './routes/corp/index'
 import { Route as DmuWhatsappRouteImport } from './routes/dmu/whatsapp'
 import { Route as DmuFieldDataRouteImport } from './routes/dmu/field-data'
+import { Route as AuthVerifyRouteImport } from './routes/_auth/verify'
+import { Route as AuthLoginRouteImport } from './routes/_auth/login'
 import { Route as DmuReportsIndexRouteImport } from './routes/dmu/reports/index'
 import { Route as DmuReportsNewRouteImport } from './routes/dmu/reports/new'
 import { Route as DmuReportsReportIdRouteImport } from './routes/dmu/reports/$reportId'
@@ -35,109 +41,143 @@ const WhoAreYouRoute = WhoAreYouRouteImport.update({
   path: '/who-are-you',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SystemUnavailableRoute = SystemUnavailableRouteImport.update({
+  id: '/system-unavailable',
+  path: '/system-unavailable',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DmuRoute = DmuRouteImport.update({
+  id: '/dmu',
+  path: '/dmu',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CorpRoute = CorpRouteImport.update({
+  id: '/corp',
+  path: '/corp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/_auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DmuIndexRoute = DmuIndexRouteImport.update({
-  id: '/dmu/',
-  path: '/dmu/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => DmuRoute,
 } as any)
 const CorpIndexRoute = CorpIndexRouteImport.update({
-  id: '/corp/',
-  path: '/corp/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => CorpRoute,
 } as any)
 const DmuWhatsappRoute = DmuWhatsappRouteImport.update({
-  id: '/dmu/whatsapp',
-  path: '/dmu/whatsapp',
-  getParentRoute: () => rootRouteImport,
+  id: '/whatsapp',
+  path: '/whatsapp',
+  getParentRoute: () => DmuRoute,
 } as any)
 const DmuFieldDataRoute = DmuFieldDataRouteImport.update({
-  id: '/dmu/field-data',
-  path: '/dmu/field-data',
-  getParentRoute: () => rootRouteImport,
+  id: '/field-data',
+  path: '/field-data',
+  getParentRoute: () => DmuRoute,
+} as any)
+const AuthVerifyRoute = AuthVerifyRouteImport.update({
+  id: '/verify',
+  path: '/verify',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthLoginRoute = AuthLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => AuthRoute,
 } as any)
 const DmuReportsIndexRoute = DmuReportsIndexRouteImport.update({
-  id: '/dmu/reports/',
-  path: '/dmu/reports/',
-  getParentRoute: () => rootRouteImport,
+  id: '/reports/',
+  path: '/reports/',
+  getParentRoute: () => DmuRoute,
 } as any)
 const DmuReportsNewRoute = DmuReportsNewRouteImport.update({
-  id: '/dmu/reports/new',
-  path: '/dmu/reports/new',
-  getParentRoute: () => rootRouteImport,
+  id: '/reports/new',
+  path: '/reports/new',
+  getParentRoute: () => DmuRoute,
 } as any)
 const DmuReportsReportIdRoute = DmuReportsReportIdRouteImport.update({
-  id: '/dmu/reports/$reportId',
-  path: '/dmu/reports/$reportId',
-  getParentRoute: () => rootRouteImport,
+  id: '/reports/$reportId',
+  path: '/reports/$reportId',
+  getParentRoute: () => DmuRoute,
 } as any)
 const DmuCorporationsCorporationRoute =
   DmuCorporationsCorporationRouteImport.update({
-    id: '/dmu/corporations/$corporation',
-    path: '/dmu/corporations/$corporation',
-    getParentRoute: () => rootRouteImport,
+    id: '/corporations/$corporation',
+    path: '/corporations/$corporation',
+    getParentRoute: () => DmuRoute,
   } as any)
 const DmuAdminUsersRoute = DmuAdminUsersRouteImport.update({
-  id: '/dmu/admin/users',
-  path: '/dmu/admin/users',
-  getParentRoute: () => rootRouteImport,
+  id: '/admin/users',
+  path: '/admin/users',
+  getParentRoute: () => DmuRoute,
 } as any)
 const DmuAdminModulesRoute = DmuAdminModulesRouteImport.update({
-  id: '/dmu/admin/modules',
-  path: '/dmu/admin/modules',
-  getParentRoute: () => rootRouteImport,
+  id: '/admin/modules',
+  path: '/admin/modules',
+  getParentRoute: () => DmuRoute,
 } as any)
 const CorpPrintSessionIdRoute = CorpPrintSessionIdRouteImport.update({
-  id: '/corp/print/$sessionId',
-  path: '/corp/print/$sessionId',
-  getParentRoute: () => rootRouteImport,
+  id: '/print/$sessionId',
+  path: '/print/$sessionId',
+  getParentRoute: () => CorpRoute,
 } as any)
 const CorpFilingsSubmissionIdRoute = CorpFilingsSubmissionIdRouteImport.update({
-  id: '/corp/filings/$submissionId',
-  path: '/corp/filings/$submissionId',
-  getParentRoute: () => rootRouteImport,
+  id: '/filings/$submissionId',
+  path: '/filings/$submissionId',
+  getParentRoute: () => CorpRoute,
 } as any)
 const CorpCSessionIdRoute = CorpCSessionIdRouteImport.update({
-  id: '/corp/c/$sessionId',
-  path: '/corp/c/$sessionId',
-  getParentRoute: () => rootRouteImport,
+  id: '/c/$sessionId',
+  path: '/c/$sessionId',
+  getParentRoute: () => CorpRoute,
 } as any)
 const DmuAdminTemplatesIndexRoute = DmuAdminTemplatesIndexRouteImport.update({
-  id: '/dmu/admin/templates/',
-  path: '/dmu/admin/templates/',
-  getParentRoute: () => rootRouteImport,
+  id: '/admin/templates/',
+  path: '/admin/templates/',
+  getParentRoute: () => DmuRoute,
 } as any)
 const CorpEventsEventIdIndexRoute = CorpEventsEventIdIndexRouteImport.update({
-  id: '/corp/events/$eventId/',
-  path: '/corp/events/$eventId/',
-  getParentRoute: () => rootRouteImport,
+  id: '/events/$eventId/',
+  path: '/events/$eventId/',
+  getParentRoute: () => CorpRoute,
 } as any)
 const DmuAdminTemplatesNameIndexRoute =
   DmuAdminTemplatesNameIndexRouteImport.update({
-    id: '/dmu/admin/templates/$name/',
-    path: '/dmu/admin/templates/$name/',
-    getParentRoute: () => rootRouteImport,
+    id: '/admin/templates/$name/',
+    path: '/admin/templates/$name/',
+    getParentRoute: () => DmuRoute,
   } as any)
 const DmuAdminTemplatesNameNewRoute =
   DmuAdminTemplatesNameNewRouteImport.update({
-    id: '/dmu/admin/templates/$name/new',
-    path: '/dmu/admin/templates/$name/new',
-    getParentRoute: () => rootRouteImport,
+    id: '/admin/templates/$name/new',
+    path: '/admin/templates/$name/new',
+    getParentRoute: () => DmuRoute,
   } as any)
 const DmuAdminTemplatesNameVersionsVersionRoute =
   DmuAdminTemplatesNameVersionsVersionRouteImport.update({
-    id: '/dmu/admin/templates/$name/versions/$version',
-    path: '/dmu/admin/templates/$name/versions/$version',
-    getParentRoute: () => rootRouteImport,
+    id: '/admin/templates/$name/versions/$version',
+    path: '/admin/templates/$name/versions/$version',
+    getParentRoute: () => DmuRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/corp': typeof CorpRouteWithChildren
+  '/dmu': typeof DmuRouteWithChildren
+  '/system-unavailable': typeof SystemUnavailableRoute
   '/who-are-you': typeof WhoAreYouRoute
+  '/login': typeof AuthLoginRoute
+  '/verify': typeof AuthVerifyRoute
   '/dmu/field-data': typeof DmuFieldDataRoute
   '/dmu/whatsapp': typeof DmuWhatsappRoute
   '/corp/': typeof CorpIndexRoute
@@ -159,7 +199,10 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/system-unavailable': typeof SystemUnavailableRoute
   '/who-are-you': typeof WhoAreYouRoute
+  '/login': typeof AuthLoginRoute
+  '/verify': typeof AuthVerifyRoute
   '/dmu/field-data': typeof DmuFieldDataRoute
   '/dmu/whatsapp': typeof DmuWhatsappRoute
   '/corp': typeof CorpIndexRoute
@@ -182,7 +225,13 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_auth': typeof AuthRouteWithChildren
+  '/corp': typeof CorpRouteWithChildren
+  '/dmu': typeof DmuRouteWithChildren
+  '/system-unavailable': typeof SystemUnavailableRoute
   '/who-are-you': typeof WhoAreYouRoute
+  '/_auth/login': typeof AuthLoginRoute
+  '/_auth/verify': typeof AuthVerifyRoute
   '/dmu/field-data': typeof DmuFieldDataRoute
   '/dmu/whatsapp': typeof DmuWhatsappRoute
   '/corp/': typeof CorpIndexRoute
@@ -206,7 +255,12 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/corp'
+    | '/dmu'
+    | '/system-unavailable'
     | '/who-are-you'
+    | '/login'
+    | '/verify'
     | '/dmu/field-data'
     | '/dmu/whatsapp'
     | '/corp/'
@@ -228,7 +282,10 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/system-unavailable'
     | '/who-are-you'
+    | '/login'
+    | '/verify'
     | '/dmu/field-data'
     | '/dmu/whatsapp'
     | '/corp'
@@ -250,7 +307,13 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/_auth'
+    | '/corp'
+    | '/dmu'
+    | '/system-unavailable'
     | '/who-are-you'
+    | '/_auth/login'
+    | '/_auth/verify'
     | '/dmu/field-data'
     | '/dmu/whatsapp'
     | '/corp/'
@@ -273,25 +336,11 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthRoute: typeof AuthRouteWithChildren
+  CorpRoute: typeof CorpRouteWithChildren
+  DmuRoute: typeof DmuRouteWithChildren
+  SystemUnavailableRoute: typeof SystemUnavailableRoute
   WhoAreYouRoute: typeof WhoAreYouRoute
-  DmuFieldDataRoute: typeof DmuFieldDataRoute
-  DmuWhatsappRoute: typeof DmuWhatsappRoute
-  CorpIndexRoute: typeof CorpIndexRoute
-  DmuIndexRoute: typeof DmuIndexRoute
-  CorpCSessionIdRoute: typeof CorpCSessionIdRoute
-  CorpFilingsSubmissionIdRoute: typeof CorpFilingsSubmissionIdRoute
-  CorpPrintSessionIdRoute: typeof CorpPrintSessionIdRoute
-  DmuAdminModulesRoute: typeof DmuAdminModulesRoute
-  DmuAdminUsersRoute: typeof DmuAdminUsersRoute
-  DmuCorporationsCorporationRoute: typeof DmuCorporationsCorporationRoute
-  DmuReportsReportIdRoute: typeof DmuReportsReportIdRoute
-  DmuReportsNewRoute: typeof DmuReportsNewRoute
-  DmuReportsIndexRoute: typeof DmuReportsIndexRoute
-  CorpEventsEventIdIndexRoute: typeof CorpEventsEventIdIndexRoute
-  DmuAdminTemplatesIndexRoute: typeof DmuAdminTemplatesIndexRoute
-  DmuAdminTemplatesNameNewRoute: typeof DmuAdminTemplatesNameNewRoute
-  DmuAdminTemplatesNameIndexRoute: typeof DmuAdminTemplatesNameIndexRoute
-  DmuAdminTemplatesNameVersionsVersionRoute: typeof DmuAdminTemplatesNameVersionsVersionRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -303,6 +352,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WhoAreYouRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/system-unavailable': {
+      id: '/system-unavailable'
+      path: '/system-unavailable'
+      fullPath: '/system-unavailable'
+      preLoaderRoute: typeof SystemUnavailableRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dmu': {
+      id: '/dmu'
+      path: '/dmu'
+      fullPath: '/dmu'
+      preLoaderRoute: typeof DmuRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/corp': {
+      id: '/corp'
+      path: '/corp'
+      fullPath: '/corp'
+      preLoaderRoute: typeof CorpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_auth': {
+      id: '/_auth'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -312,155 +389,219 @@ declare module '@tanstack/react-router' {
     }
     '/dmu/': {
       id: '/dmu/'
-      path: '/dmu'
+      path: '/'
       fullPath: '/dmu/'
       preLoaderRoute: typeof DmuIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DmuRoute
     }
     '/corp/': {
       id: '/corp/'
-      path: '/corp'
+      path: '/'
       fullPath: '/corp/'
       preLoaderRoute: typeof CorpIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof CorpRoute
     }
     '/dmu/whatsapp': {
       id: '/dmu/whatsapp'
-      path: '/dmu/whatsapp'
+      path: '/whatsapp'
       fullPath: '/dmu/whatsapp'
       preLoaderRoute: typeof DmuWhatsappRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DmuRoute
     }
     '/dmu/field-data': {
       id: '/dmu/field-data'
-      path: '/dmu/field-data'
+      path: '/field-data'
       fullPath: '/dmu/field-data'
       preLoaderRoute: typeof DmuFieldDataRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DmuRoute
+    }
+    '/_auth/verify': {
+      id: '/_auth/verify'
+      path: '/verify'
+      fullPath: '/verify'
+      preLoaderRoute: typeof AuthVerifyRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/login': {
+      id: '/_auth/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof AuthLoginRouteImport
+      parentRoute: typeof AuthRoute
     }
     '/dmu/reports/': {
       id: '/dmu/reports/'
-      path: '/dmu/reports'
+      path: '/reports'
       fullPath: '/dmu/reports/'
       preLoaderRoute: typeof DmuReportsIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DmuRoute
     }
     '/dmu/reports/new': {
       id: '/dmu/reports/new'
-      path: '/dmu/reports/new'
+      path: '/reports/new'
       fullPath: '/dmu/reports/new'
       preLoaderRoute: typeof DmuReportsNewRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DmuRoute
     }
     '/dmu/reports/$reportId': {
       id: '/dmu/reports/$reportId'
-      path: '/dmu/reports/$reportId'
+      path: '/reports/$reportId'
       fullPath: '/dmu/reports/$reportId'
       preLoaderRoute: typeof DmuReportsReportIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DmuRoute
     }
     '/dmu/corporations/$corporation': {
       id: '/dmu/corporations/$corporation'
-      path: '/dmu/corporations/$corporation'
+      path: '/corporations/$corporation'
       fullPath: '/dmu/corporations/$corporation'
       preLoaderRoute: typeof DmuCorporationsCorporationRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DmuRoute
     }
     '/dmu/admin/users': {
       id: '/dmu/admin/users'
-      path: '/dmu/admin/users'
+      path: '/admin/users'
       fullPath: '/dmu/admin/users'
       preLoaderRoute: typeof DmuAdminUsersRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DmuRoute
     }
     '/dmu/admin/modules': {
       id: '/dmu/admin/modules'
-      path: '/dmu/admin/modules'
+      path: '/admin/modules'
       fullPath: '/dmu/admin/modules'
       preLoaderRoute: typeof DmuAdminModulesRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DmuRoute
     }
     '/corp/print/$sessionId': {
       id: '/corp/print/$sessionId'
-      path: '/corp/print/$sessionId'
+      path: '/print/$sessionId'
       fullPath: '/corp/print/$sessionId'
       preLoaderRoute: typeof CorpPrintSessionIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof CorpRoute
     }
     '/corp/filings/$submissionId': {
       id: '/corp/filings/$submissionId'
-      path: '/corp/filings/$submissionId'
+      path: '/filings/$submissionId'
       fullPath: '/corp/filings/$submissionId'
       preLoaderRoute: typeof CorpFilingsSubmissionIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof CorpRoute
     }
     '/corp/c/$sessionId': {
       id: '/corp/c/$sessionId'
-      path: '/corp/c/$sessionId'
+      path: '/c/$sessionId'
       fullPath: '/corp/c/$sessionId'
       preLoaderRoute: typeof CorpCSessionIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof CorpRoute
     }
     '/dmu/admin/templates/': {
       id: '/dmu/admin/templates/'
-      path: '/dmu/admin/templates'
+      path: '/admin/templates'
       fullPath: '/dmu/admin/templates/'
       preLoaderRoute: typeof DmuAdminTemplatesIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DmuRoute
     }
     '/corp/events/$eventId/': {
       id: '/corp/events/$eventId/'
-      path: '/corp/events/$eventId'
+      path: '/events/$eventId'
       fullPath: '/corp/events/$eventId/'
       preLoaderRoute: typeof CorpEventsEventIdIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof CorpRoute
     }
     '/dmu/admin/templates/$name/': {
       id: '/dmu/admin/templates/$name/'
-      path: '/dmu/admin/templates/$name'
+      path: '/admin/templates/$name'
       fullPath: '/dmu/admin/templates/$name/'
       preLoaderRoute: typeof DmuAdminTemplatesNameIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DmuRoute
     }
     '/dmu/admin/templates/$name/new': {
       id: '/dmu/admin/templates/$name/new'
-      path: '/dmu/admin/templates/$name/new'
+      path: '/admin/templates/$name/new'
       fullPath: '/dmu/admin/templates/$name/new'
       preLoaderRoute: typeof DmuAdminTemplatesNameNewRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DmuRoute
     }
     '/dmu/admin/templates/$name/versions/$version': {
       id: '/dmu/admin/templates/$name/versions/$version'
-      path: '/dmu/admin/templates/$name/versions/$version'
+      path: '/admin/templates/$name/versions/$version'
       fullPath: '/dmu/admin/templates/$name/versions/$version'
       preLoaderRoute: typeof DmuAdminTemplatesNameVersionsVersionRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DmuRoute
     }
   }
 }
 
-const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  WhoAreYouRoute: WhoAreYouRoute,
-  DmuFieldDataRoute: DmuFieldDataRoute,
-  DmuWhatsappRoute: DmuWhatsappRoute,
+interface AuthRouteChildren {
+  AuthLoginRoute: typeof AuthLoginRoute
+  AuthVerifyRoute: typeof AuthVerifyRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthLoginRoute: AuthLoginRoute,
+  AuthVerifyRoute: AuthVerifyRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
+interface CorpRouteChildren {
+  CorpIndexRoute: typeof CorpIndexRoute
+  CorpCSessionIdRoute: typeof CorpCSessionIdRoute
+  CorpFilingsSubmissionIdRoute: typeof CorpFilingsSubmissionIdRoute
+  CorpPrintSessionIdRoute: typeof CorpPrintSessionIdRoute
+  CorpEventsEventIdIndexRoute: typeof CorpEventsEventIdIndexRoute
+}
+
+const CorpRouteChildren: CorpRouteChildren = {
   CorpIndexRoute: CorpIndexRoute,
-  DmuIndexRoute: DmuIndexRoute,
   CorpCSessionIdRoute: CorpCSessionIdRoute,
   CorpFilingsSubmissionIdRoute: CorpFilingsSubmissionIdRoute,
   CorpPrintSessionIdRoute: CorpPrintSessionIdRoute,
+  CorpEventsEventIdIndexRoute: CorpEventsEventIdIndexRoute,
+}
+
+const CorpRouteWithChildren = CorpRoute._addFileChildren(CorpRouteChildren)
+
+interface DmuRouteChildren {
+  DmuFieldDataRoute: typeof DmuFieldDataRoute
+  DmuWhatsappRoute: typeof DmuWhatsappRoute
+  DmuIndexRoute: typeof DmuIndexRoute
+  DmuAdminModulesRoute: typeof DmuAdminModulesRoute
+  DmuAdminUsersRoute: typeof DmuAdminUsersRoute
+  DmuCorporationsCorporationRoute: typeof DmuCorporationsCorporationRoute
+  DmuReportsReportIdRoute: typeof DmuReportsReportIdRoute
+  DmuReportsNewRoute: typeof DmuReportsNewRoute
+  DmuReportsIndexRoute: typeof DmuReportsIndexRoute
+  DmuAdminTemplatesIndexRoute: typeof DmuAdminTemplatesIndexRoute
+  DmuAdminTemplatesNameNewRoute: typeof DmuAdminTemplatesNameNewRoute
+  DmuAdminTemplatesNameIndexRoute: typeof DmuAdminTemplatesNameIndexRoute
+  DmuAdminTemplatesNameVersionsVersionRoute: typeof DmuAdminTemplatesNameVersionsVersionRoute
+}
+
+const DmuRouteChildren: DmuRouteChildren = {
+  DmuFieldDataRoute: DmuFieldDataRoute,
+  DmuWhatsappRoute: DmuWhatsappRoute,
+  DmuIndexRoute: DmuIndexRoute,
   DmuAdminModulesRoute: DmuAdminModulesRoute,
   DmuAdminUsersRoute: DmuAdminUsersRoute,
   DmuCorporationsCorporationRoute: DmuCorporationsCorporationRoute,
   DmuReportsReportIdRoute: DmuReportsReportIdRoute,
   DmuReportsNewRoute: DmuReportsNewRoute,
   DmuReportsIndexRoute: DmuReportsIndexRoute,
-  CorpEventsEventIdIndexRoute: CorpEventsEventIdIndexRoute,
   DmuAdminTemplatesIndexRoute: DmuAdminTemplatesIndexRoute,
   DmuAdminTemplatesNameNewRoute: DmuAdminTemplatesNameNewRoute,
   DmuAdminTemplatesNameIndexRoute: DmuAdminTemplatesNameIndexRoute,
   DmuAdminTemplatesNameVersionsVersionRoute:
     DmuAdminTemplatesNameVersionsVersionRoute,
+}
+
+const DmuRouteWithChildren = DmuRoute._addFileChildren(DmuRouteChildren)
+
+const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
+  AuthRoute: AuthRouteWithChildren,
+  CorpRoute: CorpRouteWithChildren,
+  DmuRoute: DmuRouteWithChildren,
+  SystemUnavailableRoute: SystemUnavailableRoute,
+  WhoAreYouRoute: WhoAreYouRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

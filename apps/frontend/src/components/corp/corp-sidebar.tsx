@@ -1,4 +1,4 @@
-import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
+import { Link, useNavigate, useRouter, useRouterState } from '@tanstack/react-router'
 import { DownloadIcon, FileTextIcon, HouseIcon, MapPinIcon } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 
@@ -8,6 +8,7 @@ import {
 } from '@/hooks/use-corp-chat-workspace'
 import { useIdentity } from '@/hooks/use-identity'
 import { identityLabel } from '@/lib/identity'
+import { queryClient } from '@/lib/query-client'
 import {
   INCIDENT_CSV_HEADERS,
   LOG_CSV_HEADERS,
@@ -33,6 +34,7 @@ import {
 export function CorpSidebar() {
   const { identity, forgetIdentity } = useIdentity()
   const navigate = useNavigate()
+  const router = useRouter()
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })
@@ -233,11 +235,15 @@ export function CorpSidebar() {
             variant="ghost"
             size="sm"
             onClick={() => {
-              forgetIdentity()
-              void navigate({ to: '/who-are-you' })
+              void (async () => {
+                await forgetIdentity()
+                queryClient.clear()
+                await router.invalidate()
+                void navigate({ to: '/login' })
+              })()
             }}
           >
-            Switch
+            Sign out
           </Button>
         </div>
       </SidebarFooter>

@@ -1,6 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,6 +11,17 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./dev.db"
     secret_key: str = "dev-only-change-me-use-a-long-random-value-in-production"
     access_token_expire_minutes: int = 720
+    refresh_token_expire_days: int = 30
+    app_name: str = "DMCU"
+    app_url: str = "http://localhost:3000"
+    from_email: str = "DMCU <noreply@example.com>"
+    resend_api_key: str | None = None
+    mailpit_url: str = "http://localhost:8025"
+    email_logo_url: str = "https://example.com/logo.png"
+    support_email: str = "support@example.com"
+    brand_color: str = "#111827"
+    otp_length: int = 6
+    otp_ttl_minutes: int = 10
     llm_provider: Literal["fake", "ollama", "nim"] = "ollama"
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "gemma3:4b"
@@ -27,6 +39,20 @@ class Settings(BaseSettings):
     app_env: str = "development"
     dedup_salt: str = "dev-salt-change-in-production"
     survey123_transport: Literal["inprocess", "mcp"] = "inprocess"
+
+    @field_validator("secret_key")
+    @classmethod
+    def secret_key_must_not_be_empty(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("SECRET_KEY must not be empty")
+        return value
+
+
+def validate_runtime_settings(values: Settings | None = None) -> None:
+    """Refuse to boot staging/prod without a Resend key."""
+    current = values or settings
+    if current.app_env.lower() in ("production", "staging") and not current.resend_api_key:
+        raise RuntimeError("RESEND_API_KEY is required in staging/production")
 
 
 @lru_cache

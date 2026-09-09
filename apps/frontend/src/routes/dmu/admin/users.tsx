@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Pencil, Plus, Trash2, UserCheck, UserX } from 'lucide-react'
@@ -31,7 +31,8 @@ import {
   useUpdateUser,
   userQueries,
 } from '@/lib/queries/users'
-import { currentUserIdFromToken, userDisplayName } from '@/lib/users'
+import { useOptionalAuth } from '@/lib/auth/auth-context'
+import { userDisplayName } from '@/lib/users'
 import type { UserAccount } from '@/types/users'
 
 export const Route = createFileRoute('/dmu/admin/users')({
@@ -49,15 +50,7 @@ function UsersPage() {
   const activateUser = useActivateUser()
   const deactivateUser = useDeactivateUser()
   const deleteUser = useDeleteUser()
-  const currentUserId = useMemo(
-    () =>
-      currentUserIdFromToken(
-        typeof window === 'undefined'
-          ? null
-          : window.localStorage.getItem('auth_token'),
-      ),
-    [],
-  )
+  const currentUserId = useOptionalAuth()?.session?.userId ?? null
 
   const [editorOpen, setEditorOpen] = useState(false)
   const [editing, setEditing] = useState<UserAccount | null>(null)

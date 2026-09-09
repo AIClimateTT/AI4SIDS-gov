@@ -1,0 +1,6 @@
+export { AuthProvider, useAuth, useOptionalAuth } from '@/lib/auth/auth-context'
+export type { AuthContextType } from '@/lib/auth/auth-context'
+export { requireAuth } from '@/lib/auth/guard'
+export { isAuthenticated, decodeJwtPayload, isTokenExpired } from '@/lib/auth/token'
+export { AuthUnavailableError } from '@/lib/auth/refresh'
+export type { Session, AuthTokenResponse, JwtPayload } from '@/lib/auth/types'

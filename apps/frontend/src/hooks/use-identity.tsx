@@ -1,69 +1,43 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
-import type { ReactNode } from 'react'
+import { createContext, useContext, type ReactNode } from 'react'
 
-import {
-  clearIdentity,
-  loadIdentity,
-  saveIdentity,
-  type Identity,
-  type IdentityStorage,
-} from '@/lib/identity'
+import { useOptionalAuth } from '@/lib/auth/auth-context'
+import { sessionToIdentity, type Identity } from '@/lib/identity'
 
 type IdentityContextValue = {
   identity: Identity | null
-  setIdentity: (next: Identity) => void
-  forgetIdentity: () => void
+  forgetIdentity: () => Promise<void> | void
 }
 
-const IdentityContext = createContext<IdentityContextValue | null>(null)
+const IdentityOverrideContext = createContext<Identity | null | undefined>(
+  undefined,
+)
 
-const noopStorage: IdentityStorage = {
-  getItem: () => null,
-  setItem: () => undefined,
-  removeItem: () => undefined,
-}
-
-function defaultStorage(): IdentityStorage {
-  return typeof window === 'undefined' ? noopStorage : window.localStorage
-}
-
+/**
+ * Optional override for tests. Production identity is always derived from
+ * the auth session — there is no client-side role switcher.
+ */
 export function IdentityProvider({
   children,
-  storage,
+  identity,
 }: {
   children: ReactNode
-  storage?: IdentityStorage
+  identity?: Identity | null
 }) {
-  const resolved = useMemo(() => storage ?? defaultStorage(), [storage])
-  const [identity, setIdentityState] = useState<Identity | null>(() =>
-    loadIdentity(resolved),
+  return (
+    <IdentityOverrideContext value={identity}>
+      {children}
+    </IdentityOverrideContext>
   )
-
-  const setIdentity = useCallback(
-    (next: Identity) => {
-      saveIdentity(resolved, next)
-      setIdentityState(next)
-    },
-    [resolved],
-  )
-
-  const forgetIdentity = useCallback(() => {
-    clearIdentity(resolved)
-    setIdentityState(null)
-  }, [resolved])
-
-  const value = useMemo(
-    () => ({ identity, setIdentity, forgetIdentity }),
-    [identity, setIdentity, forgetIdentity],
-  )
-
-  return <IdentityContext value={value}>{children}</IdentityContext>
 }
 
 export function useIdentity(): IdentityContextValue {
-  const value = useContext(IdentityContext)
-  if (value === null) {
-    throw new Error('useIdentity must be used inside an IdentityProvider')
+  const override = useContext(IdentityOverrideContext)
+  const auth = useOptionalAuth()
+  const identity =
+    override !== undefined ? override : sessionToIdentity(auth?.session ?? null)
+
+  return {
+    identity,
+    forgetIdentity: auth?.logout ?? (() => undefined),
   }
-  return value
 }

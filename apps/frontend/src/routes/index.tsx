@@ -1,14 +1,15 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 
-import { identityHomePath, loadIdentity } from '@/lib/identity'
+import { buildSessionFromTokenState } from '@/lib/auth/actions'
+import { isAuthenticated } from '@/lib/auth/token'
+import { identityHomePath, sessionToIdentity } from '@/lib/identity'
 
 export const Route = createFileRoute('/')({
-  // Reads storage directly rather than context: beforeLoad runs outside the
-  // React tree. When real authentication arrives this reads a session instead
-  // and no screen below it changes.
   beforeLoad: () => {
-    const identity =
-      typeof window === 'undefined' ? null : loadIdentity(window.localStorage)
-    throw redirect({ to: identity ? identityHomePath(identity) : '/who-are-you' })
+    if (typeof window === 'undefined' || !isAuthenticated()) {
+      throw redirect({ to: '/login' })
+    }
+    const identity = sessionToIdentity(buildSessionFromTokenState())
+    throw redirect({ to: identity ? identityHomePath(identity) : '/login' })
   },
 })

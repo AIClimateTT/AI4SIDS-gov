@@ -43,7 +43,7 @@ function CorpHomePage() {
 
   if (identity?.role !== 'corp') {
     return (
-      <CorpRoleNotice description="Switch to a corporation identity to file situation reports." />
+      <CorpRoleNotice description="This account is not a corporation account, so it cannot file situation reports." />
     )
   }
 

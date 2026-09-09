@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "alembic>=1.18.5",
+    "bcrypt>=5.0.0",
     "fastapi>=0.139.0",
     "langchain-ollama>=1.1.0",
     "langchain-openai>=1.6.0",
@@ -20,6 +21,7 @@ dependencies = [
     "sqlalchemy>=2.0",
     "typer>=0.26.8",
     "uvicorn[standard]>=0.51.0",
+    "resend>=2.43.0",
 ]
 
 [dependency-groups]

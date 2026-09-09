@@ -59,3 +59,15 @@ class RefreshToken(Base):
     @staticmethod
     def hash_token(raw: str) -> str:
         return hashlib.sha256(raw.encode()).hexdigest()
+
+
+class LoginOtp(Base, TimeStampMixin):
+    __tablename__ = "login_otps"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    code_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

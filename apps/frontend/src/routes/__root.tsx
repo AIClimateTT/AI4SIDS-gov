@@ -11,6 +11,7 @@ import { AppSidebar } from '@/components/app-sidebar'
 import { CorpSidebar } from '@/components/corp/corp-sidebar'
 import { IdentityBadge } from '@/components/identity/identity-badge'
 import { IdentityProvider, useIdentity } from '@/hooks/use-identity'
+import { AuthProvider } from '@/lib/auth/auth-context'
 import { useCorpChatWorkspace } from '@/hooks/use-corp-chat-workspace'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -33,9 +34,11 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 
 function RootComponent() {
   return (
-    <IdentityProvider>
-      <AppShell />
-    </IdentityProvider>
+    <AuthProvider>
+      <IdentityProvider>
+        <AppShell />
+      </IdentityProvider>
+    </AuthProvider>
   )
 }
 
@@ -48,11 +51,24 @@ function AppShell() {
   const isCorpChat = isCorp && pathname.startsWith('/corp/c/')
   const showSidebar = identity?.role === 'dmu' || isCorp
   const { eventTitle } = useCorpChatWorkspace()
+  const isAuthShell =
+    pathname === '/login' ||
+    pathname === '/verify' ||
+    pathname === '/system-unavailable'
 
   // The print view is the document alone — no sidebar, header, or devtools,
   // so what the browser puts on the page is only the filing.
   if (pathname.startsWith('/corp/print/')) {
     return <Outlet />
+  }
+
+  if (isAuthShell) {
+    return (
+      <TooltipProvider>
+        <Outlet />
+        <Toaster />
+      </TooltipProvider>
+    )
   }
 
   return (

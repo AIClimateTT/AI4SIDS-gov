@@ -22,7 +22,7 @@ function FilingPage() {
 
   if (identity?.role !== 'corp') {
     return (
-      <CorpRoleNotice description="Switch to a corporation identity to view this filing." />
+      <CorpRoleNotice description="This account is not a corporation account, so it cannot view this filing." />
     )
   }
 
