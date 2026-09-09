@@ -34,3 +34,6 @@ dev = [
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+markers = [
+    "workflow(name): named PM system-reliability workflow",
+]

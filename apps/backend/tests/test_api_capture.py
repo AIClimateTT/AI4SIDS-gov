@@ -864,6 +864,7 @@ def test_preview_does_not_ingest_incidents(monkeypatch):
     db.close()
 
 
+@pytest.mark.workflow("corp_capture_issue")
 def test_issue_ingests_and_persists_a_report(monkeypatch):
     client = make_client(monkeypatch)
     event_id = create_event(client)

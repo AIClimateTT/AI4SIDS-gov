@@ -277,6 +277,7 @@ def test_adjust_redacts_phones(monkeypatch):
     assert "868-555-1234" not in statement
 
 
+@pytest.mark.workflow("whatsapp_briefing")
 def test_briefing_saves_provisional_report_without_sitrep_rows(monkeypatch):
     from sqlalchemy.orm import sessionmaker
 
