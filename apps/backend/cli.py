@@ -214,12 +214,27 @@ app.add_typer(users_app, name="users")
 @users_app.command("create")
 def create_user_command(
     email: str,
-    role: str = "member",
+    role: str = typer.Option(..., "--role", help="dmu, admin, or corp"),
+    password: str = typer.Option(..., "--password", prompt=True, hide_input=True),
     first_name: str | None = None,
     last_name: str | None = None,
     corporation: str | None = None,
 ) -> None:
     from app.auth.models import User
+    from app.auth.passwords import hash_password
+
+    allowed = {"dmu", "admin", "corp"}
+    if role not in allowed:
+        typer.echo(f"role must be one of: {', '.join(sorted(allowed))}", err=True)
+        raise typer.Exit(code=1)
+    if role == "corp" and not corporation:
+        typer.echo("corp users require --corporation", err=True)
+        raise typer.Exit(code=1)
+    if role != "corp":
+        corporation = None
+    if len(password) < 8:
+        typer.echo("password must be at least 8 characters", err=True)
+        raise typer.Exit(code=1)
 
     session = SessionLocal()
     try:
@@ -234,10 +249,36 @@ def create_user_command(
             last_name=last_name,
             corporation=corporation,
             is_active=True,
+            password_hash=hash_password(password),
         )
         session.add(user)
         session.commit()
         typer.echo(f"created {user.email} role={user.role} id={user.user_id}")
+    finally:
+        session.close()
+
+
+@users_app.command("set-password")
+def set_password_command(
+    email: str,
+    password: str = typer.Option(..., "--password", prompt=True, hide_input=True),
+) -> None:
+    from app.auth.models import User
+    from app.auth.passwords import hash_password
+
+    if len(password) < 8:
+        typer.echo("password must be at least 8 characters", err=True)
+        raise typer.Exit(code=1)
+
+    session = SessionLocal()
+    try:
+        user = session.query(User).filter(User.email == email.lower().strip()).one_or_none()
+        if user is None:
+            typer.echo(f"user not found: {email}", err=True)
+            raise typer.Exit(code=1)
+        user.password_hash = hash_password(password)
+        session.commit()
+        typer.echo(f"updated password for {user.email}")
     finally:
         session.close()
 

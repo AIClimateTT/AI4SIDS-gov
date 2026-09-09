@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 
 from app.auth import repo
 from app.auth.models import User
+from app.auth.passwords import hash_password
+from app.auth.repo import WORKSPACE_ROLES
 
 
 def _normalize_email(email: str) -> str:
@@ -12,12 +14,12 @@ def _normalize_email(email: str) -> str:
 
 
 def list_users(db: Session) -> list[User]:
-    return repo.list_dmu_users(db)
+    return repo.list_workspace_users(db)
 
 
-def get_dmu_user(db: Session, user_id: UUID) -> User:
+def get_managed_user(db: Session, user_id: UUID) -> User:
     user = repo.get_by_id(db, user_id)
-    if user is None or user.role != "dmu":
+    if user is None or user.role not in WORKSPACE_ROLES:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return user
 
@@ -28,6 +30,8 @@ def create_user(
     email: str,
     first_name: str | None,
     last_name: str | None,
+    password: str,
+    role: str = "dmu",
 ) -> User:
     normalized = _normalize_email(email)
     if repo.get_by_email(db, normalized) is not None:
@@ -39,9 +43,10 @@ def create_user(
         email=normalized,
         first_name=first_name.strip() if first_name else None,
         last_name=last_name.strip() if last_name else None,
-        role="dmu",
+        role=role,
         corporation=None,
         is_active=True,
+        password_hash=hash_password(password),
     )
     db.add(user)
     db.commit()
@@ -57,7 +62,7 @@ def update_user(
     first_name: str | None,
     last_name: str | None,
 ) -> User:
-    user = get_dmu_user(db, user_id)
+    user = get_managed_user(db, user_id)
     if email is not None:
         normalized = _normalize_email(email)
         existing = repo.get_by_email(db, normalized)
@@ -85,7 +90,7 @@ def _reject_self(actor: User, target: User, action: str) -> None:
 
 
 def set_active(db: Session, actor: User, user_id: UUID, is_active: bool) -> User:
-    user = get_dmu_user(db, user_id)
+    user = get_managed_user(db, user_id)
     if not is_active:
         _reject_self(actor, user, "deactivate")
         repo.revoke_all_for_user(db, user.user_id)
@@ -96,9 +101,18 @@ def set_active(db: Session, actor: User, user_id: UUID, is_active: bool) -> User
 
 
 def delete_user(db: Session, actor: User, user_id: UUID) -> None:
-    user = get_dmu_user(db, user_id)
+    user = get_managed_user(db, user_id)
     _reject_self(actor, user, "delete")
     repo.revoke_all_for_user(db, user.user_id)
     repo.delete_refresh_tokens_for_user(db, user.user_id)
     db.delete(user)
     db.commit()
+
+
+def set_password(db: Session, user_id: UUID, password: str) -> User:
+    user = get_managed_user(db, user_id)
+    user.password_hash = hash_password(password)
+    repo.revoke_all_for_user(db, user.user_id)
+    db.commit()
+    db.refresh(user)
+    return user

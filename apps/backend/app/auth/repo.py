@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.auth.models import LoginOtp, RefreshToken, User
 
+WORKSPACE_ROLES = ("dmu", "admin")
+
 
 def get_by_email(db: Session, email: str) -> User | None:
     return db.scalar(select(User).where(User.email == email))
@@ -23,9 +25,11 @@ def get_active_by_id(db: Session, user_id: str | UUID) -> User | None:
     return user
 
 
-def list_dmu_users(db: Session) -> list[User]:
+def list_workspace_users(db: Session) -> list[User]:
     return list(
-        db.scalars(select(User).where(User.role == "dmu").order_by(User.email)).all()
+        db.scalars(
+            select(User).where(User.role.in_(WORKSPACE_ROLES)).order_by(User.email)
+        ).all()
     )
 
 

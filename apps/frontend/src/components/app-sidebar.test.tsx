@@ -89,8 +89,19 @@ function isHighlighted(name: string): boolean {
 }
 
 describe('AppSidebar', () => {
-  it('splits the DMU navigation into Operations above Administration', async () => {
+  it('shows only Operations to a DMU officer', async () => {
     await renderSidebar('/dmu')
+
+    expect(navGroups()).toEqual([
+      {
+        label: 'Operations',
+        links: ['Dashboard', 'Reports', 'Field data', 'WhatsApp'],
+      },
+    ])
+  })
+
+  it('adds Administration for an admin identity', async () => {
+    await renderSidebar('/dmu', { role: 'admin' })
 
     expect(navGroups()).toEqual([
       {
@@ -105,7 +116,7 @@ describe('AppSidebar', () => {
   })
 
   it('calls the modules page "Modules" without moving it', async () => {
-    await renderSidebar('/dmu')
+    await renderSidebar('/dmu', { role: 'admin' })
 
     expect(linkNamed('Modules').getAttribute('href')).toBe(
       '/dmu/admin/modules',
@@ -113,7 +124,7 @@ describe('AppSidebar', () => {
   })
 
   it('highlights the current section, and only that section', async () => {
-    await renderSidebar('/dmu/admin/modules')
+    await renderSidebar('/dmu/admin/modules', { role: 'admin' })
 
     expect(isHighlighted('Modules')).toBe(true)
     // The dashboard is a prefix of every DMU path; it must not light up here.

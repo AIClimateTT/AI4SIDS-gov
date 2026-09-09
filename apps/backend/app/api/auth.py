@@ -6,7 +6,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 from app.auth.dependencies import CurrentUser, SessionDep
 from app.auth.notifications import build_otp_login_email
-from app.auth import otp_service, service
+from app.auth import otp_service, password_service, service
 from app.mail import EmailSender, get_email_sender
 from app.mail.send import send_email
 
@@ -34,6 +34,11 @@ class LogoutBody(BaseModel):
     refresh_token: str
 
 
+class PasswordLoginBody(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8)
+
+
 class CurrentUserResponse(BaseModel):
     user_id: UUID
     email: str
@@ -42,6 +47,11 @@ class CurrentUserResponse(BaseModel):
     last_name: str | None
     corporation: str | None
     is_active: bool
+
+
+@router.post("/login")
+def password_login(body: PasswordLoginBody, db: SessionDep) -> dict:
+    return password_service.login_with_password(db, body.email, body.password)
 
 
 @router.post("/otp/request", status_code=202)

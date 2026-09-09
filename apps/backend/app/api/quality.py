@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.auth.dependencies import DmuUser
+from app.auth.dependencies import DmuWorkspace
 from app.core.report_store import get_report
 from app.db import get_session
 from app.quality.contracts import QualityEval
@@ -109,7 +109,7 @@ def patch_claim_verdict(
     report_id: str,
     claim_id: str,
     body: VerdictIn,
-    current_user: DmuUser,
+    current_user: DmuWorkspace,
     session: Session = Depends(get_session),
 ) -> QualityEval:
     row = get_report(report_id, session)

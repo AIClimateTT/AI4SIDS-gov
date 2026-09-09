@@ -4,6 +4,7 @@ import pytest
 
 from app.core.registry import reset_registry
 from app.db import engine as db_engine
+from app.auth.passwords import hash_password
 from tests.auth_helpers import FakeEmailSender, create_user, make_auth_client
 
 DEV_DB_PATH = Path(__file__).parent.parent / "dev.db"
@@ -179,3 +180,102 @@ def test_otp_resend_invalidates_previous_code():
         "/auth/otp/verify", json={"email": "ada@example.com", "code": second_code}
     )
     assert fresh.status_code == 200
+
+
+LOGIN_DETAIL = "Invalid email or password"
+
+
+def test_password_login_issues_token_pair_and_me():
+    create_user(password_hash=hash_password("secret123"))
+    client, _ = make_auth_client()
+
+    response = client.post(
+        "/auth/login", json={"email": "ada@example.com", "password": "secret123"}
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["token_type"] == "bearer"
+    assert body["access_token"]
+    assert body["refresh_token"]
+
+    me = client.get(
+        "/auth/me", headers={"Authorization": f"Bearer {body['access_token']}"}
+    )
+    assert me.status_code == 200
+    assert me.json()["email"] == "ada@example.com"
+    assert me.json()["role"] == "dmu"
+
+
+@pytest.mark.parametrize(
+    "role,email,corporation",
+    [
+        ("dmu", "officer@example.com", None),
+        ("admin", "admin@example.com", None),
+        ("corp", "corp@example.com", "diego_martin_regional_corporati"),
+    ],
+)
+def test_password_login_works_for_each_role(role: str, email: str, corporation: str | None):
+    create_user(
+        email=email,
+        role=role,
+        corporation=corporation,
+        password_hash=hash_password("secret123"),
+    )
+    client, _ = make_auth_client()
+
+    response = client.post("/auth/login", json={"email": email, "password": "secret123"})
+
+    assert response.status_code == 200
+    me = client.get(
+        "/auth/me",
+        headers={"Authorization": f"Bearer {response.json()['access_token']}"},
+    )
+    assert me.json()["role"] == role
+
+
+def test_password_login_wrong_password_is_generic_401():
+    create_user(password_hash=hash_password("secret123"))
+    client, _ = make_auth_client()
+
+    response = client.post(
+        "/auth/login", json={"email": "ada@example.com", "password": "wrongpass"}
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == LOGIN_DETAIL
+
+
+def test_password_login_unknown_email_is_generic_401():
+    client, _ = make_auth_client()
+
+    response = client.post(
+        "/auth/login", json={"email": "nobody@example.com", "password": "secret123"}
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == LOGIN_DETAIL
+
+
+def test_password_login_inactive_user_is_generic_401():
+    create_user(is_active=False, password_hash=hash_password("secret123"))
+    client, _ = make_auth_client()
+
+    response = client.post(
+        "/auth/login", json={"email": "ada@example.com", "password": "secret123"}
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == LOGIN_DETAIL
+
+
+def test_password_login_missing_hash_is_generic_401():
+    create_user()
+    client, _ = make_auth_client()
+
+    response = client.post(
+        "/auth/login", json={"email": "ada@example.com", "password": "secret123"}
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == LOGIN_DETAIL

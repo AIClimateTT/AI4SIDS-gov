@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { OtpLoginForm } from '@/features/auth/components/otp-login-form'
+import { PasswordLoginForm } from '@/features/auth/components/password-login-form'
 
 type LoginSearch = {
   redirect?: string
@@ -15,5 +15,5 @@ export const Route = createFileRoute('/_auth/login')({
 
 function LoginPage() {
   const { redirect } = Route.useSearch()
-  return <OtpLoginForm redirect={redirect} />
+  return <PasswordLoginForm redirect={redirect} />
 }

@@ -4,6 +4,8 @@ import { CANONICAL_CORPORATIONS } from '@/lib/corporations'
 import {
   identityHomePath,
   identityLabel,
+  isAdmin,
+  isDmuWorkspace,
   sessionToIdentity,
   type Identity,
 } from '@/lib/identity'
@@ -13,6 +15,10 @@ const DIEGO_MARTIN = 'diego_martin_regional_corporati'
 describe('sessionToIdentity', () => {
   it('maps a DMU session', () => {
     expect(sessionToIdentity({ role: 'dmu' })).toEqual({ role: 'dmu' })
+  })
+
+  it('maps an admin session', () => {
+    expect(sessionToIdentity({ role: 'admin' })).toEqual({ role: 'admin' })
   })
 
   it('maps a corp session with a canonical corporation', () => {
@@ -70,6 +76,29 @@ describe('display helpers', () => {
   it('routes each role to its own home', () => {
     const corp: Identity = { role: 'corp', corporation: DIEGO_MARTIN }
     expect(identityHomePath({ role: 'dmu' })).toBe('/dmu')
+    expect(identityHomePath({ role: 'admin' })).toBe('/dmu')
     expect(identityHomePath(corp)).toBe('/corp')
+  })
+
+  it('labels admin with the same organisation name as an officer', () => {
+    expect(identityLabel({ role: 'admin' })).toBe(
+      'Disaster Management Coordinating Unit',
+    )
+  })
+})
+
+describe('workspace helpers', () => {
+  it('treats officers and admins as the DMU workspace', () => {
+    expect(isDmuWorkspace({ role: 'dmu' })).toBe(true)
+    expect(isDmuWorkspace({ role: 'admin' })).toBe(true)
+    expect(
+      isDmuWorkspace({ role: 'corp', corporation: DIEGO_MARTIN }),
+    ).toBe(false)
+  })
+
+  it('recognises only admin as admin', () => {
+    expect(isAdmin({ role: 'admin' })).toBe(true)
+    expect(isAdmin({ role: 'dmu' })).toBe(false)
+    expect(isAdmin({ role: 'corp', corporation: DIEGO_MARTIN })).toBe(false)
   })
 })
