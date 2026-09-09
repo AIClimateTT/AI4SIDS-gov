@@ -16,6 +16,11 @@ import {
   ReportRatingField,
   ViolationsPanel,
 } from '@/components/reports'
+import {
+  factsByCid,
+  formatRequirementLabel,
+  humanizeStoredValue,
+} from '@/components/reports/citation-display'
 import { Button } from '@/components/ui/button'
 import { useVerdictClaim } from '@/lib/queries/quality'
 import { reportQueries } from '@/lib/queries/reports'
@@ -43,6 +48,11 @@ function ReportDetailPage() {
     }
     return map
   }, [data])
+
+  const citedFacts = useMemo(
+    () => factsByCid(data?.fact_table.facts),
+    [data],
+  )
 
   return (
     <div className="space-y-6">
@@ -95,7 +105,9 @@ function ReportDetailPage() {
                   <dt className="text-xs uppercase tracking-wide text-muted-foreground">
                     {formatConstant(key)}
                   </dt>
-                  <dd className="text-sm font-medium">{value}</dd>
+                  <dd className="text-sm font-medium">
+                    {humanizeStoredValue(value)}
+                  </dd>
                 </div>
               ))}
             </dl>
@@ -107,9 +119,12 @@ function ReportDetailPage() {
                 {data.data_requirements.map((requirement) => (
                   <li
                     key={`${requirement.module}.${requirement.metric}`}
-                    className="font-mono"
+                    className="text-sm"
                   >
-                    {requirement.module}.{requirement.metric}
+                    {formatRequirementLabel(
+                      requirement.module,
+                      requirement.metric,
+                    )}
                   </li>
                 ))}
               </ul>
@@ -135,12 +150,13 @@ function ReportDetailPage() {
               <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
                 <ContentCard
                   title="Briefing"
-                  description="Click a citation marker like [C001] to jump to its fact."
+                  description="Click a citation marker like [C001] to see its source."
                 >
                   <CitationMarkdown
                     markdown={data.markdown}
                     violations={data.violations}
                     sourceByCid={sourceByCid}
+                    factsByCid={citedFacts}
                   />
                 </ContentCard>
                 <ContentCard

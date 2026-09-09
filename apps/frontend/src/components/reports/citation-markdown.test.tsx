@@ -1,8 +1,30 @@
 // @vitest-environment jsdom
-import { render } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { CitationMarkdown } from '@/components/reports/citation-markdown'
+import type { Fact } from '@/types/dmcu'
+
+afterEach(() => {
+  cleanup()
+})
+
+const factC001: Fact = {
+  metric: 'incidents_by_corporation',
+  value: 19,
+  unit: 'incidents',
+  scope: {},
+  breakdown: null,
+  verification: 'validated',
+  citation: {
+    cid: 'C001',
+    module: 'sitreps',
+    description: 'Signed-off incident count',
+    query_ref: 'incidents_by_corporation()',
+    record_ids: null,
+    as_of: '2025-05-18T16:42:00Z',
+  },
+}
 
 // The markdown rendered here is model-authored prose. rehype-raw parses its
 // raw HTML so that the <mark> spans injected for violation highlighting work,
@@ -103,5 +125,59 @@ describe('CitationMarkdown source identity', () => {
     const { container } = render(<CitationMarkdown markdown={markdown} />)
     expect(container.querySelector('[data-source="other"]')).not.toBeNull()
     expect(container.querySelector('[data-source="sitreps"]')).toBeNull()
+  })
+})
+
+describe('CitationMarkdown readable citation', () => {
+  it('opens the readable card instead of dumping the lookup string', () => {
+    render(
+      <CitationMarkdown
+        markdown="There were 19 incidents [C001]."
+        factsByCid={{ C001: factC001 }}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'C001' }))
+
+    expect(screen.getByText('19 incidents')).toBeTruthy()
+    expect(screen.getByText('Signed-off incident count')).toBeTruthy()
+    expect(screen.queryByText('incidents_by_corporation()')).toBeNull()
+    expect(screen.queryByText('query_ref')).toBeNull()
+  })
+
+  it('still jumps to the fact row from View in table', () => {
+    const target = document.createElement('div')
+    target.id = 'citation-C001'
+    target.scrollIntoView = () => {
+      target.dataset.scrolled = 'true'
+    }
+    document.body.appendChild(target)
+
+    render(
+      <CitationMarkdown
+        markdown="There were 19 incidents [C001]."
+        factsByCid={{ C001: factC001 }}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'C001' }))
+    fireEvent.click(screen.getByRole('button', { name: 'View in table' }))
+
+    expect(target.dataset.scrolled).toBe('true')
+  })
+
+  it('hides the markdown appendix when the fact table is already on the page', () => {
+    const markdown = [
+      'There were 19 incidents [C001].',
+      '',
+      '## Citation Appendix',
+      '- [C006] Survey123 data coverage (query_ref: `data_coverage()`, as_of: 2026-08-22 19:37:55.841212+00:00)',
+    ].join('\n')
+
+    render(
+      <CitationMarkdown markdown={markdown} factsByCid={{ C001: factC001 }} />,
+    )
+
+    expect(screen.queryByText('Citation Appendix')).toBeNull()
+    expect(screen.queryByText(/query_ref/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'C001' })).toBeTruthy()
   })
 })

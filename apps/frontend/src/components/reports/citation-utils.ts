@@ -207,6 +207,27 @@ export function prepareReportMarkdown(
   return linkifyCitations(markViolationSentences(repaired, violations))
 }
 
+/**
+ * The on-screen briefing already has popovers and a fact table. The markdown
+ * appendix is the same facts as a wall of query_ref / as_of, including on
+ * reports generated before those labels were humanised. Drop it from the
+ * document the reader sees; keep it in stored markdown for CLI/export.
+ */
+export function stripCitationAppendix(markdown: string): string {
+  const heading = /^## Citation Appendix\s*$/m.exec(markdown)
+  if (!heading || heading.index === undefined) return markdown
+
+  const start = heading.index
+  const afterHeading = markdown.slice(start + heading[0].length)
+  const nextHeading = afterHeading.search(/^## /m)
+  const end =
+    nextHeading === -1
+      ? markdown.length
+      : start + heading[0].length + nextHeading
+
+  return markdown.slice(0, start).trimEnd() + markdown.slice(end)
+}
+
 export function citationAnchorId(cid: string): string {
   return `citation-${cid}`
 }
