@@ -21,6 +21,7 @@ def add_report(report: GeneratedReport, session: Session) -> Report:
         status=report.status,
         error=None,
         violations=[v.model_dump() for v in report.violations],
+        quality_eval=report.quality_eval.model_dump(mode="json") if report.quality_eval else None,
         created_at=datetime.now(timezone.utc),
     )
     session.add(db_report)
@@ -62,6 +63,7 @@ def save_placeholder_report(
         status="queued",
         error=None,
         violations=[],
+        quality_eval=None,
         created_at=now,
     )
     session.add(db_report)
@@ -96,6 +98,9 @@ def apply_generated_report(row: Report, report: GeneratedReport, session: Sessio
     row.status = report.status
     row.error = None
     row.violations = [v.model_dump() for v in report.violations]
+    row.quality_eval = (
+        report.quality_eval.model_dump(mode="json") if report.quality_eval else None
+    )
     session.commit()
     session.refresh(row)
     return row

@@ -168,6 +168,7 @@ class ReportDetail(BaseModel):
     markdown: str
     status: str
     violations: list
+    quality_eval: dict | None = None
     error: str | None = None
     created_at: datetime
 
@@ -189,6 +190,7 @@ def read_report(report_id: str, session: Session = Depends(get_session)) -> Repo
         markdown=db_report.markdown,
         status=db_report.status,
         violations=db_report.violations,
+        quality_eval=db_report.quality_eval,
         error=db_report.error,
         created_at=db_report.created_at,
     )

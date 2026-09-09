@@ -77,6 +77,38 @@ def test_save_report_persists_all_fields(tmp_path):
     assert saved.markdown.startswith("# Test Report")
     assert saved.fact_table["request_id"] == "req-1"
     assert saved.violations == []
+    assert saved.quality_eval is None
+
+
+def test_save_report_round_trips_quality_eval(tmp_path):
+    from app.quality.score import score_quality
+    from app.core.citation_check import check_citations
+    from app.core.contracts import NarrationConfig, RenderConfig, Template, TemplateParam
+
+    session = make_session(tmp_path)
+    report = make_generated_report()
+    template = Template(
+        name=report.template,
+        title="t",
+        description="t",
+        params=[TemplateParam(name="date_from", required=True), TemplateParam(name="date_to", required=True)],
+        data_requirements=report.data_requirements,
+        narration=NarrationConfig.of("c"),
+        render=RenderConfig(),
+    )
+    result = check_citations(report.narrative, report.fact_table)
+    report = report.model_copy(
+        update={
+            "quality_eval": score_quality(
+                template, report.fact_table, report.narrative, report.markdown, result
+            )
+        }
+    )
+    saved = save_report(report, session)
+    fetched = get_report("req-1", session)
+    assert fetched is not None
+    assert fetched.quality_eval is not None
+    assert fetched.quality_eval["scorer_version"] == 1
 
 
 def test_save_report_persists_violations(tmp_path):
