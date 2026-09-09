@@ -124,6 +124,10 @@ def test_render_includes_citation_appendix_by_default():
     assert "## Citation Appendix" in markdown
     assert "C001" in markdown
     assert "test citation C001" in markdown
+    assert "Source query:" in markdown
+    assert "As of:" in markdown
+    assert "query_ref:" not in markdown
+    assert "as_of:" not in markdown
 
 
 def test_filing_layout_omits_zero_relief_and_unknown_street():
@@ -297,6 +301,8 @@ def test_draft_variant_keeps_citations_and_data_gaps_heading():
     assert "[C001]" in markdown
     assert "## Citation Appendix" in markdown
     assert "## Data Gaps" in markdown
+    assert "Source query:" in markdown
+    assert "query_ref:" not in markdown
 
 
 def test_render_omits_citation_appendix_when_disabled():

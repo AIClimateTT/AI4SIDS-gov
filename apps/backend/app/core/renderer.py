@@ -12,6 +12,13 @@ def _strip_citations(text: str) -> str:
     return _CITATION_MARKER.sub("", text)
 
 
+def _citation_appendix_line(citation) -> str:
+    return (
+        f"- [{citation.cid}] {citation.description} "
+        f"(Source query: `{citation.query_ref}`, As of: {citation.as_of})"
+    )
+
+
 def _humanize(slug: str) -> str:
     """Turn an incident type slug into label case.
 
@@ -182,10 +189,7 @@ def render_filing(
         parts.append("## Citation Appendix")
         for fact in fact_table.facts:
             citation = fact.citation
-            parts.append(
-                f"- [{citation.cid}] {citation.description} "
-                f"(query_ref: `{citation.query_ref}`, as_of: {citation.as_of})"
-            )
+            parts.append(_citation_appendix_line(citation))
 
     return "\n".join(parts)
 
@@ -230,9 +234,6 @@ def render_report(
         parts.append("## Citation Appendix")
         for fact in fact_table.facts:
             citation = fact.citation
-            parts.append(
-                f"- [{citation.cid}] {citation.description} "
-                f"(query_ref: `{citation.query_ref}`, as_of: {citation.as_of})"
-            )
+            parts.append(_citation_appendix_line(citation))
 
     return "\n".join(parts)
