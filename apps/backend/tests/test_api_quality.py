@@ -157,3 +157,89 @@ def test_authenticated_user_can_rate_a_report(monkeypatch):
     assert summary["rating_count"] == 1
     assert summary["rating_mean"] == 5.0
     assert summary["rating_positive_rate"] == 1.0
+
+
+def test_dmu_user_can_verdict_a_pending_claim(monkeypatch):
+    from app.auth.tokens import create_access_token
+    from tests.auth_helpers import create_user
+
+    client = make_client(monkeypatch)
+    _ingest_fixture()
+    created = _generate(client)
+    report_id = created.json()["id"]
+    detail = client.get(f"/reports/{report_id}").json()
+    claims = (detail.get("quality_eval") or {}).get("claims", {}).get("claims", [])
+    assert claims, "generated report should carry a claim inventory"
+    claim_id = claims[0]["claim_id"]
+    user = create_user(role="dmu")
+    token = create_access_token(
+        user_id=user.user_id,
+        role=user.role,
+        email=user.email,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        corporation=user.corporation,
+    )
+    patched = client.patch(
+        f"/reports/{report_id}/claims/{claim_id}",
+        json={"verdict": "supported"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert patched.status_code == 200, patched.text
+    claims = patched.json()["claims"]["claims"]
+    updated = next(item for item in claims if item["claim_id"] == claim_id)
+    assert updated["human_verdict"] == "supported"
+
+
+def test_corp_user_cannot_verdict_a_claim(monkeypatch):
+    from app.auth.tokens import create_access_token
+    from tests.auth_helpers import create_user
+
+    client = make_client(monkeypatch)
+    _ingest_fixture()
+    created = _generate(client)
+    report_id = created.json()["id"]
+    detail = client.get(f"/reports/{report_id}").json()
+    claims = (detail.get("quality_eval") or {}).get("claims", {}).get("claims", [])
+    assert claims
+    claim_id = claims[0]["claim_id"]
+    user = create_user(role="corp", corporation="arima")
+    token = create_access_token(
+        user_id=user.user_id,
+        role=user.role,
+        email=user.email,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        corporation=user.corporation,
+    )
+    patched = client.patch(
+        f"/reports/{report_id}/claims/{claim_id}",
+        json={"verdict": "supported"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert patched.status_code == 403
+
+
+def test_unknown_claim_returns_404(monkeypatch):
+    from app.auth.tokens import create_access_token
+    from tests.auth_helpers import create_user
+
+    client = make_client(monkeypatch)
+    _ingest_fixture()
+    created = _generate(client)
+    report_id = created.json()["id"]
+    user = create_user(role="dmu")
+    token = create_access_token(
+        user_id=user.user_id,
+        role=user.role,
+        email=user.email,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        corporation=user.corporation,
+    )
+    patched = client.patch(
+        f"/reports/{report_id}/claims/cl999",
+        json={"verdict": "supported"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert patched.status_code == 404

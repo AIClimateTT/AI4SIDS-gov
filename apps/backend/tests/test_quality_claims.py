@@ -82,3 +82,17 @@ def test_cited_prose_without_digits_is_pending_semantic():
     score = extract_claims(narrative, table, result)
     assert score.claims[0].auto_verdict == "pending_semantic"
     assert score.faithfulness_rate is None
+
+
+def test_human_verdict_resolves_pending_semantic():
+    from app.quality.claims import recompute_claim_rates
+
+    table = make_table(count_fact())
+    narrative = "Flooding affected Arima [C001]."
+    result = check_citations(narrative, table)
+    score = extract_claims(narrative, table, result)
+    assert score.claims[0].auto_verdict == "pending_semantic"
+    score.claims[0].human_verdict = "supported"
+    updated = recompute_claim_rates(score)
+    assert updated.faithfulness_rate == 1.0
+    assert updated.unsupported_rate == 0.0

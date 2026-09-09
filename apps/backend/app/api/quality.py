@@ -5,9 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.auth.dependencies import DmuUser
+from app.core.report_store import get_report
 from app.db import get_session
+from app.quality.contracts import QualityEval
 from app.quality.denominators import NAMED_WORKFLOWS
-from app.quality.store import get_event, list_events, record_event, set_assisted
+from app.quality.store import apply_claim_verdict, get_event, list_events, record_event, set_assisted
 from app.quality.summary import QualitySummary, build_quality_summary
 
 router = APIRouter()
@@ -95,3 +98,27 @@ def patch_quality_event(
     if row is None:
         raise HTTPException(status_code=404, detail=f"event not found: {event_id}")
     return _to_out(row)
+
+
+class VerdictIn(BaseModel):
+    verdict: Literal["supported", "unsupported"]
+
+
+@router.patch("/reports/{report_id}/claims/{claim_id}", response_model=QualityEval)
+def patch_claim_verdict(
+    report_id: str,
+    claim_id: str,
+    body: VerdictIn,
+    current_user: DmuUser,
+    session: Session = Depends(get_session),
+) -> QualityEval:
+    row = get_report(report_id, session)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"report not found: {report_id}")
+    try:
+        eval_ = apply_claim_verdict(row, claim_id, body.verdict)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"claim not found: {claim_id}") from None
+    row.quality_eval = eval_.model_dump(mode="json")
+    session.commit()
+    return eval_
