@@ -118,6 +118,96 @@ export type ReportListItem = {
   created_at: string
 }
 
+export type ClaimVerdict = 'supported' | 'unsupported' | 'pending_semantic'
+
+export type ClaimRecord = {
+  claim_id: string
+  sentence: string
+  cited_cids: string[]
+  number_tokens: string[]
+  critical: boolean
+  auto_verdict: ClaimVerdict
+  human_verdict: 'supported' | 'unsupported' | null
+}
+
+export type ClaimScore = {
+  claims: ClaimRecord[]
+  material_count: number
+  unsupported_count: number
+  critical_unsupported_count: number
+  faithfulness_rate: number | null
+  unsupported_rate: number | null
+  critical_hallucination_rate: number | null
+}
+
+export type CompletenessScore = {
+  expected: string[]
+  present: string[]
+  missing: string[]
+  rate: number
+}
+
+export type NumericalMatch = {
+  metric: string
+  cid: string
+  expected: number | string
+  appeared: boolean
+  matched: boolean
+}
+
+export type NumericalScore = {
+  items: NumericalMatch[]
+  rate: number
+  passed: boolean
+}
+
+export type CitationProxy = {
+  citation_instances: number
+  missing: number
+  misattributed: number
+  invented: number
+  rate: number
+}
+
+export type QualityEval = {
+  scored_at: string
+  scorer_version: number
+  completeness: CompletenessScore
+  numerical: NumericalScore
+  citations: CitationProxy
+  claims: ClaimScore
+}
+
+export type ThresholdStatus = {
+  name: string
+  threshold: number
+  actual: number | null
+  met: boolean | null
+  sample: number
+}
+
+export type QualitySummary = {
+  report_count: number
+  scored_count: number
+  thresholds: ThresholdStatus[]
+  rating_count: number
+  rating_mean: number | null
+  rating_positive_rate: number | null
+  task_started: number
+  task_succeeded_unaided: number
+}
+
+export type RatingInput = {
+  rating: number
+  comment?: string | null
+}
+
+export type RatingResult = {
+  id: string
+  report_id: string
+  rating: number
+}
+
 export type ReportDetail = {
   id: string
   template: string
@@ -129,6 +219,7 @@ export type ReportDetail = {
   markdown: string
   status: ReportStatus
   violations: CitationViolation[]
+  quality_eval?: QualityEval | null
   error?: string | null
   created_at: string
 }

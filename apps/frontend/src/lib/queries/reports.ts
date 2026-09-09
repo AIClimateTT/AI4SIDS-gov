@@ -1,11 +1,13 @@
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
-import { createReport, getReport, getReports } from '@/lib/api/reports'
+import { createReport, getReport, getReports, postReportRating } from '@/lib/api/reports'
 import { mutationOptions } from '@/lib/queries/tanstack-helpers'
 import { overviewKeys } from '@/lib/queries/overview'
+import { qualityKeys } from '@/lib/queries/quality'
 import type {
   GenerateReportInput,
+  RatingInput,
   ReportListParams,
   ReportStatus,
 } from '@/types/dmcu'
@@ -56,6 +58,15 @@ export const reportMutations = {
     mutationOptions({
       mutationFn: (payload: GenerateReportInput) => createReport(payload),
     }),
+  rate: () =>
+    mutationOptions({
+      mutationFn: ({
+        reportId,
+        rating,
+        comment,
+      }: RatingInput & { reportId: string }) =>
+        postReportRating(reportId, { rating, comment }),
+    }),
 }
 
 // ---------------------------------------------------------------------------
@@ -77,6 +88,23 @@ export function useCreateReport(onSuccess?: (id: string) => void) {
     },
     onError: (error: Error) =>
       toast.error('Failed to generate report', {
+        description: error.message,
+      }),
+  })
+}
+
+export function useRateReport(reportId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    ...reportMutations.rate(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: reportKeys.detail(reportId) })
+      void queryClient.invalidateQueries({ queryKey: qualityKeys.summary() })
+      toast.success('Rating saved')
+    },
+    onError: (error: Error) =>
+      toast.error('Failed to save rating', {
         description: error.message,
       }),
   })

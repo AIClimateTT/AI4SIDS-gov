@@ -13,11 +13,15 @@ import { ContentCard } from '@/components/shared/content-card'
 import {
   CitationMarkdown,
   ReportFactTable,
+  ReportRatingField,
   ViolationsPanel,
 } from '@/components/reports'
+import { Button } from '@/components/ui/button'
+import { useVerdictClaim } from '@/lib/queries/quality'
 import { reportQueries } from '@/lib/queries/reports'
 import { formatConstant } from '@/lib/format-constant'
 import { formatWhen } from '@/lib/format-when'
+import type { ClaimRecord } from '@/types/dmcu'
 
 export const Route = createFileRoute('/dmu/reports/$reportId')({
   component: ReportDetailPage,
@@ -69,6 +73,20 @@ function ReportDetailPage() {
               {formatWhen(data.created_at)}
             </span>
           </div>
+
+          <ReportRatingField
+            reportId={data.id}
+            disabled={
+              data.status === 'queued' ||
+              data.status === 'running' ||
+              data.status === 'failed'
+            }
+          />
+
+          <PendingClaims
+            reportId={data.id}
+            claims={data.quality_eval?.claims.claims ?? []}
+          />
 
           <ContentCard title="Parameters" size="sm">
             <dl className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -137,5 +155,68 @@ function ReportDetailPage() {
         </>
       ) : null}
     </div>
+  )
+}
+
+function PendingClaims({
+  reportId,
+  claims,
+}: {
+  reportId: string
+  claims: ClaimRecord[]
+}) {
+  const pending = claims.filter(
+    (claim) =>
+      claim.auto_verdict === 'pending_semantic' && claim.human_verdict == null,
+  )
+  const verdict = useVerdictClaim(reportId)
+  if (pending.length === 0) return null
+
+  return (
+    <ContentCard
+      title="Claims needing a verdict"
+      description="These sentences cite a fact but do not contain a figure the checker can match. Mark whether the fact supports them."
+      size="sm"
+    >
+      <ul className="space-y-3">
+        {pending.map((claim) => (
+          <li key={claim.claim_id} className="space-y-2">
+            <p className="text-sm">{claim.sentence}</p>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={verdict.isPending}
+                onClick={() =>
+                  verdict.mutate({
+                    reportId,
+                    claimId: claim.claim_id,
+                    verdict: 'supported',
+                  })
+                }
+              >
+                Supported
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={verdict.isPending}
+                onClick={() =>
+                  verdict.mutate({
+                    reportId,
+                    claimId: claim.claim_id,
+                    verdict: 'unsupported',
+                  })
+                }
+              >
+                Unsupported
+              </Button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </ContentCard>
   )
 }

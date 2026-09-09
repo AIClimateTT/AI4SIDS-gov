@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { FileTextIcon, UploadIcon } from 'lucide-react'
 
 import { AlertLevelBadge, ButtonLink, EmptyState, LoadingBlock, NeedsReviewBand, PageHeader, StatCard, StatusBadge } from '@/components/shared'
+import { QualityBand } from '@/components/dmu/quality-band'
 import {
   Table,
   TableBody,
@@ -17,6 +18,7 @@ import { Label } from '@/components/ui/label'
 import { ContentCard } from '@/components/shared/content-card'
 import { RoleMismatchNotice } from '@/components/identity/role-mismatch-notice'
 import { overviewQueries } from '@/lib/queries/overview'
+import { useQualitySummary } from '@/lib/queries/quality'
 import { submissionQueries } from '@/lib/queries/submissions'
 import { deriveWhoReported } from '@/lib/who-reported'
 import { formatWhen } from '@/lib/format-when'
@@ -72,6 +74,7 @@ function OverviewPage() {
       {data ? (
         <>
           <NeedsReviewBand count={data.needs_review_count} />
+          <OverviewQualityBand />
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard
@@ -167,6 +170,12 @@ function OverviewPage() {
       ) : null}
     </div>
   )
+}
+
+function OverviewQualityBand() {
+  const { data, isPending, isError } = useQualitySummary()
+  if (isPending || isError || !data) return null
+  return <QualityBand summary={data} />
 }
 
 function WhoHasReportedCard() {
