@@ -592,3 +592,28 @@ def test_a_multi_cid_bracket_still_binds_the_number_to_those_facts():
     )
 
     assert [v.kind for v in result.violations] == ["invented_number"]
+
+
+def test_spelled_out_invented_number_is_flagged():
+    result = check_citations(
+        "There were ninety homes affected [survey123-incident_count-0].",
+        make_fact_table(),
+    )
+    kinds = {v.kind for v in result.violations}
+    assert "invented_number" in kinds
+
+
+def test_spelled_out_licensed_number_passes():
+    result = check_citations(
+        "There were fifteen records [survey123-data_coverage-2].",
+        make_fact_table(),
+    )
+    assert [v for v in result.violations if v.kind == "invented_number"] == []
+
+
+def test_digit_invented_number_still_flagged():
+    result = check_citations(
+        "There were 99 incidents [survey123-incident_count-0].",
+        make_fact_table(),
+    )
+    assert any(v.kind == "invented_number" and v.token == "99" for v in result.violations)
