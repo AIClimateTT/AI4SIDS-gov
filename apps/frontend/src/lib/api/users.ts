@@ -1,6 +1,6 @@
 import { apiClient } from '@/lib/api/client'
 import { withApiError } from '@/lib/api/errors'
-import type { UserAccount, UserWriteInput } from '@/types/users'
+import type { UserAccount, UserCreateInput, UserWriteInput } from '@/types/users'
 
 export async function getUsers(): Promise<UserAccount[]> {
   return withApiError(async () => {
@@ -9,7 +9,7 @@ export async function getUsers(): Promise<UserAccount[]> {
   })
 }
 
-export async function createUser(payload: UserWriteInput): Promise<UserAccount> {
+export async function createUser(payload: UserCreateInput): Promise<UserAccount> {
   return withApiError(async () => {
     const { data } = await apiClient.post<UserAccount>('/users', payload)
     return data
@@ -36,6 +36,19 @@ export async function activateUser(userId: string): Promise<UserAccount> {
 export async function deactivateUser(userId: string): Promise<UserAccount> {
   return withApiError(async () => {
     const { data } = await apiClient.post<UserAccount>(`/users/${userId}/deactivate`)
+    return data
+  })
+}
+
+export async function setUserPassword(
+  userId: string,
+  password: string,
+): Promise<UserAccount> {
+  return withApiError(async () => {
+    const { data } = await apiClient.post<UserAccount>(
+      `/users/${userId}/set-password`,
+      { password },
+    )
     return data
   })
 }

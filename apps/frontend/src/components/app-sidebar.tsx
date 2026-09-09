@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 
 import { useIdentity } from '@/hooks/use-identity'
+import { isAdmin, isDmuWorkspace } from '@/lib/identity'
 
 import {
   Sidebar,
@@ -96,7 +97,11 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })
-  const groups = identity?.role === 'dmu' ? DMU_NAV : []
+  const groups = isDmuWorkspace(identity)
+    ? isAdmin(identity)
+      ? DMU_NAV
+      : DMU_NAV.filter((group) => group.label !== 'Administration')
+    : []
 
   return (
     <Sidebar variant="inset" {...props}>

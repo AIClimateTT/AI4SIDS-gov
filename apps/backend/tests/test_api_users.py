@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.auth.models import RefreshToken, User
+from app.auth.passwords import hash_password, verify_with_timing_protection
 from app.auth.tokens import create_access_token
 from app.db import Base, SessionLocal, engine as db_engine
 from app.api.users import router as users_router
@@ -40,6 +41,7 @@ def _create_user(**kwargs) -> User:
         last_name=kwargs.get("last_name"),
         corporation=kwargs.get("corporation"),
         is_active=kwargs.get("is_active", True),
+        password_hash=kwargs.get("password_hash"),
     )
     session.add(user)
     session.commit()
@@ -81,8 +83,26 @@ def test_corp_user_cannot_list_users():
     assert response.status_code == 403
 
 
-def test_dmu_can_create_and_list_dmu_users_only():
-    actor = _create_user()
+def test_officer_cannot_list_or_create_users():
+    officer = _create_user(role="dmu")
+    client = _client(officer)
+
+    listed = client.get("/users")
+    assert listed.status_code == 403
+
+    created = client.post(
+        "/users",
+        json={
+            "email": "sam@example.com",
+            "first_name": "Sam",
+            "password": "secret123",
+        },
+    )
+    assert created.status_code == 403
+
+
+def test_admin_can_create_and_list_dmu_and_admin_users_only():
+    actor = _create_user(role="admin")
     _create_user(
         email="corp@example.com",
         role="corp",
@@ -92,29 +112,56 @@ def test_dmu_can_create_and_list_dmu_users_only():
 
     created = client.post(
         "/users",
-        json={"email": "Sam@Example.com", "first_name": "Sam", "last_name": "Lee"},
+        json={
+            "email": "Sam@Example.com",
+            "first_name": "Sam",
+            "last_name": "Lee",
+            "password": "secret123",
+        },
     )
     assert created.status_code == 201
     body = created.json()
     assert body["email"] == "sam@example.com"
     assert body["role"] == "dmu"
     assert body["is_active"] is True
+    assert body["has_password"] is True
+    assert "password" not in body
+    assert "password_hash" not in body
     assert "corporation" not in body
+
+    admin_created = client.post(
+        "/users",
+        json={
+            "email": "boss@example.com",
+            "password": "secret123",
+            "role": "admin",
+        },
+    )
+    assert admin_created.status_code == 201
+    assert admin_created.json()["role"] == "admin"
 
     listed = client.get("/users")
     assert listed.status_code == 200
     emails = {row["email"] for row in listed.json()}
-    assert emails == {"ada@example.com", "sam@example.com"}
+    assert emails == {"ada@example.com", "sam@example.com", "boss@example.com"}
+
+
+def test_create_user_without_password_is_422():
+    actor = _create_user(role="admin")
+    response = _client(actor).post("/users", json={"email": "sam@example.com"})
+    assert response.status_code == 422
 
 
 def test_duplicate_email_is_409():
-    actor = _create_user()
-    response = _client(actor).post("/users", json={"email": "ada@example.com"})
+    actor = _create_user(role="admin")
+    response = _client(actor).post(
+        "/users", json={"email": "ada@example.com", "password": "secret123"}
+    )
     assert response.status_code == 409
 
 
 def test_update_user_name_and_email():
-    actor = _create_user()
+    actor = _create_user(role="admin")
     target = _create_user(email="sam@example.com", first_name="Sam")
     response = _client(actor).patch(
         f"/users/{target.user_id}",
@@ -126,7 +173,7 @@ def test_update_user_name_and_email():
 
 
 def test_cannot_update_corp_user():
-    actor = _create_user()
+    actor = _create_user(role="admin")
     corp = _create_user(email="corp@example.com", role="corp")
     response = _client(actor).patch(
         f"/users/{corp.user_id}", json={"first_name": "Nope"}
@@ -135,7 +182,7 @@ def test_cannot_update_corp_user():
 
 
 def test_cannot_deactivate_or_delete_self():
-    actor = _create_user()
+    actor = _create_user(role="admin")
     client = _client(actor)
 
     deactivated = client.post(f"/users/{actor.user_id}/deactivate")
@@ -146,7 +193,7 @@ def test_cannot_deactivate_or_delete_self():
 
 
 def test_deactivate_revokes_refresh_tokens_and_delete_removes_row():
-    actor = _create_user()
+    actor = _create_user(role="admin")
     target = _create_user(email="sam@example.com")
     session = SessionLocal()
     session.add(
@@ -174,14 +221,67 @@ def test_deactivate_revokes_refresh_tokens_and_delete_removes_row():
 
     deleted = client.delete(f"/users/{target.user_id}")
     assert deleted.status_code == 204
-    assert client.get("/users").json() == [
+    listed = client.get("/users").json()
+    assert listed == [
         {
             "user_id": str(actor.user_id),
             "email": actor.email,
             "first_name": actor.first_name,
             "last_name": actor.last_name,
-            "role": "dmu",
+            "role": "admin",
             "is_active": True,
             "last_login": None,
+            "has_password": False,
         }
     ]
+
+
+def test_officer_cannot_set_password():
+    officer = _create_user(role="dmu")
+    target = _create_user(email="sam@example.com")
+    response = _client(officer).post(
+        f"/users/{target.user_id}/set-password",
+        json={"password": "newsecret"},
+    )
+    assert response.status_code == 403
+
+
+def test_set_password_hashes_and_revokes_refresh_tokens():
+    actor = _create_user(role="admin")
+    target = _create_user(email="sam@example.com")
+    session = SessionLocal()
+    session.add(
+        RefreshToken(
+            user_id=target.user_id,
+            token_hash="b" * 64,
+            expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+        )
+    )
+    session.commit()
+    session.close()
+
+    response = _client(actor).post(
+        f"/users/{target.user_id}/set-password",
+        json={"password": "newsecret"},
+    )
+    assert response.status_code == 200
+    assert response.json()["has_password"] is True
+    assert "password" not in response.json()
+
+    session = SessionLocal()
+    user = session.get(User, target.user_id)
+    assert user is not None
+    assert verify_with_timing_protection("newsecret", user.password_hash)
+    row = session.query(RefreshToken).one()
+    assert row.revoked_at is not None
+    session.close()
+
+
+def test_admin_can_set_own_password():
+    actor = _create_user(role="admin")
+    response = _client(actor).post(
+        f"/users/{actor.user_id}/set-password",
+        json={"password": "newsecret"},
+    )
+    assert response.status_code == 200
+    assert response.json()["has_password"] is True

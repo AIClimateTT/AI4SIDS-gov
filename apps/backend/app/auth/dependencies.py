@@ -13,6 +13,8 @@ _bearer_scheme = HTTPBearer(auto_error=False)
 
 SessionDep = Annotated[Session, Depends(get_session)]
 
+WORKSPACE_ROLES = frozenset({"dmu", "admin"})
+
 
 def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer_scheme),
@@ -33,8 +35,8 @@ def get_current_user(
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
-def require_dmu_user(current_user: CurrentUser) -> User:
-    if current_user.role != "dmu":
+def require_dmu_workspace(current_user: CurrentUser) -> User:
+    if current_user.role not in WORKSPACE_ROLES:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="DMU role required",
@@ -42,4 +44,14 @@ def require_dmu_user(current_user: CurrentUser) -> User:
     return current_user
 
 
-DmuUser = Annotated[User, Depends(require_dmu_user)]
+def require_admin_user(current_user: CurrentUser) -> User:
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin role required",
+        )
+    return current_user
+
+
+DmuWorkspace = Annotated[User, Depends(require_dmu_workspace)]
+AdminUser = Annotated[User, Depends(require_admin_user)]

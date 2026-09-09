@@ -12,6 +12,7 @@ import { CorpSidebar } from '@/components/corp/corp-sidebar'
 import { IdentityBadge } from '@/components/identity/identity-badge'
 import { IdentityProvider, useIdentity } from '@/hooks/use-identity'
 import { AuthProvider } from '@/lib/auth/auth-context'
+import { isDmuWorkspace } from '@/lib/identity'
 import { useCorpChatWorkspace } from '@/hooks/use-corp-chat-workspace'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -49,7 +50,7 @@ function AppShell() {
   })
   const isCorp = identity?.role === 'corp'
   const isCorpChat = isCorp && pathname.startsWith('/corp/c/')
-  const showSidebar = identity?.role === 'dmu' || isCorp
+  const showSidebar = isDmuWorkspace(identity) || isCorp
   const { eventTitle } = useCorpChatWorkspace()
   const isAuthShell =
     pathname === '/login' ||
@@ -74,7 +75,7 @@ function AppShell() {
   return (
     <TooltipProvider>
       <SidebarProvider className="h-svh overflow-hidden">
-        {identity?.role === 'dmu' ? <AppSidebar /> : null}
+        {isDmuWorkspace(identity) ? <AppSidebar /> : null}
         {isCorp ? <CorpSidebar /> : null}
         <SidebarInset className="min-h-0 overflow-hidden">
           <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">

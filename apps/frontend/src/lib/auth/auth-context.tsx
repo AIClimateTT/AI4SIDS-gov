@@ -10,6 +10,7 @@ import {
 
 import {
   buildSessionFromTokenState,
+  loginWithPassword as loginWithPasswordAction,
   logoutCurrentSession,
   requestOtp as requestOtpAction,
   verifyOtpAndLogin,
@@ -19,6 +20,11 @@ import type { Session } from '@/lib/auth/types'
 
 export interface AuthContextType {
   session: Session | null
+  loginWithPassword: (
+    email: string,
+    password: string,
+    rememberMe?: boolean,
+  ) => Promise<Session>
   requestOtp: (email: string) => Promise<void>
   verifyOtp: (
     email: string,
@@ -45,6 +51,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const loginWithPassword = useCallback(
+    async (email: string, password: string, rememberMe = true) => {
+      const next = await loginWithPasswordAction(email, password, rememberMe)
+      setSession(next)
+      return next
+    },
+    [],
+  )
+
   const requestOtp = useCallback(async (email: string) => {
     await requestOtpAction(email)
   }, [])
@@ -64,8 +79,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo(
-    () => ({ session, requestOtp, verifyOtp, logout }),
-    [session, requestOtp, verifyOtp, logout],
+    () => ({ session, loginWithPassword, requestOtp, verifyOtp, logout }),
+    [session, loginWithPassword, requestOtp, verifyOtp, logout],
   )
 
   return <AuthContext value={value}>{children}</AuthContext>

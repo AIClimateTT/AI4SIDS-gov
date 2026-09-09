@@ -36,6 +36,22 @@ async function readErrorDetail(res: Response, fallback: string): Promise<string>
   return typeof err.detail === 'string' ? err.detail : fallback
 }
 
+export async function loginWithPassword(
+  email: string,
+  password: string,
+  rememberMe = true,
+): Promise<Session> {
+  const res = await fetch(`${API_BASE_URL}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+  if (!res.ok) {
+    throw new Error(await readErrorDetail(res, 'Invalid email or password'))
+  }
+  return persistSession((await res.json()) as AuthTokenResponse, rememberMe)
+}
+
 export async function requestOtp(email: string): Promise<void> {
   const res = await fetch(`${API_BASE_URL}/auth/otp/request`, {
     method: 'POST',

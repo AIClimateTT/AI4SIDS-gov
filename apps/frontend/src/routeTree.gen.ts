@@ -19,6 +19,7 @@ import { Route as DmuIndexRouteImport } from './routes/dmu/index'
 import { Route as CorpIndexRouteImport } from './routes/corp/index'
 import { Route as DmuWhatsappRouteImport } from './routes/dmu/whatsapp'
 import { Route as DmuFieldDataRouteImport } from './routes/dmu/field-data'
+import { Route as DmuAdminRouteImport } from './routes/dmu/admin'
 import { Route as AuthVerifyRouteImport } from './routes/_auth/verify'
 import { Route as AuthLoginRouteImport } from './routes/_auth/login'
 import { Route as DmuReportsIndexRouteImport } from './routes/dmu/reports/index'
@@ -85,6 +86,11 @@ const DmuFieldDataRoute = DmuFieldDataRouteImport.update({
   path: '/field-data',
   getParentRoute: () => DmuRoute,
 } as any)
+const DmuAdminRoute = DmuAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => DmuRoute,
+} as any)
 const AuthVerifyRoute = AuthVerifyRouteImport.update({
   id: '/verify',
   path: '/verify',
@@ -117,14 +123,14 @@ const DmuCorporationsCorporationRoute =
     getParentRoute: () => DmuRoute,
   } as any)
 const DmuAdminUsersRoute = DmuAdminUsersRouteImport.update({
-  id: '/admin/users',
-  path: '/admin/users',
-  getParentRoute: () => DmuRoute,
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => DmuAdminRoute,
 } as any)
 const DmuAdminModulesRoute = DmuAdminModulesRouteImport.update({
-  id: '/admin/modules',
-  path: '/admin/modules',
-  getParentRoute: () => DmuRoute,
+  id: '/modules',
+  path: '/modules',
+  getParentRoute: () => DmuAdminRoute,
 } as any)
 const CorpPrintSessionIdRoute = CorpPrintSessionIdRouteImport.update({
   id: '/print/$sessionId',
@@ -142,9 +148,9 @@ const CorpCSessionIdRoute = CorpCSessionIdRouteImport.update({
   getParentRoute: () => CorpRoute,
 } as any)
 const DmuAdminTemplatesIndexRoute = DmuAdminTemplatesIndexRouteImport.update({
-  id: '/admin/templates/',
-  path: '/admin/templates/',
-  getParentRoute: () => DmuRoute,
+  id: '/templates/',
+  path: '/templates/',
+  getParentRoute: () => DmuAdminRoute,
 } as any)
 const CorpEventsEventIdIndexRoute = CorpEventsEventIdIndexRouteImport.update({
   id: '/events/$eventId/',
@@ -153,21 +159,21 @@ const CorpEventsEventIdIndexRoute = CorpEventsEventIdIndexRouteImport.update({
 } as any)
 const DmuAdminTemplatesNameIndexRoute =
   DmuAdminTemplatesNameIndexRouteImport.update({
-    id: '/admin/templates/$name/',
-    path: '/admin/templates/$name/',
-    getParentRoute: () => DmuRoute,
+    id: '/templates/$name/',
+    path: '/templates/$name/',
+    getParentRoute: () => DmuAdminRoute,
   } as any)
 const DmuAdminTemplatesNameNewRoute =
   DmuAdminTemplatesNameNewRouteImport.update({
-    id: '/admin/templates/$name/new',
-    path: '/admin/templates/$name/new',
-    getParentRoute: () => DmuRoute,
+    id: '/templates/$name/new',
+    path: '/templates/$name/new',
+    getParentRoute: () => DmuAdminRoute,
   } as any)
 const DmuAdminTemplatesNameVersionsVersionRoute =
   DmuAdminTemplatesNameVersionsVersionRouteImport.update({
-    id: '/admin/templates/$name/versions/$version',
-    path: '/admin/templates/$name/versions/$version',
-    getParentRoute: () => DmuRoute,
+    id: '/templates/$name/versions/$version',
+    path: '/templates/$name/versions/$version',
+    getParentRoute: () => DmuAdminRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -178,6 +184,7 @@ export interface FileRoutesByFullPath {
   '/who-are-you': typeof WhoAreYouRoute
   '/login': typeof AuthLoginRoute
   '/verify': typeof AuthVerifyRoute
+  '/dmu/admin': typeof DmuAdminRouteWithChildren
   '/dmu/field-data': typeof DmuFieldDataRoute
   '/dmu/whatsapp': typeof DmuWhatsappRoute
   '/corp/': typeof CorpIndexRoute
@@ -203,6 +210,7 @@ export interface FileRoutesByTo {
   '/who-are-you': typeof WhoAreYouRoute
   '/login': typeof AuthLoginRoute
   '/verify': typeof AuthVerifyRoute
+  '/dmu/admin': typeof DmuAdminRouteWithChildren
   '/dmu/field-data': typeof DmuFieldDataRoute
   '/dmu/whatsapp': typeof DmuWhatsappRoute
   '/corp': typeof CorpIndexRoute
@@ -232,6 +240,7 @@ export interface FileRoutesById {
   '/who-are-you': typeof WhoAreYouRoute
   '/_auth/login': typeof AuthLoginRoute
   '/_auth/verify': typeof AuthVerifyRoute
+  '/dmu/admin': typeof DmuAdminRouteWithChildren
   '/dmu/field-data': typeof DmuFieldDataRoute
   '/dmu/whatsapp': typeof DmuWhatsappRoute
   '/corp/': typeof CorpIndexRoute
@@ -261,6 +270,7 @@ export interface FileRouteTypes {
     | '/who-are-you'
     | '/login'
     | '/verify'
+    | '/dmu/admin'
     | '/dmu/field-data'
     | '/dmu/whatsapp'
     | '/corp/'
@@ -286,6 +296,7 @@ export interface FileRouteTypes {
     | '/who-are-you'
     | '/login'
     | '/verify'
+    | '/dmu/admin'
     | '/dmu/field-data'
     | '/dmu/whatsapp'
     | '/corp'
@@ -314,6 +325,7 @@ export interface FileRouteTypes {
     | '/who-are-you'
     | '/_auth/login'
     | '/_auth/verify'
+    | '/dmu/admin'
     | '/dmu/field-data'
     | '/dmu/whatsapp'
     | '/corp/'
@@ -415,6 +427,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DmuFieldDataRouteImport
       parentRoute: typeof DmuRoute
     }
+    '/dmu/admin': {
+      id: '/dmu/admin'
+      path: '/admin'
+      fullPath: '/dmu/admin'
+      preLoaderRoute: typeof DmuAdminRouteImport
+      parentRoute: typeof DmuRoute
+    }
     '/_auth/verify': {
       id: '/_auth/verify'
       path: '/verify'
@@ -459,17 +478,17 @@ declare module '@tanstack/react-router' {
     }
     '/dmu/admin/users': {
       id: '/dmu/admin/users'
-      path: '/admin/users'
+      path: '/users'
       fullPath: '/dmu/admin/users'
       preLoaderRoute: typeof DmuAdminUsersRouteImport
-      parentRoute: typeof DmuRoute
+      parentRoute: typeof DmuAdminRoute
     }
     '/dmu/admin/modules': {
       id: '/dmu/admin/modules'
-      path: '/admin/modules'
+      path: '/modules'
       fullPath: '/dmu/admin/modules'
       preLoaderRoute: typeof DmuAdminModulesRouteImport
-      parentRoute: typeof DmuRoute
+      parentRoute: typeof DmuAdminRoute
     }
     '/corp/print/$sessionId': {
       id: '/corp/print/$sessionId'
@@ -494,10 +513,10 @@ declare module '@tanstack/react-router' {
     }
     '/dmu/admin/templates/': {
       id: '/dmu/admin/templates/'
-      path: '/admin/templates'
+      path: '/templates'
       fullPath: '/dmu/admin/templates/'
       preLoaderRoute: typeof DmuAdminTemplatesIndexRouteImport
-      parentRoute: typeof DmuRoute
+      parentRoute: typeof DmuAdminRoute
     }
     '/corp/events/$eventId/': {
       id: '/corp/events/$eventId/'
@@ -508,24 +527,24 @@ declare module '@tanstack/react-router' {
     }
     '/dmu/admin/templates/$name/': {
       id: '/dmu/admin/templates/$name/'
-      path: '/admin/templates/$name'
+      path: '/templates/$name'
       fullPath: '/dmu/admin/templates/$name/'
       preLoaderRoute: typeof DmuAdminTemplatesNameIndexRouteImport
-      parentRoute: typeof DmuRoute
+      parentRoute: typeof DmuAdminRoute
     }
     '/dmu/admin/templates/$name/new': {
       id: '/dmu/admin/templates/$name/new'
-      path: '/admin/templates/$name/new'
+      path: '/templates/$name/new'
       fullPath: '/dmu/admin/templates/$name/new'
       preLoaderRoute: typeof DmuAdminTemplatesNameNewRouteImport
-      parentRoute: typeof DmuRoute
+      parentRoute: typeof DmuAdminRoute
     }
     '/dmu/admin/templates/$name/versions/$version': {
       id: '/dmu/admin/templates/$name/versions/$version'
-      path: '/admin/templates/$name/versions/$version'
+      path: '/templates/$name/versions/$version'
       fullPath: '/dmu/admin/templates/$name/versions/$version'
       preLoaderRoute: typeof DmuAdminTemplatesNameVersionsVersionRouteImport
-      parentRoute: typeof DmuRoute
+      parentRoute: typeof DmuAdminRoute
     }
   }
 }
@@ -560,37 +579,49 @@ const CorpRouteChildren: CorpRouteChildren = {
 
 const CorpRouteWithChildren = CorpRoute._addFileChildren(CorpRouteChildren)
 
-interface DmuRouteChildren {
-  DmuFieldDataRoute: typeof DmuFieldDataRoute
-  DmuWhatsappRoute: typeof DmuWhatsappRoute
-  DmuIndexRoute: typeof DmuIndexRoute
+interface DmuAdminRouteChildren {
   DmuAdminModulesRoute: typeof DmuAdminModulesRoute
   DmuAdminUsersRoute: typeof DmuAdminUsersRoute
-  DmuCorporationsCorporationRoute: typeof DmuCorporationsCorporationRoute
-  DmuReportsReportIdRoute: typeof DmuReportsReportIdRoute
-  DmuReportsNewRoute: typeof DmuReportsNewRoute
-  DmuReportsIndexRoute: typeof DmuReportsIndexRoute
   DmuAdminTemplatesIndexRoute: typeof DmuAdminTemplatesIndexRoute
   DmuAdminTemplatesNameNewRoute: typeof DmuAdminTemplatesNameNewRoute
   DmuAdminTemplatesNameIndexRoute: typeof DmuAdminTemplatesNameIndexRoute
   DmuAdminTemplatesNameVersionsVersionRoute: typeof DmuAdminTemplatesNameVersionsVersionRoute
 }
 
-const DmuRouteChildren: DmuRouteChildren = {
-  DmuFieldDataRoute: DmuFieldDataRoute,
-  DmuWhatsappRoute: DmuWhatsappRoute,
-  DmuIndexRoute: DmuIndexRoute,
+const DmuAdminRouteChildren: DmuAdminRouteChildren = {
   DmuAdminModulesRoute: DmuAdminModulesRoute,
   DmuAdminUsersRoute: DmuAdminUsersRoute,
-  DmuCorporationsCorporationRoute: DmuCorporationsCorporationRoute,
-  DmuReportsReportIdRoute: DmuReportsReportIdRoute,
-  DmuReportsNewRoute: DmuReportsNewRoute,
-  DmuReportsIndexRoute: DmuReportsIndexRoute,
   DmuAdminTemplatesIndexRoute: DmuAdminTemplatesIndexRoute,
   DmuAdminTemplatesNameNewRoute: DmuAdminTemplatesNameNewRoute,
   DmuAdminTemplatesNameIndexRoute: DmuAdminTemplatesNameIndexRoute,
   DmuAdminTemplatesNameVersionsVersionRoute:
     DmuAdminTemplatesNameVersionsVersionRoute,
+}
+
+const DmuAdminRouteWithChildren = DmuAdminRoute._addFileChildren(
+  DmuAdminRouteChildren,
+)
+
+interface DmuRouteChildren {
+  DmuAdminRoute: typeof DmuAdminRouteWithChildren
+  DmuFieldDataRoute: typeof DmuFieldDataRoute
+  DmuWhatsappRoute: typeof DmuWhatsappRoute
+  DmuIndexRoute: typeof DmuIndexRoute
+  DmuCorporationsCorporationRoute: typeof DmuCorporationsCorporationRoute
+  DmuReportsReportIdRoute: typeof DmuReportsReportIdRoute
+  DmuReportsNewRoute: typeof DmuReportsNewRoute
+  DmuReportsIndexRoute: typeof DmuReportsIndexRoute
+}
+
+const DmuRouteChildren: DmuRouteChildren = {
+  DmuAdminRoute: DmuAdminRouteWithChildren,
+  DmuFieldDataRoute: DmuFieldDataRoute,
+  DmuWhatsappRoute: DmuWhatsappRoute,
+  DmuIndexRoute: DmuIndexRoute,
+  DmuCorporationsCorporationRoute: DmuCorporationsCorporationRoute,
+  DmuReportsReportIdRoute: DmuReportsReportIdRoute,
+  DmuReportsNewRoute: DmuReportsNewRoute,
+  DmuReportsIndexRoute: DmuReportsIndexRoute,
 }
 
 const DmuRouteWithChildren = DmuRoute._addFileChildren(DmuRouteChildren)

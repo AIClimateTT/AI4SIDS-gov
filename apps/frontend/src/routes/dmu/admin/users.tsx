@@ -1,26 +1,25 @@
-import { useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { Pencil, Plus, Trash2, UserCheck, UserX } from 'lucide-react'
+import type { ColumnDef } from '@tanstack/react-table'
+import { KeyRound, Pencil, Plus, Trash2, UserCheck, UserX } from 'lucide-react'
 import { z } from 'zod'
 
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import {
   AppDialog,
   EmptyState,
   LoadingBlock,
   PageHeader,
 } from '@/components/shared'
-import { RoleMismatchNotice } from '@/components/identity/role-mismatch-notice'
+import { ContentCard } from '@/components/shared/content-card'
+import { DataTable } from '@/components/data-table'
 import { useAppForm } from '@/hooks/form'
 import { formatWhen } from '@/lib/format-when'
 import {
@@ -28,6 +27,7 @@ import {
   useCreateUser,
   useDeactivateUser,
   useDeleteUser,
+  useSetUserPassword,
   useUpdateUser,
   userQueries,
 } from '@/lib/queries/users'
@@ -45,6 +45,76 @@ const userFormSchema = z.object({
   last_name: z.string(),
 })
 
+const createUserFormSchema = userFormSchema
+  .extend({
+    role: z.enum(['dmu', 'admin']),
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+    confirm_password: z.string(),
+  })
+  .refine((value) => value.password === value.confirm_password, {
+    message: 'Passwords do not match',
+    path: ['confirm_password'],
+  })
+
+const resetPasswordSchema = z
+  .object({
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+    confirm_password: z.string(),
+  })
+  .refine((value) => value.password === value.confirm_password, {
+    message: 'Passwords do not match',
+    path: ['confirm_password'],
+  })
+
+const ROLE_OPTIONS = [
+  { value: 'all' as const, label: 'All' },
+  { value: 'dmu' as const, label: 'Officer' },
+  { value: 'admin' as const, label: 'Admin' },
+]
+
+function roleLabel(role: string): string {
+  if (role === 'admin') return 'Admin'
+  if (role === 'dmu') return 'Officer'
+  return role
+}
+
+const columns: ColumnDef<UserAccount>[] = [
+  {
+    id: 'name',
+    accessorFn: (user) => userDisplayName(user),
+    header: 'Name',
+  },
+  {
+    accessorKey: 'email',
+    header: 'Email',
+  },
+  {
+    accessorKey: 'role',
+    header: 'Role',
+    cell: ({ row }) => roleLabel(row.original.role),
+  },
+  {
+    id: 'status',
+    header: 'Status',
+    cell: ({ row }) => (
+      <div className="flex flex-wrap gap-1">
+        <Badge variant={row.original.is_active ? 'default' : 'secondary'}>
+          {row.original.is_active ? 'Active' : 'Inactive'}
+        </Badge>
+        {row.original.has_password ? null : (
+          <Badge variant="outline">No password</Badge>
+        )}
+      </div>
+    ),
+  },
+  {
+    accessorKey: 'last_login',
+    header: 'Last login',
+    cell: ({ row }) =>
+      row.original.last_login ? formatWhen(row.original.last_login) : 'Never',
+  },
+]
+
 function UsersPage() {
   const { data, isPending, isError, error } = useQuery(userQueries.list())
   const activateUser = useActivateUser()
@@ -52,9 +122,16 @@ function UsersPage() {
   const deleteUser = useDeleteUser()
   const currentUserId = useOptionalAuth()?.session?.userId ?? null
 
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: 10,
+  })
+  const [q, setQ] = useState<string | undefined>()
+  const [role, setRole] = useState<'all' | 'dmu' | 'admin'>('all')
   const [editorOpen, setEditorOpen] = useState(false)
   const [editing, setEditing] = useState<UserAccount | null>(null)
   const [pendingDelete, setPendingDelete] = useState<UserAccount | null>(null)
+  const [resetting, setResetting] = useState<UserAccount | null>(null)
 
   function openCreate() {
     setEditing(null)
@@ -70,7 +147,7 @@ function UsersPage() {
     <div className="space-y-6">
       <PageHeader
         title="Users"
-        description="Add and manage Disaster Management Unit accounts. New users sign in with an email OTP."
+        description="Add and manage Disaster Management Unit accounts. Share the password out of band — there is no email reset."
         actions={
           <Button onClick={openCreate}>
             <Plus data-icon="inline-start" />
@@ -78,105 +155,60 @@ function UsersPage() {
           </Button>
         }
       />
-      <RoleMismatchNotice expected="dmu" />
 
-      {isPending ? <LoadingBlock rows={4} /> : null}
+      <ContentCard contentClassName="space-y-4">
+        {isPending && !data ? <LoadingBlock rows={5} /> : null}
 
-      {isError ? (
-        <EmptyState title="Could not load users" description={error.message} />
-      ) : null}
+        {isError ? (
+          <EmptyState title="Could not load users" description={error.message} />
+        ) : null}
 
-      {data ? (
-        <div className="overflow-hidden rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Last login</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={5}
-                    className="py-8 text-center text-muted-foreground"
-                  >
-                    No DMU users yet.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                data.map((user) => {
-                  const isSelf = currentUserId === user.user_id
-                  return (
-                    <TableRow key={user.user_id}>
-                      <TableCell>{userDisplayName(user)}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>
-                        <Badge variant={user.is_active ? 'default' : 'secondary'}>
-                          {user.is_active ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {user.last_login
-                          ? formatWhen(user.last_login)
-                          : 'Never'}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEdit(user)}
-                            aria-label={`Edit ${user.email}`}
-                          >
-                            <Pencil />
-                          </Button>
-                          {user.is_active ? (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              disabled={isSelf || deactivateUser.isPending}
-                              onClick={() =>
-                                deactivateUser.mutate(user.user_id)
-                              }
-                              aria-label={`Deactivate ${user.email}`}
-                            >
-                              <UserX />
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              disabled={activateUser.isPending}
-                              onClick={() => activateUser.mutate(user.user_id)}
-                              aria-label={`Activate ${user.email}`}
-                            >
-                              <UserCheck />
-                            </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            disabled={isSelf}
-                            onClick={() => setPendingDelete(user)}
-                            aria-label={`Delete ${user.email}`}
-                          >
-                            <Trash2 />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      ) : null}
+        {data ? (
+          <UsersTable
+            users={data}
+            pagination={pagination}
+            q={q}
+            role={role}
+            currentUserId={currentUserId}
+            isActivating={activateUser.isPending}
+            isDeactivating={deactivateUser.isPending}
+            onStateChange={(updates) => {
+              if (typeof updates.page === 'number') {
+                const page = updates.page
+                setPagination((prev) => ({
+                  ...prev,
+                  pageIndex: Math.max(page - 1, 0),
+                }))
+              }
+              const nextPageSize = updates.pageSize ?? updates.page_size
+              if (typeof nextPageSize === 'number') {
+                setPagination({ pageIndex: 0, pageSize: nextPageSize })
+              }
+              if ('q' in updates) {
+                setQ(
+                  typeof updates.q === 'string' && updates.q.length > 0
+                    ? updates.q
+                    : undefined,
+                )
+                setPagination((prev) => ({ ...prev, pageIndex: 0 }))
+              }
+              if ('role' in updates) {
+                const next =
+                  updates.role === 'dmu' || updates.role === 'admin'
+                    ? updates.role
+                    : 'all'
+                setRole(next)
+                setPagination((prev) => ({ ...prev, pageIndex: 0 }))
+              }
+            }}
+            onEdit={openEdit}
+            onResetPassword={setResetting}
+            onActivate={(user) => activateUser.mutate(user.user_id)}
+            onDeactivate={(user) => deactivateUser.mutate(user.user_id)}
+            onDelete={setPendingDelete}
+          />
+        ) : null}
+      </ContentCard>
 
       <AppDialog
         open={editorOpen}
@@ -188,18 +220,27 @@ function UsersPage() {
         description={
           editing
             ? 'Update this DMU account. Email changes take effect on the next sign-in.'
-            : 'Creates an active DMU account. They can request an OTP immediately.'
+            : 'Creates an active account. Share the password with them out of band.'
         }
       >
         {editorOpen ? (
-          <UserEditor
-            key={editing?.user_id ?? 'new'}
-            user={editing}
-            onClose={() => {
-              setEditorOpen(false)
-              setEditing(null)
-            }}
-          />
+          editing ? (
+            <EditUserForm
+              key={editing.user_id}
+              user={editing}
+              onClose={() => {
+                setEditorOpen(false)
+                setEditing(null)
+              }}
+            />
+          ) : (
+            <CreateUserForm
+              onClose={() => {
+                setEditorOpen(false)
+                setEditing(null)
+              }}
+            />
+          )
         ) : null}
       </AppDialog>
 
@@ -232,38 +273,303 @@ function UsersPage() {
           </>
         }
       />
+
+      <AppDialog
+        open={Boolean(resetting)}
+        onOpenChange={(open) => {
+          if (!open) setResetting(null)
+        }}
+        title="Reset password"
+        description={
+          resetting
+            ? `Set a new password for ${resetting.email}. Share it out of band. Existing sessions will be signed out.`
+            : null
+        }
+      >
+        {resetting ? (
+          <ResetPasswordForm
+            key={resetting.user_id}
+            user={resetting}
+            onClose={() => setResetting(null)}
+          />
+        ) : null}
+      </AppDialog>
     </div>
   )
 }
 
-function UserEditor({
-  user,
-  onClose,
-}: {
-  user: UserAccount | null
-  onClose: () => void
-}) {
-  const createUser = useCreateUser(onClose)
-  const updateUser = useUpdateUser(onClose)
+function matchesUserQuery(user: UserAccount, q?: string): boolean {
+  const needle = q?.trim().toLowerCase()
+  if (!needle) return true
+  const name = userDisplayName(user).toLowerCase()
+  return (
+    name.includes(needle) ||
+    user.email.toLowerCase().includes(needle) ||
+    roleLabel(user.role).toLowerCase().includes(needle)
+  )
+}
 
+function IconActionButton({
+  label,
+  disabled,
+  onClick,
+  children,
+}: {
+  label: string
+  disabled?: boolean
+  onClick?: () => void
+  children: ReactNode
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger render={<span className="inline-flex" />}>
+        <Button
+          variant="ghost"
+          size="icon"
+          disabled={disabled}
+          onClick={onClick}
+          aria-label={label}
+        >
+          {children}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  )
+}
+
+function UsersTable({
+  users,
+  pagination,
+  q,
+  role,
+  currentUserId,
+  isActivating,
+  isDeactivating,
+  onStateChange,
+  onEdit,
+  onResetPassword,
+  onActivate,
+  onDeactivate,
+  onDelete,
+}: {
+  users: UserAccount[]
+  pagination: { pageIndex: number; pageSize: number }
+  q?: string
+  role: 'all' | 'dmu' | 'admin'
+  currentUserId: string | null
+  isActivating: boolean
+  isDeactivating: boolean
+  onStateChange: (updates: Record<string, any>) => void
+  onEdit: (user: UserAccount) => void
+  onResetPassword: (user: UserAccount) => void
+  onActivate: (user: UserAccount) => void
+  onDeactivate: (user: UserAccount) => void
+  onDelete: (user: UserAccount) => void
+}) {
+  const filtered = useMemo(
+    () =>
+      users.filter((user) => {
+        if (role !== 'all' && user.role !== role) return false
+        return matchesUserQuery(user, q)
+      }),
+    [users, q, role],
+  )
+
+  const pageItems = useMemo(() => {
+    const start = pagination.pageIndex * pagination.pageSize
+    return filtered.slice(start, start + pagination.pageSize)
+  }, [filtered, pagination.pageIndex, pagination.pageSize])
+
+  return (
+    <DataTable
+      columns={columns}
+      data={pageItems}
+      total={filtered.length}
+      pagination={pagination}
+      onStateChange={onStateChange}
+      toolbar={{
+        search: {
+          key: 'q',
+          placeholder: 'Search users…',
+        },
+      }}
+      filters={[
+        {
+          type: 'toggle',
+          key: 'role',
+          label: 'Role',
+          options: ROLE_OPTIONS,
+        },
+      ]}
+      filterValues={{ q, role }}
+      features={{
+        enablePageSizeSelector: true,
+        enableColumnVisibility: true,
+      }}
+      rowActions={(user) => {
+        const isSelf = currentUserId === user.user_id
+        return (
+          <div className="flex justify-end gap-1">
+            <IconActionButton
+              label="Edit"
+              onClick={() => onEdit(user)}
+            >
+              <Pencil />
+            </IconActionButton>
+            <IconActionButton
+              label="Reset password"
+              onClick={() => onResetPassword(user)}
+            >
+              <KeyRound />
+            </IconActionButton>
+            {user.is_active ? (
+              <IconActionButton
+                label={
+                  isSelf
+                    ? 'You cannot deactivate your own account'
+                    : 'Deactivate'
+                }
+                disabled={isSelf || isDeactivating}
+                onClick={() => onDeactivate(user)}
+              >
+                <UserX />
+              </IconActionButton>
+            ) : (
+              <IconActionButton
+                label="Activate"
+                disabled={isActivating}
+                onClick={() => onActivate(user)}
+              >
+                <UserCheck />
+              </IconActionButton>
+            )}
+            <IconActionButton
+              label={
+                isSelf ? 'You cannot delete your own account' : 'Delete'
+              }
+              disabled={isSelf}
+              onClick={() => onDelete(user)}
+            >
+              <Trash2 />
+            </IconActionButton>
+          </div>
+        )
+      }}
+    />
+  )
+}
+
+function CreateUserForm({ onClose }: { onClose: () => void }) {
+  const createUser = useCreateUser(onClose)
   const form = useAppForm({
     defaultValues: {
-      email: user?.email ?? '',
-      first_name: user?.first_name ?? '',
-      last_name: user?.last_name ?? '',
+      email: '',
+      first_name: '',
+      last_name: '',
+      role: 'dmu' as 'dmu' | 'admin',
+      password: '',
+      confirm_password: '',
     },
-    validators: { onSubmit: userFormSchema },
+    validators: { onSubmit: createUserFormSchema },
     onSubmit: async ({ value }) => {
-      const payload = {
+      await createUser.mutateAsync({
         email: value.email.trim(),
         first_name: value.first_name.trim() || null,
         last_name: value.last_name.trim() || null,
-      }
-      if (user) {
-        await updateUser.mutateAsync({ userId: user.user_id, data: payload })
-      } else {
-        await createUser.mutateAsync(payload)
-      }
+        password: value.password,
+        role: value.role,
+      })
+    },
+  })
+
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={(event) => {
+        event.preventDefault()
+        event.stopPropagation()
+        void form.handleSubmit()
+      }}
+    >
+      <form.AppForm>
+        <form.AppField name="email">
+          {(field) => (
+            <field.TextField label="Email" type="email" required />
+          )}
+        </form.AppField>
+        <form.AppField name="first_name">
+          {(field) => <field.TextField label="First name" />}
+        </form.AppField>
+        <form.AppField name="last_name">
+          {(field) => <field.TextField label="Last name" />}
+        </form.AppField>
+        <form.AppField name="role">
+          {(field) => (
+            <field.SelectField
+              label="Role"
+              required
+              options={[
+                { value: 'dmu', label: 'DMU officer' },
+                { value: 'admin', label: 'Admin' },
+              ]}
+            />
+          )}
+        </form.AppField>
+        <form.AppField name="password">
+          {(field) => (
+            <field.TextField
+              label="Password"
+              type="password"
+              required
+              helpText="Share this password out of band. It is not emailed."
+            />
+          )}
+        </form.AppField>
+        <form.AppField name="confirm_password">
+          {(field) => (
+            <field.TextField
+              label="Confirm password"
+              type="password"
+              required
+            />
+          )}
+        </form.AppField>
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <form.SubmitButton label="Create" />
+        </div>
+      </form.AppForm>
+    </form>
+  )
+}
+
+function EditUserForm({
+  user,
+  onClose,
+}: {
+  user: UserAccount
+  onClose: () => void
+}) {
+  const updateUser = useUpdateUser(onClose)
+  const form = useAppForm({
+    defaultValues: {
+      email: user.email,
+      first_name: user.first_name ?? '',
+      last_name: user.last_name ?? '',
+    },
+    validators: { onSubmit: userFormSchema },
+    onSubmit: async ({ value }) => {
+      await updateUser.mutateAsync({
+        userId: user.user_id,
+        data: {
+          email: value.email.trim(),
+          first_name: value.first_name.trim() || null,
+          last_name: value.last_name.trim() || null,
+        },
+      })
     },
   })
 
@@ -292,7 +598,61 @@ function UserEditor({
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <form.SubmitButton label={user ? 'Save' : 'Create'} />
+          <form.SubmitButton label="Save" />
+        </div>
+      </form.AppForm>
+    </form>
+  )
+}
+
+function ResetPasswordForm({
+  user,
+  onClose,
+}: {
+  user: UserAccount
+  onClose: () => void
+}) {
+  const setPassword = useSetUserPassword(onClose)
+  const form = useAppForm({
+    defaultValues: { password: '', confirm_password: '' },
+    validators: { onSubmit: resetPasswordSchema },
+    onSubmit: async ({ value }) => {
+      await setPassword.mutateAsync({
+        userId: user.user_id,
+        password: value.password,
+      })
+    },
+  })
+
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={(event) => {
+        event.preventDefault()
+        event.stopPropagation()
+        void form.handleSubmit()
+      }}
+    >
+      <form.AppForm>
+        <form.AppField name="password">
+          {(field) => (
+            <field.TextField label="New password" type="password" required />
+          )}
+        </form.AppField>
+        <form.AppField name="confirm_password">
+          {(field) => (
+            <field.TextField
+              label="Confirm password"
+              type="password"
+              required
+            />
+          )}
+        </form.AppField>
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <form.SubmitButton label="Reset password" />
         </div>
       </form.AppForm>
     </form>

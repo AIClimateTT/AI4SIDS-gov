@@ -12,6 +12,7 @@ import {
   deactivateUser,
   deleteUser,
   getUsers,
+  setUserPassword,
   updateUser,
 } from '@/lib/api/users'
 import { mutationOptions } from '@/lib/queries/tanstack-helpers'
@@ -69,6 +70,16 @@ export const userMutations = {
   delete: () =>
     mutationOptions({
       mutationFn: deleteUser,
+    }),
+  setPassword: () =>
+    mutationOptions({
+      mutationFn: ({
+        userId,
+        password,
+      }: {
+        userId: string
+        password: string
+      }) => setUserPassword(userId, password),
     }),
 }
 
@@ -148,5 +159,19 @@ export function useDeleteUser() {
     },
     onError: (error: Error) =>
       toast.error('Failed to delete user', { description: error.message }),
+  })
+}
+
+export function useSetUserPassword(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    ...userMutations.setPassword(),
+    onSuccess: () => {
+      invalidateUsers(queryClient)
+      toast.success('Password updated')
+      onSuccess?.()
+    },
+    onError: (error: Error) =>
+      toast.error('Failed to update password', { description: error.message }),
   })
 }

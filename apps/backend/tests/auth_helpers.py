@@ -36,6 +36,7 @@ def create_user(
     first_name: str = "Ada",
     is_active: bool = True,
     corporation: str | None = None,
+    password_hash: str | None = None,
 ) -> User:
     Base.metadata.create_all(db_engine)
     session = SessionLocal()
@@ -45,6 +46,7 @@ def create_user(
         first_name=first_name,
         is_active=is_active,
         corporation=corporation,
+        password_hash=password_hash,
     )
     session.add(user)
     session.commit()
