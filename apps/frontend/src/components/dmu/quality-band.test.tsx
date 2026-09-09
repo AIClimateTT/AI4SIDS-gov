@@ -47,4 +47,24 @@ describe('QualityBand', () => {
     render(<QualityBand summary={summary({ scored_count: 0, thresholds: [] })} />)
     expect(screen.getByText('No scored reports yet.')).toBeTruthy()
   })
+
+  it('shows usability mean on a 1-5 scale, not as a percent', () => {
+    render(
+      <QualityBand
+        summary={summary({
+          thresholds: [
+            {
+              name: 'usability_mean',
+              threshold: 4,
+              actual: 4.2,
+              met: true,
+              sample: 3,
+            },
+          ],
+        })}
+      />,
+    )
+    expect(screen.getByText('4.2 / 5')).toBeTruthy()
+    expect(screen.queryByText(/420/)).toBeNull()
+  })
 })

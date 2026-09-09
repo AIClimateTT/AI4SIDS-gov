@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { currentUserIdFromToken, userDisplayName } from './users'
+import { currentUserIdFromToken, userDisplayName, corporationDisplayName } from './users'
 
 describe('userDisplayName', () => {
   it('joins first and last name', () => {
@@ -11,6 +11,18 @@ describe('userDisplayName', () => {
 
   it('falls back to an em dash when both names are missing', () => {
     expect(userDisplayName({ first_name: null, last_name: null })).toBe('—')
+  })
+})
+
+describe('corporationDisplayName', () => {
+  it('uses the corporation proper name', () => {
+    expect(corporationDisplayName('arima_borough_corporation')).toBe(
+      'Arima Borough Corporation',
+    )
+  })
+
+  it('falls back to an em dash when there is no corporation', () => {
+    expect(corporationDisplayName(null)).toBe('—')
   })
 })
 

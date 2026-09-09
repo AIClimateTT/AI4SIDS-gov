@@ -51,6 +51,63 @@ def test_users_create_admin_with_password():
     session.close()
 
 
+def test_users_create_corp_requires_canonical_corporation():
+    missing = runner.invoke(
+        app,
+        [
+            "users",
+            "create",
+            "clerk@arima.gov.tt",
+            "--role",
+            "corp",
+            "--password",
+            "secret123",
+        ],
+    )
+    assert missing.exit_code != 0
+    assert "corporation" in missing.output.lower()
+
+    unknown = runner.invoke(
+        app,
+        [
+            "users",
+            "create",
+            "clerk@arima.gov.tt",
+            "--role",
+            "corp",
+            "--corporation",
+            "not_a_corporation",
+            "--password",
+            "secret123",
+        ],
+    )
+    assert unknown.exit_code != 0
+    assert "unknown corporation" in unknown.output.lower()
+
+
+def test_users_create_corp_with_corporation():
+    result = runner.invoke(
+        app,
+        [
+            "users",
+            "create",
+            "clerk@arima.gov.tt",
+            "--role",
+            "corp",
+            "--corporation",
+            "arima_borough_corporation",
+            "--password",
+            "secret123",
+        ],
+    )
+    assert result.exit_code == 0
+    session = SessionLocal()
+    user = session.query(User).one()
+    assert user.role == "corp"
+    assert user.corporation == "arima_borough_corporation"
+    session.close()
+
+
 def test_users_set_password_updates_hash():
     runner.invoke(
         app,

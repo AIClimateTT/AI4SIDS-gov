@@ -3,7 +3,7 @@ from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, status
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 from app.auth.dependencies import AdminUser, SessionDep
 from app.auth.models import User
@@ -18,6 +18,7 @@ class UserOut(BaseModel):
     first_name: str | None
     last_name: str | None
     role: str
+    corporation: str | None
     is_active: bool
     last_login: datetime | None
     has_password: bool
@@ -28,13 +29,24 @@ class UserCreate(BaseModel):
     password: str = Field(min_length=8)
     first_name: str | None = None
     last_name: str | None = None
-    role: Literal["dmu", "admin"] = "dmu"
+    role: Literal["dmu", "admin", "corp"] = "dmu"
+    corporation: str | None = None
+
+    @model_validator(mode="after")
+    def corporation_matches_role(self):
+        if self.role == "corp":
+            if not self.corporation:
+                raise ValueError("corp users require a corporation")
+        else:
+            self.corporation = None
+        return self
 
 
 class UserUpdate(BaseModel):
     email: EmailStr | None = None
     first_name: str | None = None
     last_name: str | None = None
+    corporation: str | None = None
 
 
 class SetPasswordBody(BaseModel):
@@ -48,6 +60,7 @@ def _to_out(user: User) -> UserOut:
         first_name=user.first_name,
         last_name=user.last_name,
         role=user.role,
+        corporation=user.corporation,
         is_active=user.is_active,
         last_login=user.last_login,
         has_password=user.password_hash is not None,
@@ -69,6 +82,7 @@ def create_user(body: UserCreate, db: SessionDep, _actor: AdminUser) -> UserOut:
             last_name=body.last_name,
             password=body.password,
             role=body.role,
+            corporation=body.corporation,
         )
     )
 
@@ -84,6 +98,8 @@ def update_user(
             email=body.email,
             first_name=body.first_name,
             last_name=body.last_name,
+            corporation=body.corporation,
+            set_corporation="corporation" in body.model_fields_set,
         )
     )
 

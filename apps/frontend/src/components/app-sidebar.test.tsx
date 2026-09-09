@@ -29,6 +29,7 @@ const DMU_PATHS = [
   '/dmu/whatsapp',
   '/dmu/admin/templates',
   '/dmu/admin/modules',
+  '/dmu/admin/quality',
   '/dmu/admin/users',
 ]
 
@@ -110,17 +111,15 @@ describe('AppSidebar', () => {
       },
       {
         label: 'Administration',
-        links: ['Templates', 'Modules', 'Users'],
+        links: ['Templates', 'Modules', 'Quality', 'Users'],
       },
     ])
   })
 
-  it('calls the modules page "Modules" without moving it', async () => {
+  it('calls the quality page "Quality" without moving it', async () => {
     await renderSidebar('/dmu', { role: 'admin' })
 
-    expect(linkNamed('Modules').getAttribute('href')).toBe(
-      '/dmu/admin/modules',
-    )
+    expect(linkNamed('Quality').getAttribute('href')).toBe('/dmu/admin/quality')
   })
 
   it('highlights the current section, and only that section', async () => {

@@ -101,10 +101,10 @@ def test_officer_cannot_list_or_create_users():
     assert created.status_code == 403
 
 
-def test_admin_can_create_and_list_dmu_and_admin_users_only():
+def test_admin_can_create_and_list_dmu_admin_and_corp_users():
     actor = _create_user(role="admin")
     _create_user(
-        email="corp@example.com",
+        email="existing-corp@example.com",
         role="corp",
         corporation="diego_martin_regional_corporati",
     )
@@ -125,9 +125,9 @@ def test_admin_can_create_and_list_dmu_and_admin_users_only():
     assert body["role"] == "dmu"
     assert body["is_active"] is True
     assert body["has_password"] is True
+    assert body["corporation"] is None
     assert "password" not in body
     assert "password_hash" not in body
-    assert "corporation" not in body
 
     admin_created = client.post(
         "/users",
@@ -139,11 +139,138 @@ def test_admin_can_create_and_list_dmu_and_admin_users_only():
     )
     assert admin_created.status_code == 201
     assert admin_created.json()["role"] == "admin"
+    assert admin_created.json()["corporation"] is None
 
     listed = client.get("/users")
     assert listed.status_code == 200
     emails = {row["email"] for row in listed.json()}
-    assert emails == {"ada@example.com", "sam@example.com", "boss@example.com"}
+    assert emails == {
+        "ada@example.com",
+        "sam@example.com",
+        "boss@example.com",
+        "existing-corp@example.com",
+    }
+
+
+def test_admin_can_create_and_update_corp_users():
+    actor = _create_user(role="admin")
+    client = _client(actor)
+
+    created = client.post(
+        "/users",
+        json={
+            "email": "clerk@arima.gov.tt",
+            "password": "secret123",
+            "role": "corp",
+            "corporation": "arima_borough_corporation",
+            "first_name": "Pat",
+        },
+    )
+    assert created.status_code == 201
+    body = created.json()
+    assert body["role"] == "corp"
+    assert body["corporation"] == "arima_borough_corporation"
+    assert body["first_name"] == "Pat"
+
+    updated = client.patch(
+        f"/users/{body['user_id']}",
+        json={
+            "first_name": "Patricia",
+            "corporation": "siparia_regional_corporation",
+        },
+    )
+    assert updated.status_code == 200
+    assert updated.json()["first_name"] == "Patricia"
+    assert updated.json()["corporation"] == "siparia_regional_corporation"
+
+
+def test_changing_corporation_revokes_refresh_tokens():
+    actor = _create_user(role="admin")
+    target = _create_user(
+        email="clerk@arima.gov.tt",
+        role="corp",
+        corporation="arima_borough_corporation",
+    )
+    session = SessionLocal()
+    session.add(
+        RefreshToken(
+            user_id=target.user_id,
+            token_hash="c" * 64,
+            expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+        )
+    )
+    session.commit()
+    session.close()
+
+    response = _client(actor).patch(
+        f"/users/{target.user_id}",
+        json={"corporation": "siparia_regional_corporation"},
+    )
+    assert response.status_code == 200
+
+    session = SessionLocal()
+    row = session.query(RefreshToken).one()
+    assert row.revoked_at is not None
+    session.close()
+
+
+def test_create_corp_user_requires_a_canonical_corporation():
+    actor = _create_user(role="admin")
+    client = _client(actor)
+
+    missing = client.post(
+        "/users",
+        json={
+            "email": "clerk@example.com",
+            "password": "secret123",
+            "role": "corp",
+        },
+    )
+    assert missing.status_code == 422
+
+    unknown = client.post(
+        "/users",
+        json={
+            "email": "clerk@example.com",
+            "password": "secret123",
+            "role": "corp",
+            "corporation": "not_a_corporation",
+        },
+    )
+    assert unknown.status_code == 400
+    assert "corporation" in unknown.json()["detail"]
+
+
+def test_two_corp_users_may_share_a_corporation():
+    actor = _create_user(role="admin")
+    client = _client(actor)
+    payload = {
+        "password": "secret123",
+        "role": "corp",
+        "corporation": "arima_borough_corporation",
+    }
+
+    first = client.post("/users", json={**payload, "email": "one@arima.gov.tt"})
+    second = client.post("/users", json={**payload, "email": "two@arima.gov.tt"})
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert first.json()["corporation"] == second.json()["corporation"]
+
+
+def test_create_officer_ignores_corporation():
+    actor = _create_user(role="admin")
+    created = _client(actor).post(
+        "/users",
+        json={
+            "email": "officer@example.com",
+            "password": "secret123",
+            "role": "dmu",
+            "corporation": "arima_borough_corporation",
+        },
+    )
+    assert created.status_code == 201
+    assert created.json()["role"] == "dmu"
+    assert created.json()["corporation"] is None
 
 
 def test_create_user_without_password_is_422():
@@ -172,13 +299,15 @@ def test_update_user_name_and_email():
     assert response.json()["email"] == "samantha@example.com"
 
 
-def test_cannot_update_corp_user():
+def test_cannot_set_corporation_on_an_officer():
     actor = _create_user(role="admin")
-    corp = _create_user(email="corp@example.com", role="corp")
+    officer = _create_user(email="sam@example.com", role="dmu")
     response = _client(actor).patch(
-        f"/users/{corp.user_id}", json={"first_name": "Nope"}
+        f"/users/{officer.user_id}",
+        json={"corporation": "arima_borough_corporation"},
     )
-    assert response.status_code == 404
+    assert response.status_code == 400
+    assert "corporation" in response.json()["detail"]
 
 
 def test_cannot_deactivate_or_delete_self():
@@ -229,6 +358,7 @@ def test_deactivate_revokes_refresh_tokens_and_delete_removes_row():
             "first_name": actor.first_name,
             "last_name": actor.last_name,
             "role": "admin",
+            "corporation": None,
             "is_active": True,
             "last_login": None,
             "has_password": False,

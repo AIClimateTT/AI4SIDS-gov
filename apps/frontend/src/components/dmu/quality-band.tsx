@@ -1,11 +1,10 @@
 import { formatConstant } from '@/lib/format-constant'
+import {
+  formatThresholdValue,
+  thresholdStatusLabel,
+} from '@/lib/quality-display'
 import { cn } from '@/lib/utils'
 import type { QualitySummary, ThresholdStatus } from '@/types/dmcu'
-
-function formatRate(value: number | null): string {
-  if (value === null) return '—'
-  return `${Math.round(value * 100)}%`
-}
 
 function ThresholdRow({ item }: { item: ThresholdStatus }) {
   const missed = item.met === false
@@ -20,9 +19,9 @@ function ThresholdRow({ item }: { item: ThresholdStatus }) {
     >
       <span className="font-medium">{formatConstant(item.name)}</span>
       <span className="tabular-nums text-muted-foreground">
-        {formatRate(item.actual)}
+        {formatThresholdValue(item.name, item.actual)}
         <span className="ml-2 text-xs">
-          {item.met === true ? 'Met' : item.met === false ? 'Below' : 'Waiting'}
+          {thresholdStatusLabel(item.met)}
         </span>
       </span>
     </li>

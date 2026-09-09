@@ -230,6 +230,9 @@ def create_user_command(
     if role == "corp" and not corporation:
         typer.echo("corp users require --corporation", err=True)
         raise typer.Exit(code=1)
+    if role == "corp" and corporation not in CANONICAL_CORPORATIONS:
+        typer.echo(f"unknown corporation: {corporation}", err=True)
+        raise typer.Exit(code=1)
     if role != "corp":
         corporation = None
     if len(password) < 8:

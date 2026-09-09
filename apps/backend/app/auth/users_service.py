@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 from app.auth import repo
 from app.auth.models import User
 from app.auth.passwords import hash_password
-from app.auth.repo import WORKSPACE_ROLES
+from app.auth.repo import MANAGED_ROLES
+from app.modules.survey123.normalize import CANONICAL_CORPORATIONS
 
 
 def _normalize_email(email: str) -> str:
@@ -19,9 +20,20 @@ def list_users(db: Session) -> list[User]:
 
 def get_managed_user(db: Session, user_id: UUID) -> User:
     user = repo.get_by_id(db, user_id)
-    if user is None or user.role not in WORKSPACE_ROLES:
+    if user is None or user.role not in MANAGED_ROLES:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return user
+
+
+def _corporation_for_role(role: str, corporation: str | None) -> str | None:
+    if role != "corp":
+        return None
+    if corporation not in CANONICAL_CORPORATIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"unknown corporation: {corporation}",
+        )
+    return corporation
 
 
 def create_user(
@@ -32,6 +44,7 @@ def create_user(
     last_name: str | None,
     password: str,
     role: str = "dmu",
+    corporation: str | None = None,
 ) -> User:
     normalized = _normalize_email(email)
     if repo.get_by_email(db, normalized) is not None:
@@ -44,7 +57,7 @@ def create_user(
         first_name=first_name.strip() if first_name else None,
         last_name=last_name.strip() if last_name else None,
         role=role,
-        corporation=None,
+        corporation=_corporation_for_role(role, corporation),
         is_active=True,
         password_hash=hash_password(password),
     )
@@ -61,6 +74,8 @@ def update_user(
     email: str | None,
     first_name: str | None,
     last_name: str | None,
+    corporation: str | None = None,
+    set_corporation: bool = False,
 ) -> User:
     user = get_managed_user(db, user_id)
     if email is not None:
@@ -76,6 +91,16 @@ def update_user(
         user.first_name = first_name.strip() or None
     if last_name is not None:
         user.last_name = last_name.strip() or None
+    if set_corporation:
+        if user.role != "corp":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="only corporation accounts have a corporation",
+            )
+        next_corporation = _corporation_for_role("corp", corporation)
+        if user.corporation != next_corporation:
+            repo.revoke_all_for_user(db, user.user_id)
+        user.corporation = next_corporation
     db.commit()
     db.refresh(user)
     return user

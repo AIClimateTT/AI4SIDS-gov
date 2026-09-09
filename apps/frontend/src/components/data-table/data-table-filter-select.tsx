@@ -20,7 +20,7 @@ export function DataTableFilterSelect({
       value={value || ""}
       onValueChange={(val) => onChange(val || undefined)}
     >
-      <SelectTrigger className="h-9 w-[150px]">
+      <SelectTrigger className="h-9 w-[240px]">
         <SelectValue placeholder={filter.label} />
       </SelectTrigger>
       <SelectContent>
