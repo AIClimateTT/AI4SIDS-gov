@@ -5,6 +5,7 @@ import {
   markViolationSentences,
   normalizeCitationBrackets,
   repairReportStructure,
+  stripCitationAppendix,
 } from '@/components/reports/citation-utils'
 
 describe('normalizeCitationBrackets', () => {
@@ -187,5 +188,29 @@ describe('markViolationSentences on list items', () => {
   it('leaves a plain sentence wrapped as before', () => {
     const out = markViolationSentences('A plain sentence.', [v('A plain sentence.')])
     expect(out).toBe('<mark class="violation-mark">A plain sentence.</mark>')
+  })
+})
+
+describe('stripCitationAppendix', () => {
+  it('drops the appendix so the briefing is not a second copy of the fact table', () => {
+    const markdown = [
+      '# Briefing',
+      '',
+      'Diego Martin recorded 42 incidents [C001].',
+      '',
+      '## Citation Appendix',
+      '- [C001] description (query_ref: `incident_count()`, as_of: 2026-08-22 19:37:55.841212+00:00)',
+      '',
+    ].join('\n')
+
+    const out = stripCitationAppendix(markdown)
+    expect(out).toContain('Diego Martin recorded 42 incidents')
+    expect(out).not.toContain('Citation Appendix')
+    expect(out).not.toContain('query_ref')
+  })
+
+  it('leaves a briefing without an appendix untouched', () => {
+    const markdown = '# Briefing\n\nNo appendix here.\n'
+    expect(stripCitationAppendix(markdown)).toBe(markdown)
   })
 })

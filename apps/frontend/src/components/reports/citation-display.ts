@@ -47,3 +47,12 @@ export function factsByCid(facts: Fact[] | undefined): Record<string, Fact> {
   }
   return map
 }
+
+/** How many rows produced the figure. The ids themselves are not a reading surface. */
+export function formatRecordCount(
+  recordIds: string[] | null | undefined,
+): string | null {
+  const n = recordIds?.filter(Boolean).length ?? 0
+  if (n === 0) return null
+  return n === 1 ? '1 record' : `${n} records`
+}

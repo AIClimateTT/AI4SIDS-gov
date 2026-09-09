@@ -12,6 +12,7 @@ import { CitationPopover } from '@/components/reports/citation-popover'
 import {
   prepareReportMarkdown,
   scrollToCitation,
+  stripCitationAppendix,
 } from '@/components/reports/citation-utils'
 
 /**
@@ -82,7 +83,9 @@ export function CitationMarkdown({
   factsByCid,
   className,
 }: CitationMarkdownProps) {
-  const prepared = prepareReportMarkdown(markdown, violations)
+  const source =
+    factsByCid === undefined ? markdown : stripCitationAppendix(markdown)
+  const prepared = prepareReportMarkdown(source, violations)
 
   return (
     <div

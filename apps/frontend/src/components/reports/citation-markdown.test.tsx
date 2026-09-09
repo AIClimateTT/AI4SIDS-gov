@@ -163,4 +163,21 @@ describe('CitationMarkdown readable citation', () => {
 
     expect(target.dataset.scrolled).toBe('true')
   })
+
+  it('hides the markdown appendix when the fact table is already on the page', () => {
+    const markdown = [
+      'There were 19 incidents [C001].',
+      '',
+      '## Citation Appendix',
+      '- [C006] Survey123 data coverage (query_ref: `data_coverage()`, as_of: 2026-08-22 19:37:55.841212+00:00)',
+    ].join('\n')
+
+    render(
+      <CitationMarkdown markdown={markdown} factsByCid={{ C001: factC001 }} />,
+    )
+
+    expect(screen.queryByText('Citation Appendix')).toBeNull()
+    expect(screen.queryByText(/query_ref/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'C001' })).toBeTruthy()
+  })
 })

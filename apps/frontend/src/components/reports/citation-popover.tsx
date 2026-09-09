@@ -5,6 +5,7 @@ import {
   SOURCE_QUERY_LABEL,
   formatFactValue,
   formatMetricLabel,
+  formatRecordCount,
 } from '@/components/reports/citation-display'
 import { scrollToCitation } from '@/components/reports/citation-utils'
 import {
@@ -45,7 +46,7 @@ export function CitationPopover({
   const [open, setOpen] = useState(false)
   const cid = fact.citation.cid
   const source = sourceOf(fact.citation.module)
-  const recordIds = fact.citation.record_ids?.filter(Boolean) ?? []
+  const recordCount = formatRecordCount(fact.citation.record_ids)
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -99,12 +100,10 @@ export function CitationPopover({
                   </code>
                 </dd>
               </div>
-              {recordIds.length > 0 ? (
+              {recordCount ? (
                 <div>
                   <dt className="text-muted-foreground">Records</dt>
-                  <dd className="break-all font-mono text-[0.7rem]">
-                    {recordIds.join(', ')}
-                  </dd>
+                  <dd className="font-medium">{recordCount}</dd>
                 </div>
               ) : null}
             </dl>

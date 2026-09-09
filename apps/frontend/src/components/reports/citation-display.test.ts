@@ -8,6 +8,7 @@ import {
   formatMetricLabel,
   formatRequirementLabel,
   humanizeStoredValue,
+  formatRecordCount,
 } from '@/components/reports/citation-display'
 import type { Fact } from '@/types/dmcu'
 
@@ -100,5 +101,24 @@ describe('factsByCid', () => {
 
   it('returns an empty map when there are no facts', () => {
     expect(factsByCid(undefined)).toEqual({})
+  })
+})
+
+describe('formatRecordCount', () => {
+  it('does not list record ids', () => {
+    expect(formatRecordCount(['diego_martin_regional_corporati:1:1'])).toBe(
+      '1 record',
+    )
+    expect(
+      formatRecordCount([
+        'diego_martin_regional_corporati:1:1',
+        'arima_borough_corporation:2:1',
+      ]),
+    ).toBe('2 records')
+  })
+
+  it('returns nothing when there are no records', () => {
+    expect(formatRecordCount(null)).toBeNull()
+    expect(formatRecordCount([])).toBeNull()
   })
 })

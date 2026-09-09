@@ -76,6 +76,28 @@ describe('CitationPopover', () => {
     expect(screen.queryByText('query_ref')).toBeNull()
   })
 
+  it('names how many records produced the figure, without dumping their ids', () => {
+    renderPopover(
+      sampleFact({
+        citation: {
+          ...sampleFact().citation,
+          record_ids: [
+            'diego_martin_regional_corporati:1:1',
+            'penal_debe_regional_corporation:5:1',
+            'sangre_grande_regional_corporat:4:1',
+          ],
+        },
+      }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'C001' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Technical details' }))
+
+    expect(screen.getByText('3 records')).toBeTruthy()
+    expect(
+      screen.queryByText('diego_martin_regional_corporati:1:1'),
+    ).toBeNull()
+  })
+
   it('View in table still targets the citation row', () => {
     const target = document.createElement('div')
     target.id = 'citation-C001'
