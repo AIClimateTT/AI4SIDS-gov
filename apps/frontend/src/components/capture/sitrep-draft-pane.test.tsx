@@ -215,6 +215,53 @@ describe('SitrepDraftPane', () => {
     expect(screen.queryByText('Cited facts')).toBeNull()
   })
 
+  it('strips citation pills and Cite columns on the final document', () => {
+    render(
+      <SitrepDraftPane
+        session={session({
+          sitrep: sitrep({
+            markdown: 'Draft body [C001].',
+            final_markdown: [
+              'One incident [C001].',
+              '',
+              '| Type | Count | Cite |',
+              '|---|---|---|',
+              '| flooding_ | 1 | [C001] |',
+            ].join('\n'),
+          }),
+        })}
+        {...paneProps}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Final' }))
+    expect(screen.getByText(/One incident\./)).not.toBeNull()
+    expect(screen.queryByText('C001')).toBeNull()
+    expect(screen.queryByText('Cite')).toBeNull()
+  })
+
+  it('hides the citation appendix on the final document', () => {
+    render(
+      <SitrepDraftPane
+        session={session({
+          sitrep: sitrep({
+            markdown: 'Draft body [C001].',
+            final_markdown: [
+              'Final body.',
+              '',
+              '## Citation Appendix',
+              '- [C001] incident count (Source query: `incident_count()`, As of: 2026-08-21)',
+            ].join('\n'),
+          }),
+        })}
+        {...paneProps}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Final' }))
+    expect(screen.getByText(/Final body\./)).not.toBeNull()
+    expect(screen.queryByText('Citation Appendix')).toBeNull()
+    expect(screen.queryByText(/Source query/)).toBeNull()
+  })
+
   it('names the corporation in the final view header', () => {
     render(
       <SitrepDraftPane session={session({ sitrep: sitrep() })} {...paneProps} />,

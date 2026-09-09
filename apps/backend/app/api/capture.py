@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.contracts import RowErrorInfo, SubmissionIngestResult
 from app.core.llm import get_llm_client
+from app.core.renderer import strip_citation_markup
 from app.core.report_store import add_report
 from app.core.template_store import get_latest_template_version
 from app.db import get_session
@@ -142,8 +143,12 @@ def _sitrep_out(row: CaptureSession) -> SitrepOut | None:
     return SitrepOut(
         markdown=row.sitrep_markdown,
         # Sitreps drafted before the final variant existed have no stored
-        # copy; the draft stands in until the officer refreshes.
-        final_markdown=row.sitrep_final_markdown or row.sitrep_markdown,
+        # copy; the draft stands in until the officer refreshes. Strip the
+        # appendix either way — the issued document is the prose, and the
+        # draft view already has a fact table for citations.
+        final_markdown=strip_citation_markup(
+            row.sitrep_final_markdown or row.sitrep_markdown
+        ),
         fact_table=row.sitrep_fact_table or {},
         violations=row.sitrep_violations or [],
         status=row.sitrep_status or "",

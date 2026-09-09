@@ -73,6 +73,10 @@ describe('humanizeStoredValue', () => {
     expect(humanizeStoredValue('include_pending')).toBe('Include Pending')
   })
 
+  it('title-cases a slug that ends in an underscore', () => {
+    expect(humanizeStoredValue('flooding_')).toBe('Flooding')
+  })
+
   it('leaves a date or free-text value alone', () => {
     expect(humanizeStoredValue('2025-05-01')).toBe('2025-05-01')
     expect(humanizeStoredValue('Diego Martin')).toBe('Diego Martin')

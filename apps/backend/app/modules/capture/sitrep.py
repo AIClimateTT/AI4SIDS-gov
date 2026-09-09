@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import re
 
 from sqlalchemy.orm import Session
 
@@ -23,10 +24,12 @@ def sitrep_preamble(
     # fields collapse into one run-on paragraph instead of a filing header.
     fields = [
         f"**Event:** {event_title}",
-        f"**Alert:** {alert_level}",
+        f"**Alert:** {alert_level.replace('_', ' ').strip().title()}",
         f"**As at:** {as_at.strftime('%Y-%m-%d %H:%M')}",
     ]
-    parts = ["  \n".join(fields)]
+    # Separate paragraphs: a single newline collapses in markdown, which is
+    # what put Event / Alert / As at on one unreadable line.
+    parts = ["\n\n".join(fields)]
     if situation_overview:
         parts.extend(["", situation_overview])
     if present_activity:
@@ -85,6 +88,17 @@ def generate_working_set_sitrep(
         facts=renumbered,
         gaps=gaps,
     )
+    # The draft pane already shows cited facts in a table. The issued
+    # document is the prose (plus filing tables); do not reprint the
+    # same facts as a citation appendix, even if a stored template still
+    # asks for one.
+    template = template.model_copy(
+        update={
+            "render": template.render.model_copy(
+                update={"include_citation_appendix": False}
+            )
+        }
+    )
     generated = narrate_fact_table(
         template, fact_table, llm_client, template.data_requirements
     )
@@ -110,6 +124,14 @@ def attach_sitrep_preamble(
         present_activity=working.present_activity,
     )
     def with_preamble(markdown: str) -> str:
+        updated, count = re.subn(
+            r"(^# [^\n]+\n\n)",
+            rf"\1{preamble}\n\n",
+            markdown,
+            count=1,
+        )
+        if count:
+            return updated
         return markdown.replace(
             f"# {template.title}\n\n",
             f"# {template.title}\n\n{preamble}\n\n",

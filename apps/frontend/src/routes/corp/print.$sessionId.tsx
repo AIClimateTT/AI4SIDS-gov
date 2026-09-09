@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 
 import { CitationMarkdown } from '@/components/reports/citation-markdown'
+import { stripCitationMarkup } from '@/components/reports/citation-utils'
 import { EmptyState, LoadingBlock } from '@/components/shared'
 import {
   CORPORATION_LABELS,
@@ -77,7 +78,7 @@ function SitrepPrintRoute() {
         </span>
       </header>
       <CitationMarkdown
-        markdown={sitrep.final_markdown}
+        markdown={stripCitationMarkup(sitrep.final_markdown)}
         className="prose-headings:break-after-avoid prose-table:break-inside-avoid"
       />
     </article>

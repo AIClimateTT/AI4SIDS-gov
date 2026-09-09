@@ -1,6 +1,7 @@
 import re
 
 from app.core.contracts import FactTable, Template
+from app.modules.survey123.normalize import CORPORATION_LABELS
 
 # Matches the [C001] markers the composer is told to emit, plus any space
 # ahead of them, so stripping "injured [C005]." leaves "injured." not
@@ -12,6 +13,74 @@ def _strip_citations(text: str) -> str:
     return _CITATION_MARKER.sub("", text)
 
 
+_APPENDIX_HEADING = re.compile(r"^## Citation Appendix\s*$", re.MULTILINE)
+_TABLE_SEP_CELL = re.compile(r"^:?-{3,}:?$")
+
+
+def strip_citation_appendix(markdown: str) -> str:
+    """Drop the markdown appendix; the draft fact table already lists the same facts."""
+    match = _APPENDIX_HEADING.search(markdown)
+    if match is None:
+        return markdown
+    start = match.start()
+    after = markdown[match.end() :]
+    next_heading = re.search(r"^## ", after, re.MULTILINE)
+    end = match.end() + next_heading.start() if next_heading else len(markdown)
+    return markdown[:start].rstrip() + markdown[end:]
+
+
+def _table_cells(line: str) -> list[str] | None:
+    stripped = line.strip()
+    if not stripped.startswith("|"):
+        return None
+    return [cell.strip() for cell in stripped.strip("|").split("|")]
+
+
+def _is_separator_row(cells: list[str]) -> bool:
+    return bool(cells) and all(
+        _TABLE_SEP_CELL.fullmatch(cell.replace(" ", "")) for cell in cells
+    )
+
+
+def _strip_cite_columns(markdown: str) -> str:
+    lines = markdown.split("\n")
+    out: list[str] = []
+    index = 0
+    while index < len(lines):
+        cells = _table_cells(lines[index])
+        if cells is None:
+            out.append(lines[index])
+            index += 1
+            continue
+        cite_at = next(
+            (pos for pos, cell in enumerate(cells) if cell.lower() == "cite"),
+            None,
+        )
+        if cite_at is None:
+            out.append(lines[index])
+            index += 1
+            continue
+        while index < len(lines):
+            row = _table_cells(lines[index])
+            if row is None:
+                break
+            kept = [cell for pos, cell in enumerate(row) if pos != cite_at]
+            if not kept:
+                index += 1
+                continue
+            if _is_separator_row(row):
+                out.append("|" + "|".join("---" for _ in kept) + "|")
+            else:
+                out.append("| " + " | ".join(kept) + " |")
+            index += 1
+    return "\n".join(out)
+
+
+def strip_citation_markup(markdown: str) -> str:
+    """Issued-document cleanup: no appendix, no Cite column, no [Cxxx] pills."""
+    return _strip_citations(_strip_cite_columns(strip_citation_appendix(markdown)))
+
+
 def _citation_appendix_line(citation) -> str:
     return (
         f"- [{citation.cid}] {citation.description} "
@@ -20,15 +89,37 @@ def _citation_appendix_line(citation) -> str:
 
 
 def _humanize(slug: str) -> str:
-    """Turn an incident type slug into label case.
+    """Turn a stored slug into label case.
 
     Officers' type values arrive as slugs ("blown_off_roof") and some carry a
-    stray trailing underscore from data entry, which must not reach a filing.
+    stray trailing underscore from data entry ("flooding_"), which must not
+    reach a filing.
     """
-    words = slug.strip().strip("_").replace("_", " ").strip()
+    words = [
+        word
+        for part in slug.strip().replace("-", "_").split("_")
+        for word in part.split()
+        if word
+    ]
     if not words:
         return slug
-    return words[0].upper() + words[1:]
+    return " ".join(word[0].upper() + word[1:].lower() for word in words)
+
+
+def _label(value: str) -> str:
+    return CORPORATION_LABELS.get(value) or _humanize(value)
+
+
+def _document_title(template: Template, fact_table: FactTable) -> str:
+    corp = fact_table.params.get("corporation")
+    if not corp:
+        return template.title
+    name = _label(str(corp))
+    if template.render.layout == "filing":
+        return f"{name} Situation Report"
+    if name.lower() in template.title.lower():
+        return template.title
+    return f"{template.title} — {name}"
 
 
 def _place(scope: dict[str, str]) -> str:
@@ -89,7 +180,7 @@ def render_filing(
     figures against. Without it, the same facts render as the document that
     gets issued: no [Cxxx] markers, no Cite columns, no appendix.
     """
-    parts = [f"# {template.title}", ""]
+    parts = [f"# {_document_title(template, fact_table)}", ""]
 
     def cited(cells: list[str], cid: str) -> list[str]:
         return cells + [f"[{cid}]"] if include_citations else cells
@@ -97,6 +188,8 @@ def render_filing(
     def headers(names: list[str]) -> list[str]:
         return names + ["Cite"] if include_citations else names
 
+    # Words first, tables after — the issued document is read as prose, with
+    # the register underneath as the figures that prose is about.
     if narrative.strip():
         prose = narrative.strip()
         if not include_citations:
@@ -106,7 +199,7 @@ def render_filing(
     count = next((fact for fact in fact_table.facts if fact.metric == "incident_count"), None)
     if count is not None and count.value and count.breakdown:
         rows = [
-            cited([_humanize(key), _format_number(value)], count.citation.cid)
+            cited([_label(key), _format_number(value)], count.citation.cid)
             for key, value in count.breakdown.items()
             if value
         ]
@@ -206,18 +299,28 @@ def render_report(
             template, fact_table, narrative, include_citations=include_citations
         )
 
-    parts = [f"# {template.title}", "", narrative.strip(), ""]
+    title = _document_title(template, fact_table)
+    prose = narrative.strip()
+    if not include_citations:
+        prose = _strip_citations(prose)
+
+    parts = [f"# {title}", ""]
+    if prose:
+        parts.extend([prose, ""])
 
     table_blocks = []
     for fact in fact_table.facts:
         if not fact.breakdown:
             continue
-        table_blocks.append(f"**{fact.metric}** ({fact.citation.cid})")
+        heading = _humanize(fact.metric)
+        if include_citations:
+            heading = f"{heading} ({fact.citation.cid})"
+        table_blocks.append(f"**{heading}**")
         table_blocks.append("")
         table_blocks.append("| Key | Value |")
         table_blocks.append("|---|---|")
         for key, value in fact.breakdown.items():
-            table_blocks.append(f"| {key} | {value} |")
+            table_blocks.append(f"| {_label(str(key))} | {value} |")
         table_blocks.append("")
 
     if table_blocks:
@@ -230,7 +333,7 @@ def render_report(
             parts.append(f"- {gap}")
         parts.append("")
 
-    if template.render.include_citation_appendix:
+    if include_citations and template.render.include_citation_appendix:
         parts.append("## Citation Appendix")
         for fact in fact_table.facts:
             citation = fact.citation

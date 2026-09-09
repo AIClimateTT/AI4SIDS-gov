@@ -228,6 +228,67 @@ export function stripCitationAppendix(markdown: string): string {
   return markdown.slice(0, start).trimEnd() + markdown.slice(end)
 }
 
+const CITATION_MARKER_RE = /[ \t]*\[C\d{3}\]/g
+const TABLE_SEP_CELL_RE = /^:?-{3,}:?$/
+
+function tableCells(line: string): string[] | null {
+  const stripped = line.trim()
+  if (!stripped.startsWith('|')) return null
+  return stripped
+    .replace(/^\|/, '')
+    .replace(/\|$/, '')
+    .split('|')
+    .map((cell) => cell.trim())
+}
+
+function stripCiteColumns(markdown: string): string {
+  const lines = markdown.split('\n')
+  const out: string[] = []
+  let i = 0
+  while (i < lines.length) {
+    const cells = tableCells(lines[i])
+    if (!cells) {
+      out.push(lines[i])
+      i += 1
+      continue
+    }
+    const citeAt = cells.findIndex((cell) => cell.toLowerCase() === 'cite')
+    if (citeAt === -1) {
+      out.push(lines[i])
+      i += 1
+      continue
+    }
+    while (i < lines.length) {
+      const row = tableCells(lines[i])
+      if (!row) break
+      const kept = row.filter((_, index) => index !== citeAt)
+      if (kept.length === 0) {
+        i += 1
+        continue
+      }
+      const isSep = row.every((cell) =>
+        TABLE_SEP_CELL_RE.test(cell.replace(/\s/g, '')),
+      )
+      out.push(
+        isSep
+          ? `|${kept.map(() => '---').join('|')}|`
+          : `| ${kept.join(' | ')} |`,
+      )
+      i += 1
+    }
+  }
+  return out.join('\n')
+}
+
+/** Issued-document cleanup: no appendix, no Cite column, no [Cxxx] pills. */
+export function stripCitationMarkup(markdown: string): string {
+  const normalized = normalizeCitationBrackets(markdown)
+  return stripCiteColumns(stripCitationAppendix(normalized)).replace(
+    CITATION_MARKER_RE,
+    '',
+  )
+}
+
 export function citationAnchorId(cid: string): string {
   return `citation-${cid}`
 }

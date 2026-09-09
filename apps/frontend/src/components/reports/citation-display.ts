@@ -12,9 +12,6 @@ export const SOURCE_QUERY_LABEL = 'Source query'
 /** Reader-facing name for citation.as_of. The JSON field does not change. */
 export const AS_OF_LABEL = 'As of'
 
-/** A slug with at least one underscore, e.g. incidents_by_corporation. */
-const SNAKE_CASE_RE = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)+$/
-
 export function formatFactValue(fact: Pick<Fact, 'value' | 'unit'>): string {
   const unit = fact.unit ? ` ${fact.unit}` : ''
   return `${fact.value}${unit}`
@@ -31,7 +28,7 @@ export function formatMetricLabel(metric: string): string {
  */
 export function humanizeStoredValue(value: string): string {
   if (isCanonicalCorporation(value)) return CORPORATION_LABELS[value]
-  if (SNAKE_CASE_RE.test(value)) return formatConstant(value)
+  if (value.includes('_')) return formatConstant(value)
   return value
 }
 

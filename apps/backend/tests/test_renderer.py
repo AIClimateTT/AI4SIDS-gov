@@ -8,7 +8,11 @@ from app.core.contracts import (
     RenderConfig,
     Template,
 )
-from app.core.renderer import render_report
+from app.core.renderer import (
+    render_report,
+    strip_citation_appendix,
+    strip_citation_markup,
+)
 
 
 def make_citation(cid: str) -> Citation:
@@ -69,7 +73,8 @@ def test_render_includes_data_table_for_fact_with_breakdown():
     markdown = render_report(make_template(), fact_table, "narrative")
 
     assert "## Data Tables" in markdown
-    assert "sangre_grande_regional_corporat" in markdown
+    assert "Sangre Grande Regional Corporation" in markdown
+    assert "sangre_grande_regional_corporat" not in markdown
     assert "| 10 |" in markdown
 
 
@@ -251,11 +256,21 @@ def test_filing_places_narrative_before_the_tables():
     assert markdown.index("Connective prose.") < markdown.index("## Incidents")
 
 
+def test_filing_title_names_the_corporation():
+    fact_table = _filing_fact_table().model_copy(
+        update={"params": {"corporation": "arima_borough_corporation"}}
+    )
+    markdown = render_report(_filing_template(), fact_table, "Connective prose.")
+
+    assert markdown.startswith("# Arima Borough Corporation Situation Report")
+    assert markdown.index("Connective prose.") < markdown.index("## Situation summary")
+
+
 def test_filing_humanizes_incident_type_slugs():
     markdown = render_report(_filing_template(), _filing_fact_table(), "prose")
 
     assert "| Flooding |" in markdown
-    assert "| Blown off roof |" in markdown
+    assert "| Blown Off Roof |" in markdown
     assert "flooding_" not in markdown
     assert "blown_off_roof" not in markdown
 
@@ -303,6 +318,84 @@ def test_draft_variant_keeps_citations_and_data_gaps_heading():
     assert "## Data Gaps" in markdown
     assert "Source query:" in markdown
     assert "query_ref:" not in markdown
+
+
+def test_narrative_layout_puts_prose_before_tables_and_humanizes_keys():
+    fact = Fact(
+        metric="incident_count",
+        value=1,
+        unit="incidents",
+        scope={"corporation": "arima_borough_corporation"},
+        breakdown={"flooding_": 1, "arima_borough_corporation": 1},
+        verification="validated",
+        citation=make_citation("C001"),
+    )
+    markdown = render_report(
+        make_template(),
+        make_fact_table(facts=[fact]).model_copy(
+            update={"params": {"corporation": "arima_borough_corporation"}}
+        ),
+        "The borough flooded overnight.",
+    )
+
+    assert markdown.index("The borough flooded overnight.") < markdown.index(
+        "## Data Tables"
+    )
+    assert "flooding_" not in markdown
+    assert "| Flooding |" in markdown
+    assert "Arima Borough Corporation" in markdown
+    assert "Incident Count" in markdown
+
+
+def test_strip_citation_markup_drops_markers_and_cite_column():
+    markdown = (
+        "# Title\n\n"
+        "One incident [C001].\n\n"
+        "| Type | Count | Cite |\n"
+        "|---|---|---|\n"
+        "| flooding_ | 1 | [C001] |\n"
+    )
+
+    out = strip_citation_markup(markdown)
+
+    assert "One incident." in out
+    assert "C001" not in out
+    assert "Cite" not in out
+    assert "| Type | Count |" in out
+
+
+def test_strip_citation_appendix_drops_the_section():
+    markdown = (
+        "# Briefing\n\n"
+        "There were 19 incidents.\n\n"
+        "## Citation Appendix\n"
+        "- [C001] count (Source query: `q`, As of: 2024-07-01)\n"
+    )
+
+    out = strip_citation_appendix(markdown)
+
+    assert "There were 19 incidents." in out
+    assert "Citation Appendix" not in out
+
+
+def test_final_variant_omits_citation_appendix_on_narrative_layout():
+    fact = Fact(
+        metric="incident_count",
+        value=19,
+        unit="incidents",
+        scope={"corporation": "all"},
+        breakdown=None,
+        verification="validated",
+        citation=make_citation("C001"),
+    )
+    markdown = render_report(
+        make_template(),
+        make_fact_table(facts=[fact]),
+        "There were 19 incidents [C001].",
+        include_citations=False,
+    )
+
+    assert "## Citation Appendix" not in markdown
 
 
 def test_render_omits_citation_appendix_when_disabled():

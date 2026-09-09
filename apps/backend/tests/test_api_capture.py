@@ -854,6 +854,8 @@ def test_preview_does_not_ingest_incidents(monkeypatch):
     assert body["status"] == "draft"
     assert body["submission_id"] is None
     assert body["sitrep"]["markdown"]
+    assert "Citation Appendix" not in body["sitrep"]["markdown"]
+    assert "Citation Appendix" not in body["sitrep"]["final_markdown"]
     assert body["sitrep"]["stale"] is False
     from sqlalchemy.orm import sessionmaker
 

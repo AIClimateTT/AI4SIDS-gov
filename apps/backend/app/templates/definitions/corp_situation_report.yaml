@@ -55,5 +55,5 @@ narration:
     - data_gaps
 render:
   format: markdown
-  include_citation_appendix: true
+  include_citation_appendix: false
   layout: filing

@@ -67,10 +67,9 @@ def test_preamble_puts_each_field_on_its_own_line():
         situation_overview=None,
         present_activity=None,
     )
-    # Markdown collapses single newlines into one run-on paragraph; the
-    # filing header needs a hard break after each field.
-    assert "**Event:** Flooding in Arima  \n" in text
-    assert "**Alert:** yellow  \n" in text
+    # Separate paragraphs, not trailing-space hard breaks: a single newline
+    # collapses into one run-on line in markdown.
+    assert "**Event:** Flooding in Arima\n\n**Alert:** Yellow\n\n**As at:**" in text
 
 
 def test_working_set_sitrep_carries_a_final_variant_with_the_same_preamble():
@@ -102,7 +101,15 @@ def test_working_set_sitrep_carries_a_final_variant_with_the_same_preamble():
         request_id="preview-test",
     )
 
+    assert TEMPLATE.render.include_citation_appendix is False
+    assert report.markdown.startswith("# Arima Borough Corporation Situation Report")
+    assert report.final_markdown.startswith(
+        "# Arima Borough Corporation Situation Report"
+    )
     assert "Flooding in Arima" in report.final_markdown
     assert "River overtopped overnight." in report.final_markdown
     assert "[C001]" not in report.final_markdown
+    # The draft view already has a fact table; neither variant reprints it
+    # as a citation appendix on the issued document.
+    assert "Citation Appendix" not in report.markdown
     assert "Citation Appendix" not in report.final_markdown

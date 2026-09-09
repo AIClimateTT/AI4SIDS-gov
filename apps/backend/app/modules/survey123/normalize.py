@@ -22,6 +22,24 @@ CANONICAL_CORPORATIONS = frozenset(
     }
 )
 
+# Survey123 truncates ids to 31 characters; these are the names a reader sees.
+CORPORATION_LABELS = {
+    "san_juan_laventille_regional_co": "San Juan/Laventille Regional Corporation",
+    "tunapuna_piarco_regional_corpor": "Tunapuna/Piarco Regional Corporation",
+    "sangre_grande_regional_corporat": "Sangre Grande Regional Corporation",
+    "penal_debe_regional_corporation": "Penal/Debe Regional Corporation",
+    "couva_tabaquite_talparo_regiona": "Couva/Tabaquite/Talparo Regional Corporation",
+    "mayaro_rio_claro_regional_corpo": "Mayaro/Rio Claro Regional Corporation",
+    "siparia_regional_corporation": "Siparia Regional Corporation",
+    "princes_town_regional_corporati": "Princes Town Regional Corporation",
+    "diego_martin_regional_corporati": "Diego Martin Regional Corporation",
+    "san_fernando_city_corporation": "San Fernando City Corporation",
+    "chaguanas_borough_corporation": "Chaguanas Borough Corporation",
+    "port_of_spain_city_corporation": "Port of Spain City Corporation",
+    "point_fortin_borough_corporatio": "Point Fortin Borough Corporation",
+    "arima_borough_corporation": "Arima Borough Corporation",
+}
+
 CANONICAL_INCIDENT_TYPES = frozenset(
     {
         "flooding_",

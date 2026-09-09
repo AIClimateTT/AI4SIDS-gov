@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import { CitationMarkdown } from '@/components/reports/citation-markdown'
 import { factsByCid } from '@/components/reports/citation-display'
+import { stripCitationMarkup } from '@/components/reports/citation-utils'
 import { ReportFactTable } from '@/components/reports/fact-table'
 import { ReportRatingField } from '@/components/reports/report-rating'
 import { ViolationsPanel } from '@/components/reports/violations-panel'
@@ -16,8 +17,8 @@ import { cn } from '@/lib/utils'
 import type { CaptureSession } from '@/types/dmcu'
 
 /** Draft is the working copy an officer checks figures against; final is the
- * document that gets issued, with every citation marker already stripped by
- * the backend renderer. */
+ * document that gets issued — citation markers stripped, and no citation
+ * appendix (the draft fact table already lists those facts). */
 type SitrepView = 'draft' | 'final'
 
 function ViewToggle({
@@ -135,7 +136,11 @@ export function SitrepDraftPane({
         ) : null}
 
         <CitationMarkdown
-          markdown={isFinal ? sitrep.final_markdown : sitrep.markdown}
+          markdown={
+            isFinal
+              ? stripCitationMarkup(sitrep.final_markdown)
+              : sitrep.markdown
+          }
           violations={isFinal ? [] : sitrep.violations}
           sourceByCid={isFinal ? undefined : sourceByCid}
           factsByCid={isFinal ? undefined : citedFacts}

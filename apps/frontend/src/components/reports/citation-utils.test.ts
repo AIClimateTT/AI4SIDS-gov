@@ -6,6 +6,7 @@ import {
   normalizeCitationBrackets,
   repairReportStructure,
   stripCitationAppendix,
+  stripCitationMarkup,
 } from '@/components/reports/citation-utils'
 
 describe('normalizeCitationBrackets', () => {
@@ -188,6 +189,23 @@ describe('markViolationSentences on list items', () => {
   it('leaves a plain sentence wrapped as before', () => {
     const out = markViolationSentences('A plain sentence.', [v('A plain sentence.')])
     expect(out).toBe('<mark class="violation-mark">A plain sentence.</mark>')
+  })
+})
+
+describe('stripCitationMarkup', () => {
+  it('drops citation pills and the Cite column from a filing table', () => {
+    const markdown = [
+      'One incident [C001].',
+      '',
+      '| Type | Count | Cite |',
+      '|---|---|---|',
+      '| flooding_ | 1 | [C001] |',
+    ].join('\n')
+
+    const out = stripCitationMarkup(markdown)
+    expect(out).toContain('One incident.')
+    expect(out).not.toContain('C001')
+    expect(out).not.toContain('Cite')
   })
 })
 
