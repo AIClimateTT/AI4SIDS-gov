@@ -11,6 +11,7 @@ from app.api.templates import router as templates_router
 from app.api.whatsapp import router as whatsapp_router
 from app.api.capture import router as capture_router
 from app.api.users import router as users_router
+from app.api.quality import router as quality_router
 from app.config import settings, validate_runtime_settings
 from app.core.registry import ensure_default_modules_registered
 
@@ -46,6 +47,7 @@ def create_app() -> FastAPI:
     app.include_router(capture_router)
     app.include_router(auth_router)
     app.include_router(users_router)
+    app.include_router(quality_router)
     ensure_default_modules_registered()
     return app
 

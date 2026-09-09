@@ -12,6 +12,7 @@ from app.core.report_store import get_report, list_reports, save_placeholder_rep
 from app.core.template_store import get_latest_template_version, get_template_version
 from app.db import get_session
 from app.modules.survey123.normalize import CANONICAL_CORPORATIONS
+from app.quality.store import record_event
 
 router = APIRouter()
 
@@ -97,6 +98,13 @@ def create_report(
         template=template,
         params=request.params,
         data_requirements=override,
+    )
+    record_event(
+        session,
+        workflow="dmu_generate_report",
+        step="create",
+        outcome="started",
+        subject_id=report_id,
     )
     enqueue("generate_report", report_id=report_id)
     session.expire_all()

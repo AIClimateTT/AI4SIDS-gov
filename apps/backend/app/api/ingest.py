@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.registry import get_module
 from app.db import get_session
+from app.quality.store import record_event
 
 router = APIRouter()
 
@@ -38,5 +39,21 @@ async def ingest(
         result = module.ingest(tmp_path)
     finally:
         tmp_path.unlink(missing_ok=True)
+
+    if module_name == "survey123":
+        record_event(
+            session,
+            workflow="survey123_ingest",
+            step="ingest",
+            outcome="started",
+            subject_id=file.filename,
+        )
+        record_event(
+            session,
+            workflow="survey123_ingest",
+            step="ingest",
+            outcome="succeeded",
+            subject_id=file.filename,
+        )
 
     return result.model_dump()
