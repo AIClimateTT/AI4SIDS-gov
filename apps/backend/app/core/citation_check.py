@@ -116,6 +116,10 @@ def _split_sentences(text: str) -> list[str]:
     return [s.strip() for s in SENTENCE_SPLIT_RE.split(stripped) if s.strip()]
 
 
+def split_narrative_units(text: str) -> list[str]:
+    return _split_sentences(text)
+
+
 def _matches_any(value: float, candidates: set[float], epsilon: float = 1e-6) -> bool:
     return any(abs(value - c) < epsilon for c in candidates)
 
@@ -134,6 +138,10 @@ def _cids_in(text: str) -> set[str]:
         for cid in group.split(",")
         if cid.strip()
     }
+
+
+def cids_in(text: str) -> set[str]:
+    return _cids_in(text)
 # \b so a digit run glued to a word is not a figure: "Survey123" must not
 # yield "123", and a bare "C001" marker must not yield "001". Real figures
 # ("15", "115,800", "66.7%") always follow a boundary.
