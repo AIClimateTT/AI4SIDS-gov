@@ -1,18 +1,14 @@
-import { useNavigate } from '@tanstack/react-router'
+import { useNavigate, useRouter } from '@tanstack/react-router'
 
 import { Button } from '@/components/ui/button'
 import { useIdentity } from '@/hooks/use-identity'
 import { identityLabel } from '@/lib/identity'
+import { queryClient } from '@/lib/query-client'
 
-/**
- * Always-visible statement of who the operator says they are, with a
- * frictionless switch. Deliberately plain: no lock, no avatar, no "sign out".
- * Dressing a declaration up as a session would imply a security boundary that
- * does not exist.
- */
 export function IdentityBadge() {
   const { identity, forgetIdentity } = useIdentity()
   const navigate = useNavigate()
+  const router = useRouter()
 
   if (identity === null) return null
 
@@ -23,11 +19,15 @@ export function IdentityBadge() {
         variant="ghost"
         size="sm"
         onClick={() => {
-          forgetIdentity()
-          void navigate({ to: '/who-are-you' })
+          void (async () => {
+            await forgetIdentity()
+            queryClient.clear()
+            await router.invalidate()
+            void navigate({ to: '/login' })
+          })()
         }}
       >
-        Switch
+        Sign out
       </Button>
     </div>
   )

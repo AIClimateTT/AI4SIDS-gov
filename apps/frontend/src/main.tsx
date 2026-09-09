@@ -1,21 +1,9 @@
 import ReactDOM from 'react-dom/client'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
-import { routeTree } from './routeTree.gen'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      networkMode: "offlineFirst",
-      gcTime: 1000 * 60 * 60 * 24,
-      staleTime: 1000 * 60 * 5,
-      retry: false,
-    },
-    mutations: {
-      networkMode: "offlineFirst",
-    },
-  },
-})
+import { queryClient } from '@/lib/query-client'
+import { routeTree } from './routeTree.gen'
 
 const router = createRouter({
   routeTree,

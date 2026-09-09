@@ -11,6 +11,7 @@ from app.core import template_models as template_models  # noqa: F401
 from app.modules.sitreps import models as sitreps_models  # noqa: F401
 from app.modules.whatsapp import models as whatsapp_models  # noqa: F401
 from app.modules.capture import models as capture_models  # noqa: F401
+from app.auth import models as auth_models  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)

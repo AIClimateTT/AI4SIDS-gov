@@ -1,4 +1,6 @@
-from app.config import Settings
+from pydantic import ValidationError
+
+from app.config import Settings, validate_runtime_settings
 
 
 def test_settings_defaults(monkeypatch):
@@ -60,3 +62,30 @@ def test_settings_env_override(monkeypatch):
     assert settings.job_backend == "procrastinate"
     assert settings.app_env == "production"
     assert settings.dedup_salt == "prod-salt-xyz"
+
+
+def test_empty_secret_key_is_rejected(monkeypatch):
+    monkeypatch.setenv("SECRET_KEY", "   ")
+
+    try:
+        Settings(_env_file=None)
+        raised = False
+    except ValidationError:
+        raised = True
+
+    assert raised
+
+
+def test_staging_and_production_require_resend_key():
+    staging = Settings(app_env="staging", resend_api_key=None, _env_file=None)
+    try:
+        validate_runtime_settings(staging)
+        raised = False
+    except RuntimeError:
+        raised = True
+    assert raised
+
+    production = Settings(
+        app_env="production", resend_api_key="re_test", _env_file=None
+    )
+    validate_runtime_settings(production)

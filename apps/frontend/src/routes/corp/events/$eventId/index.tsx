@@ -32,7 +32,7 @@ function EventPage() {
 
   if (identity?.role !== 'corp') {
     return (
-      <CorpRoleNotice description="Switch to a corporation identity to view this event." />
+      <CorpRoleNotice description="This account is not a corporation account, so it cannot view this event." />
     )
   }
 

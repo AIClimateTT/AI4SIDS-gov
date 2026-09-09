@@ -12,8 +12,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { IdentityProvider } from '@/hooks/use-identity'
 import { SidebarProvider } from '@/components/ui/sidebar'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { IDENTITY_STORAGE_KEY } from '@/lib/identity'
-import type { IdentityStorage } from '@/lib/identity'
+import type { Identity } from '@/lib/identity'
 
 import { AppSidebar, isNavItemActive } from './app-sidebar'
 
@@ -32,26 +31,13 @@ const DMU_PATHS = [
   '/dmu/admin/modules',
 ]
 
-function storageWith(raw: string | null): IdentityStorage {
-  return {
-    getItem: (key) => (key === IDENTITY_STORAGE_KEY ? raw : null),
-    setItem: () => undefined,
-    removeItem: () => undefined,
-  }
-}
-
-/**
- * The sidebar renders `<Link>`s and reads the current pathname, so it needs
- * a router with the DMU routes registered. Identity is injected through the
- * provider's storage seam rather than localStorage so each test picks its own.
- */
 async function renderSidebar(
   initialPath: string,
-  identity: string | null = JSON.stringify({ role: 'dmu' }),
+  identity: Identity | null = { role: 'dmu' },
 ) {
   const rootRoute = createRootRoute({
     component: () => (
-      <IdentityProvider storage={storageWith(identity)}>
+      <IdentityProvider identity={identity}>
         <TooltipProvider>
           <SidebarProvider>
             <AppSidebar />
@@ -149,13 +135,10 @@ describe('AppSidebar', () => {
   })
 
   it('shows no navigation groups to a corp identity', async () => {
-    await renderSidebar(
-      '/dmu',
-      JSON.stringify({
-        role: 'corp',
-        corporation: 'san_juan_laventille_regional_co',
-      }),
-    )
+    await renderSidebar('/dmu', {
+      role: 'corp',
+      corporation: 'san_juan_laventille_regional_co',
+    })
 
     expect(navGroups()).toEqual([])
   })

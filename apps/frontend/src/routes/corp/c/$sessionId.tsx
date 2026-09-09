@@ -89,7 +89,7 @@ function CaptureChatRoute() {
 
   if (identity?.role !== 'corp') {
     return (
-      <CorpRoleNotice description="Switch to a corporation identity to file by conversation." />
+      <CorpRoleNotice description="This account is not a corporation account, so it cannot file by conversation." />
     )
   }
 

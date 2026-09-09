@@ -10,12 +10,7 @@ const ROLE_NAMES = {
 } as const
 
 /**
- * Shown when the page belongs to a role the operator has not declared.
- *
- * This is an offer, not a block. There is no authentication here, so refusing
- * to render the page would be theatre — it would imply an enforced boundary
- * while the operator can switch roles in one click anyway. Say plainly what is
- * going on and make the switch easy.
+ * Shown when the page belongs to a role the signed-in account does not have.
  */
 export function RoleMismatchNotice({ expected }: { expected: 'corp' | 'dmu' }) {
   const { identity } = useIdentity()
@@ -26,16 +21,16 @@ export function RoleMismatchNotice({ expected }: { expected: 'corp' | 'dmu' }) {
   return (
     <div className="rounded-md border border-dashed p-4 text-sm">
       <p>
-        You are viewing as <strong>{identityLabel(identity)}</strong>, but this page
-        belongs to {ROLE_NAMES[expected]}.
+        You are signed in as <strong>{identityLabel(identity)}</strong>, but this
+        page belongs to {ROLE_NAMES[expected]}.
       </p>
       <Button
         variant="outline"
         size="sm"
         className="mt-3"
-        onClick={() => void navigate({ to: '/who-are-you' })}
+        onClick={() => void navigate({ to: '/' })}
       >
-        Switch
+        Go to your home
       </Button>
     </div>
   )

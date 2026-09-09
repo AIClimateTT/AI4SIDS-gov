@@ -173,5 +173,40 @@ def generate(
         typer.echo(f"violations: {len(report.violations)}", err=True)
 
 
+users_app = typer.Typer()
+app.add_typer(users_app, name="users")
+
+
+@users_app.command("create")
+def create_user_command(
+    email: str,
+    role: str = "member",
+    first_name: str | None = None,
+    last_name: str | None = None,
+    corporation: str | None = None,
+) -> None:
+    from app.auth.models import User
+
+    session = SessionLocal()
+    try:
+        existing = session.query(User).filter(User.email == email.lower().strip()).one_or_none()
+        if existing is not None:
+            typer.echo(f"user already exists: {existing.email}", err=True)
+            raise typer.Exit(code=1)
+        user = User(
+            email=email.lower().strip(),
+            role=role,
+            first_name=first_name,
+            last_name=last_name,
+            corporation=corporation,
+            is_active=True,
+        )
+        session.add(user)
+        session.commit()
+        typer.echo(f"created {user.email} role={user.role} id={user.user_id}")
+    finally:
+        session.close()
+
+
 if __name__ == "__main__":
     app()
