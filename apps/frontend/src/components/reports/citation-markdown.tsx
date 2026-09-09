@@ -7,7 +7,8 @@ import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import { cn } from '@/lib/utils'
 import { sourceLabel, sourceOf } from '@/components/shared/source-badge'
 import type { FactSource } from '@/components/shared/source-badge'
-import type { CitationViolation } from '@/types/dmcu'
+import type { CitationViolation, Fact } from '@/types/dmcu'
+import { CitationPopover } from '@/components/reports/citation-popover'
 import {
   prepareReportMarkdown,
   scrollToCitation,
@@ -45,6 +46,13 @@ type CitationMarkdownProps = {
    * a report rendered without its fact table gets.
    */
   sourceByCid?: Record<string, string>
+  /**
+   * cid → the stored fact behind that marker. When present, click opens a
+   * readable citation card instead of jumping straight into the fact table.
+   * Omitted, markers keep the scroll-to-row fallback used when a report is
+   * rendered without its fact table.
+   */
+  factsByCid?: Record<string, Fact>
   className?: string
 }
 
@@ -71,6 +79,7 @@ export function CitationMarkdown({
   markdown,
   violations = [],
   sourceByCid,
+  factsByCid,
   className,
 }: CitationMarkdownProps) {
   const prepared = prepareReportMarkdown(markdown, violations)
@@ -103,7 +112,19 @@ export function CitationMarkdown({
           a: ({ href, children, ...props }) => {
             const cid = isCitationHash(href)
             if (cid) {
-              const source = sourceOf(sourceByCid?.[cid])
+              const fact = factsByCid?.[cid]
+              const source = sourceOf(fact?.citation.module ?? sourceByCid?.[cid])
+              const markerClass = cn(
+                'inline cursor-pointer rounded-sm px-1 font-mono text-[0.85em] font-medium',
+                MARKER_CLASS[source],
+              )
+              if (fact) {
+                return (
+                  <CitationPopover fact={fact} className={markerClass}>
+                    {children}
+                  </CitationPopover>
+                )
+              }
               return (
                 <button
                   type="button"
@@ -112,10 +133,7 @@ export function CitationMarkdown({
                   // never be the only encoding, and the marker is too small to
                   // hold a label.
                   title={`${cid} — ${sourceLabel(sourceByCid?.[cid])}`}
-                  className={cn(
-                    'inline cursor-pointer rounded-sm px-1 font-mono text-[0.85em] font-medium',
-                    MARKER_CLASS[source],
-                  )}
+                  className={markerClass}
                   onClick={(event: MouseEvent<HTMLButtonElement>) => {
                     event.preventDefault()
                     scrollToCitation(cid)

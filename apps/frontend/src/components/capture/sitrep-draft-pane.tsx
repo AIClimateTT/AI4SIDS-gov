@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import { CitationMarkdown } from '@/components/reports/citation-markdown'
+import { factsByCid } from '@/components/reports/citation-display'
 import { ReportFactTable } from '@/components/reports/fact-table'
 import { ReportRatingField } from '@/components/reports/report-rating'
 import { ViolationsPanel } from '@/components/reports/violations-panel'
@@ -96,6 +97,11 @@ export function SitrepDraftPane({
   }
 
   const isFinal = view === 'final'
+  const citedFacts = factsByCid(sitrep.fact_table.facts)
+  const sourceByCid: Record<string, string> = {}
+  for (const [cid, fact] of Object.entries(citedFacts)) {
+    sourceByCid[cid] = fact.citation.module
+  }
   const corporation =
     CORPORATION_LABELS[session.corporation as CanonicalCorporation] ??
     session.corporation
@@ -131,6 +137,8 @@ export function SitrepDraftPane({
         <CitationMarkdown
           markdown={isFinal ? sitrep.final_markdown : sitrep.markdown}
           violations={isFinal ? [] : sitrep.violations}
+          sourceByCid={isFinal ? undefined : sourceByCid}
+          factsByCid={isFinal ? undefined : citedFacts}
         />
 
         {isFinal ? null : (
