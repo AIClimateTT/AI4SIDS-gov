@@ -16,7 +16,11 @@ import {
   ReportRatingField,
   ViolationsPanel,
 } from '@/components/reports'
-import { factsByCid } from '@/components/reports/citation-display'
+import {
+  factsByCid,
+  formatRequirementLabel,
+  humanizeStoredValue,
+} from '@/components/reports/citation-display'
 import { Button } from '@/components/ui/button'
 import { useVerdictClaim } from '@/lib/queries/quality'
 import { reportQueries } from '@/lib/queries/reports'
@@ -101,7 +105,9 @@ function ReportDetailPage() {
                   <dt className="text-xs uppercase tracking-wide text-muted-foreground">
                     {formatConstant(key)}
                   </dt>
-                  <dd className="text-sm font-medium">{value}</dd>
+                  <dd className="text-sm font-medium">
+                    {humanizeStoredValue(value)}
+                  </dd>
                 </div>
               ))}
             </dl>
@@ -113,9 +119,12 @@ function ReportDetailPage() {
                 {data.data_requirements.map((requirement) => (
                   <li
                     key={`${requirement.module}.${requirement.metric}`}
-                    className="font-mono"
+                    className="text-sm"
                   >
-                    {requirement.module}.{requirement.metric}
+                    {formatRequirementLabel(
+                      requirement.module,
+                      requirement.metric,
+                    )}
                   </li>
                 ))}
               </ul>

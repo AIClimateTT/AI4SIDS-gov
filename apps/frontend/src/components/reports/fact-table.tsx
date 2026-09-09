@@ -9,21 +9,21 @@ import {
 } from '@/components/ui/table'
 import { citationAnchorId } from '@/components/reports/citation-utils'
 import {
+  formatFactValue,
+  formatMetricLabel,
+  humanizeStoredValue,
+} from '@/components/reports/citation-display'
+import {
   SourceBadge,
   sourceEdgeClass,
   sourceOf,
 } from '@/components/shared/source-badge'
 import { cn } from '@/lib/utils'
-import type { Fact, FactTable } from '@/types/dmcu'
+import type { FactTable } from '@/types/dmcu'
 
 type ReportFactTableProps = {
   factTable: FactTable
   className?: string
-}
-
-function formatValue(fact: Fact): string {
-  const unit = fact.unit ? ` ${fact.unit}` : ''
-  return `${fact.value}${unit}`
 }
 
 export function ReportFactTable({
@@ -99,13 +99,17 @@ export function ReportFactTable({
                   <TableCell>
                     <SourceBadge module={fact.citation.module} />
                   </TableCell>
-                  <TableCell className="font-medium">{fact.metric}</TableCell>
-                  <TableCell className="tabular-nums">
-                    {formatValue(fact)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{fact.verification}</Badge>
-                  </TableCell>
+                    <TableCell className="font-medium">
+                      {formatMetricLabel(fact.metric)}
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {formatFactValue(fact)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {formatMetricLabel(fact.verification)}
+                      </Badge>
+                    </TableCell>
                   <TableCell className="max-w-[240px] text-muted-foreground">
                     {fact.citation.description}
                   </TableCell>
@@ -138,12 +142,14 @@ export function ReportFactTable({
                     {fact.citation.cid}
                   </span>
                   <SourceBadge module={fact.citation.module} />
-                  {fact.metric}
+                  {formatMetricLabel(fact.metric)}
                 </p>
                 <dl className="grid gap-1 text-sm sm:grid-cols-2">
                   {Object.entries(fact.breakdown).map(([key, value]) => (
                     <div key={key} className="flex justify-between gap-3">
-                      <dt className="text-muted-foreground">{key}</dt>
+                      <dt className="text-muted-foreground">
+                        {humanizeStoredValue(key)}
+                      </dt>
                       <dd className="font-medium tabular-nums">{value}</dd>
                     </div>
                   ))}
