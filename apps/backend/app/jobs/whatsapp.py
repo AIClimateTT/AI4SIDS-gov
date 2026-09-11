@@ -3,7 +3,7 @@ from app.quality.store import record_event
 from app.db import SessionLocal
 from app.modules.whatsapp.briefing import BriefingError, generate_briefing
 from app.modules.whatsapp.extract import extract_proposals, to_draft_incidents, to_draft_logs
-from app.modules.whatsapp.parse import parse_export
+from app.modules.whatsapp.parse import messages_from_source
 from app.modules.whatsapp.store import (
     draft_incidents,
     draft_logs,
@@ -23,7 +23,7 @@ def run_extract(draft_id: int) -> None:
         if draft is None or not draft.source_text:
             return
         mark_draft_running(draft, session)
-        messages = parse_export(draft.source_text)
+        messages, _kind, _pii = messages_from_source(draft.source_text)
         extracted = extract_proposals(messages, get_llm_client("batch"))
         mark_draft_ready(
             draft,

@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 import uuid
 
-from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -25,7 +25,7 @@ from app.modules.whatsapp.facts import (
     included_attributed_logs,
 )
 from app.modules.whatsapp.models import WhatsAppDraft
-from app.modules.whatsapp.parse import parse_export, redact_phones
+from app.modules.whatsapp.parse import messages_from_source
 from app.modules.whatsapp.store import (
     create_draft,
     draft_incidents,
@@ -41,6 +41,7 @@ router = APIRouter()
 class DraftSummary(BaseModel):
     id: int
     filename: str
+    source_kind: str
     as_at: datetime
     updated_at: datetime
     incident_count: int
@@ -51,6 +52,7 @@ class DraftResponse(BaseModel):
     id: int
     draft_id: int
     filename: str
+    source_kind: str
     as_at: datetime
     message_count: int
     pii_redacted: bool
@@ -95,6 +97,7 @@ def _as_response(draft: WhatsAppDraft) -> DraftResponse:
         id=draft.id,
         draft_id=draft.id,
         filename=draft.filename,
+        source_kind=draft.source_kind,
         as_at=draft.as_at,
         message_count=draft.message_count,
         pii_redacted=draft.pii_redacted,
@@ -114,36 +117,71 @@ def _require_draft(session: Session, draft_id: int) -> WhatsAppDraft:
     return draft
 
 
+async def _read_source(
+    file: UploadFile | None, text: str | None
+) -> tuple[str, str, str, bool, int]:
+    file_bytes = b""
+    filename = ""
+    if file is not None:
+        filename = file.filename or ""
+        file_bytes = await file.read()
+
+    has_file = bool(file_bytes.strip())
+    pasted = (text or "").strip()
+    has_text = bool(pasted)
+
+    if has_file and has_text:
+        raise HTTPException(
+            status_code=400, detail="send either a file or pasted text, not both"
+        )
+    if not has_file and not has_text:
+        raise HTTPException(
+            status_code=400,
+            detail="paste the hour or upload a WhatsApp .txt export",
+        )
+
+    if has_file:
+        if not filename.lower().endswith(".txt"):
+            raise HTTPException(
+                status_code=400, detail="upload a WhatsApp .txt export"
+            )
+        raw = file_bytes.decode("utf-8", errors="replace")
+        messages, kind, pii = messages_from_source(raw)
+        if not messages:
+            raise HTTPException(status_code=400, detail="no messages found in export")
+        return raw, filename or "export.txt", kind, pii, len(messages)
+
+    messages, kind, pii = messages_from_source(pasted)
+    if not messages:
+        raise HTTPException(
+            status_code=400,
+            detail="paste the hour or upload a WhatsApp .txt export",
+        )
+    return pasted, "pasted.txt", kind, pii, len(messages)
+
+
 @router.post("/whatsapp/extract", response_model=DraftResponse, status_code=202)
 async def post_extract(
-    file: UploadFile,
+    file: UploadFile | None = File(None),
+    text: str | None = Form(None),
     as_at: datetime | None = Form(None),
     session: Session = Depends(get_session),
 ) -> DraftResponse:
-    filename = file.filename or "export.txt"
-    if not filename.lower().endswith(".txt"):
-        raise HTTPException(status_code=400, detail="upload a WhatsApp .txt export")
-
-    raw_bytes = await file.read()
-    if not raw_bytes.strip():
-        raise HTTPException(status_code=400, detail="export is empty")
-
-    text = raw_bytes.decode("utf-8", errors="replace")
-    _, pii_redacted = redact_phones(text)
-    messages = parse_export(text)
-    if not messages:
-        raise HTTPException(status_code=400, detail="no messages found in export")
+    raw, filename, source_kind, pii_redacted, message_count = await _read_source(
+        file, text
+    )
 
     draft = create_draft(
         session,
         filename=filename,
         as_at=as_at or datetime.now(timezone.utc).replace(tzinfo=None),
-        message_count=len(messages),
+        message_count=message_count,
         pii_redacted=pii_redacted,
         incidents=[],
         logs=[],
         status="queued",
-        source_text=text,
+        source_text=raw,
+        source_kind=source_kind,
     )
     enqueue("extract_whatsapp", draft_id=draft.id)
     record_event(
@@ -166,6 +204,7 @@ def get_drafts(
         DraftSummary(
             id=draft.id,
             filename=draft.filename,
+            source_kind=draft.source_kind,
             as_at=draft.as_at,
             updated_at=draft.updated_at,
             incident_count=len(draft.incidents or []),

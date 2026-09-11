@@ -21,5 +21,6 @@ class WhatsAppDraft(Base):
     status: Mapped[str] = mapped_column(String, nullable=False, default="ready")
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_kind: Mapped[str] = mapped_column(String, nullable=False, default="export")
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)

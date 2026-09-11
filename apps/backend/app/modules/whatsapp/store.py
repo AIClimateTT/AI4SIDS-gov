@@ -27,6 +27,7 @@ def create_draft(
     logs: list[DraftLog],
     status: str = "ready",
     source_text: str | None = None,
+    source_kind: str = "export",
     error: str | None = None,
 ) -> WhatsAppDraft:
     now = _now()
@@ -42,6 +43,7 @@ def create_draft(
         status=status,
         error=error,
         source_text=source_text,
+        source_kind=source_kind,
         created_at=now,
         updated_at=now,
     )

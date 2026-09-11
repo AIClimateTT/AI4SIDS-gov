@@ -49,6 +49,7 @@ def test_create_and_reload_draft(tmp_path):
     assert rows[0].incident_summary == "3 houses flooded"
     assert rows[0].included is True
     assert loaded.pii_redacted is True
+    assert loaded.source_kind == "export"
 
 
 def test_update_draft_redacts_phones(tmp_path):

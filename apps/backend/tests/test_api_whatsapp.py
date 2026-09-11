@@ -350,3 +350,56 @@ def test_list_drafts_includes_extracted(monkeypatch):
     assert response.status_code == 200
     ids = [item["id"] for item in response.json()]
     assert extracted["id"] in ids
+
+
+def test_extract_accepts_pasted_text(monkeypatch):
+    client = make_client(monkeypatch)
+    response = client.post(
+        "/whatsapp/extract",
+        data={"text": "Diego Martin: 3 houses flooded in Petit Valley"},
+    )
+    assert response.status_code == 202, response.text
+    body = response.json()
+    assert body["filename"] == "pasted.txt"
+    assert body["source_kind"] == "paste"
+    assert body["message_count"] == 1
+    assert body["incidents"]
+
+
+def test_extract_pasted_export_text_is_classified_as_export(monkeypatch):
+    client = make_client(monkeypatch)
+    response = client.post("/whatsapp/extract", data={"text": CHAT})
+    assert response.status_code == 202, response.text
+    body = response.json()
+    assert body["source_kind"] == "export"
+    assert body["filename"] == "pasted.txt"
+    assert body["message_count"] == 2
+
+
+def test_extract_rejects_file_and_text_together(monkeypatch):
+    client = make_client(monkeypatch)
+    response = client.post(
+        "/whatsapp/extract",
+        data={"text": "Diego Martin standing by"},
+        files={"file": ("hour.txt", CHAT.encode("utf-8"), "text/plain")},
+    )
+    assert response.status_code == 400
+    assert "either" in response.json()["detail"].lower()
+
+
+def test_extract_rejects_neither_file_nor_text(monkeypatch):
+    client = make_client(monkeypatch)
+    response = client.post("/whatsapp/extract", data={"as_at": "2026-08-15T16:00:00"})
+    assert response.status_code == 400
+
+
+def test_extract_empty_file_with_pasted_text_is_paste(monkeypatch):
+    client = make_client(monkeypatch)
+    response = client.post(
+        "/whatsapp/extract",
+        data={"text": "Diego Martin: 3 houses flooded in Petit Valley"},
+        files={"file": ("", b"", "application/octet-stream")},
+    )
+    assert response.status_code == 202, response.text
+    assert response.json()["source_kind"] == "paste"
+    assert response.json()["filename"] == "pasted.txt"
