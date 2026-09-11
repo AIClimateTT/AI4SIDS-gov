@@ -4,11 +4,12 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { ButtonLink, EmptyState, LoadingBlock, PageHeader } from '@/components/shared'
+import { ButtonLink, EmptyState, LoadingBlock, PageHeader, moduleDisplayName } from '@/components/shared'
 import { ContentCard } from '@/components/shared/content-card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { formatDisplayLabel } from '@/lib/format-display'
 import { moduleQueries } from '@/lib/queries/modules'
 import {
   templateQueries,
@@ -229,7 +230,9 @@ function NewTemplateVersionPage() {
             <div className="space-y-4">
               {modulesQuery.data?.map((module) => (
                 <div key={module.name} className="space-y-2">
-                  <p className="text-sm font-medium">{module.name}</p>
+                  <p className="text-sm font-medium">
+                    {moduleDisplayName(module.name)}
+                  </p>
                   <ul className="space-y-2">
                     {module.metrics.map((metric) => {
                       const key = metricKey(module.name, metric.name)
@@ -243,7 +246,9 @@ function NewTemplateVersionPage() {
                             }
                           />
                           <div>
-                            <p className="font-mono text-sm">{metric.name}</p>
+                            <p className="text-sm font-medium">
+                              {formatDisplayLabel(metric.name)}
+                            </p>
                             <p className="text-sm text-muted-foreground">
                               {metric.description}
                             </p>

@@ -5,6 +5,7 @@ import {
   EmptyState,
   LoadingBlock,
   PageHeader,
+  moduleDisplayName,
 } from '@/components/shared'
 import { ContentCard } from '@/components/shared/content-card'
 import { Badge } from '@/components/ui/badge'
@@ -16,6 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { formatDisplayLabel } from '@/lib/format-display'
 import { moduleQueries } from '@/lib/queries/modules'
 
 export const Route = createFileRoute('/dmu/admin/modules')({ component: ModulesPage })
@@ -44,9 +46,11 @@ function ModulesPage() {
           {data.map((module) => (
             <ContentCard
               key={module.name}
-              title={module.name}
+              title={moduleDisplayName(module.name)}
               description={`${module.metrics.length} metrics`}
-              action={<Badge variant="outline">{module.name}</Badge>}
+              action={
+                <Badge variant="outline">{moduleDisplayName(module.name)}</Badge>
+              }
             >
               <Table>
                 <TableHeader>
@@ -59,16 +63,16 @@ function ModulesPage() {
                 <TableBody>
                   {module.metrics.map((metric) => (
                     <TableRow key={metric.name}>
-                      <TableCell className="font-mono text-sm">
-                        {metric.name}
+                      <TableCell className="text-sm font-medium">
+                        {formatDisplayLabel(metric.name)}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {metric.description}
                       </TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">
-                        {Object.keys(
-                          metric.params_schema?.properties ?? {},
-                        ).join(', ') || '—'}
+                      <TableCell className="text-sm text-muted-foreground">
+                        {Object.keys(metric.params_schema?.properties ?? {})
+                          .map((name) => formatDisplayLabel(name))
+                          .join(', ') || '—'}
                       </TableCell>
                     </TableRow>
                   ))}

@@ -24,6 +24,12 @@ describe('corporationDisplayName', () => {
   it('falls back to an em dash when there is no corporation', () => {
     expect(corporationDisplayName(null)).toBe('—')
   })
+
+  it('title-cases an unknown corporation slug instead of showing underscores', () => {
+    expect(corporationDisplayName('new_city_corporation')).toBe(
+      'New City Corporation',
+    )
+  })
 })
 
 describe('currentUserIdFromToken', () => {

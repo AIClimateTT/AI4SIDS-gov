@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import {
   SourceBadge,
+  moduleDisplayName,
   sourceEdgeClass,
   sourceLabel,
   sourceOf,
@@ -33,6 +34,17 @@ describe('sourceLabel', () => {
     expect(sourceLabel('sitreps')).toBe('SITREP')
     expect(sourceLabel('survey123')).toBe('Field')
     expect(sourceLabel('sitreps')).not.toBe(sourceLabel('survey123'))
+  })
+})
+
+describe('moduleDisplayName', () => {
+  it('keeps the short labels for known sources', () => {
+    expect(moduleDisplayName('sitreps')).toBe('SITREP')
+    expect(moduleDisplayName('survey123')).toBe('Field')
+  })
+
+  it('title-cases an unknown module instead of showing underscores', () => {
+    expect(moduleDisplayName('rainfall_gauges')).toBe('Rainfall Gauges')
   })
 })
 

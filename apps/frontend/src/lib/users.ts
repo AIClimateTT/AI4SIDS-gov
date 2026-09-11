@@ -1,8 +1,5 @@
 import { decodeJwtPayload } from '@/lib/auth/token'
-import {
-  CORPORATION_LABELS,
-  isCanonicalCorporation,
-} from '@/lib/corporations'
+import { formatDisplayValue } from '@/lib/format-display'
 import type { UserAccount } from '@/types/users'
 
 export function userDisplayName(
@@ -14,9 +11,7 @@ export function userDisplayName(
 export function corporationDisplayName(
   corporation: string | null | undefined,
 ): string {
-  if (!corporation) return '—'
-  if (isCanonicalCorporation(corporation)) return CORPORATION_LABELS[corporation]
-  return corporation
+  return formatDisplayValue(corporation)
 }
 
 export function currentUserIdFromToken(token: string | null): string | null {

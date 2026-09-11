@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ButtonLink, EmptyState, LoadingBlock, PageHeader } from '@/components/shared'
 import { ContentCard } from '@/components/shared/content-card'
 import { Badge } from '@/components/ui/badge'
+import { formatDisplayLabel } from '@/lib/format-display'
 import { templateQueries } from '@/lib/queries/templates'
 
 export const Route = createFileRoute('/dmu/admin/templates/')({
@@ -66,7 +67,9 @@ function TemplatesPage() {
                   <ul className="space-y-1 text-sm">
                     {template.params.map((param) => (
                       <li key={param.name} className="flex items-center gap-2">
-                        <span className="font-mono">{param.name}</span>
+                        <span className="text-sm font-medium">
+                          {formatDisplayLabel(param.name)}
+                        </span>
                         <Badge
                           variant={param.required ? 'secondary' : 'outline'}
                         >

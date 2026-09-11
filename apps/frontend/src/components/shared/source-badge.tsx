@@ -1,5 +1,6 @@
 import { cva } from 'class-variance-authority'
 
+import { formatDisplayLabel } from '@/lib/format-display'
 import { cn } from '@/lib/utils'
 
 /**
@@ -36,6 +37,17 @@ export function sourceOf(module: string | undefined): FactSource {
 
 export function sourceLabel(module: string | undefined): string {
   return SOURCE_LABELS[sourceOf(module)]
+}
+
+/**
+ * Reader-facing module name. Known sources keep their short labels; anything
+ * else is title-cased instead of shown as `rainfall_gauges`.
+ */
+export function moduleDisplayName(module: string | undefined): string {
+  if (!module) return SOURCE_LABELS.other
+  const source = sourceOf(module)
+  if (source !== 'other') return SOURCE_LABELS[source]
+  return formatDisplayLabel(module)
 }
 
 const sourceBadge = cva(

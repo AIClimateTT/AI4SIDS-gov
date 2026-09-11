@@ -15,6 +15,7 @@ import { ContentCard } from '@/components/shared/content-card'
 import { DataTable } from '@/components/data-table'
 import { reportQueries } from '@/lib/queries/reports'
 import type { ReportListItem, ReportStatus } from '@/types/dmcu'
+import { formatDisplayPairs, formatDisplayValue } from '@/lib/format-display'
 import { formatWhen } from '@/lib/format-when'
 
 /**
@@ -60,7 +61,7 @@ const columns: ColumnDef<ReportListItem>[] = [
     header: 'Template',
     cell: ({ row }) => (
       <div>
-        <p className="font-medium">{row.original.template}</p>
+        <p className="font-medium">{formatDisplayValue(row.original.template)}</p>
         <p className="text-xs text-muted-foreground">
           v{row.original.template_version}
         </p>
@@ -72,9 +73,7 @@ const columns: ColumnDef<ReportListItem>[] = [
     header: 'Params',
     cell: ({ row }) => (
       <span className="text-muted-foreground">
-        {Object.entries(row.original.params)
-          .map(([key, value]) => `${key}=${value}`)
-          .join(', ')}
+        {formatDisplayPairs(row.original.params)}
       </span>
     ),
   },

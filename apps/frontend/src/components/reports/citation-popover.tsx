@@ -27,7 +27,7 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { formatConstant } from '@/lib/format-constant'
+import { formatDisplayLabel } from '@/lib/format-display'
 import { formatWhen } from '@/lib/format-when'
 import { cn } from '@/lib/utils'
 import type { Fact } from '@/types/dmcu'
@@ -89,7 +89,7 @@ export function CitationPopover({
               <div>
                 <dt className="text-muted-foreground">Verification</dt>
                 <dd className="font-medium">
-                  {formatConstant(fact.verification)}
+                  {formatDisplayLabel(fact.verification)}
                 </dd>
               </div>
               <div>

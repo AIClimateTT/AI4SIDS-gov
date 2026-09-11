@@ -1,9 +1,5 @@
 import { sourceLabel } from '@/components/shared/source-badge'
-import {
-  CORPORATION_LABELS,
-  isCanonicalCorporation,
-} from '@/lib/corporations'
-import { formatConstant } from '@/lib/format-constant'
+import { formatDisplayLabel, formatDisplayValue } from '@/lib/format-display'
 import type { Fact } from '@/types/dmcu'
 
 /** Reader-facing name for citation.query_ref. The JSON field does not change. */
@@ -18,7 +14,7 @@ export function formatFactValue(fact: Pick<Fact, 'value' | 'unit'>): string {
 }
 
 export function formatMetricLabel(metric: string): string {
-  return formatConstant(metric)
+  return formatDisplayLabel(metric)
 }
 
 /**
@@ -27,13 +23,11 @@ export function formatMetricLabel(metric: string): string {
  * Title Case; dates and free text pass through.
  */
 export function humanizeStoredValue(value: string): string {
-  if (isCanonicalCorporation(value)) return CORPORATION_LABELS[value]
-  if (value.includes('_')) return formatConstant(value)
-  return value
+  return formatDisplayValue(value)
 }
 
 export function formatRequirementLabel(module: string, metric: string): string {
-  return `${sourceLabel(module)} · ${formatConstant(metric)}`
+  return `${sourceLabel(module)} · ${formatDisplayLabel(metric)}`
 }
 
 export function factsByCid(facts: Fact[] | undefined): Record<string, Fact> {

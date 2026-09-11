@@ -21,6 +21,7 @@ import { overviewQueries } from '@/lib/queries/overview'
 import { useQualitySummary } from '@/lib/queries/quality'
 import { submissionQueries } from '@/lib/queries/submissions'
 import { deriveWhoReported } from '@/lib/who-reported'
+import { formatDisplayPairs, formatDisplayValue } from '@/lib/format-display'
 import { formatWhen } from '@/lib/format-when'
 
 export const Route = createFileRoute('/dmu/')({ component: OverviewPage })
@@ -135,15 +136,13 @@ function OverviewPage() {
                         <StatusBadge status={report.status} />
                       </TableCell>
                       <TableCell className="font-medium">
-                        {report.template}
+                        {formatDisplayValue(report.template)}
                         <span className="ml-1 text-muted-foreground">
                           v{report.template_version}
                         </span>
                       </TableCell>
                       <TableCell className="max-w-[220px] truncate text-muted-foreground">
-                        {Object.entries(report.params)
-                          .map(([key, value]) => `${key}=${value}`)
-                          .join(', ')}
+                        {formatDisplayPairs(report.params)}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {formatWhen(report.created_at)}

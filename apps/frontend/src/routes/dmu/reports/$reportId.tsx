@@ -24,7 +24,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { useVerdictClaim } from '@/lib/queries/quality'
 import { reportQueries } from '@/lib/queries/reports'
-import { formatConstant } from '@/lib/format-constant'
+import { formatDisplayLabel, formatDisplayValue } from '@/lib/format-display'
 import { formatWhen } from '@/lib/format-when'
 import type { ClaimRecord } from '@/types/dmcu'
 
@@ -77,7 +77,7 @@ function ReportDetailPage() {
           <div className="flex flex-wrap items-center gap-3">
             <StatusBadge status={data.status} />
             <span className="text-sm text-muted-foreground">
-              {data.template} v{data.template_version}
+              {formatDisplayValue(data.template)} v{data.template_version}
             </span>
             <span className="text-sm text-muted-foreground">
               {formatWhen(data.created_at)}
@@ -103,7 +103,7 @@ function ReportDetailPage() {
               {Object.entries(data.params).map(([key, value]) => (
                 <div key={key}>
                   <dt className="text-xs uppercase tracking-wide text-muted-foreground">
-                    {formatConstant(key)}
+                    {formatDisplayLabel(key)}
                   </dt>
                   <dd className="text-sm font-medium">
                     {humanizeStoredValue(value)}

@@ -70,7 +70,8 @@ describe('SubmissionResult', () => {
       />,
     )
 
-    expect(screen.getByText(/sinkhole/)).not.toBeNull()
+    expect(screen.getByText(/Incident Type/)).not.toBeNull()
+    expect(screen.getByText(/Sinkhole/)).not.toBeNull()
     expect(
       screen.getByText(/Name of Person.*was present in the upload and was not stored\./),
     ).not.toBeNull()

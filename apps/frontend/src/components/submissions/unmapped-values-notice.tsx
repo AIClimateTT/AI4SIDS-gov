@@ -1,4 +1,4 @@
-import { formatConstant } from '@/lib/format-constant'
+import { formatDisplayLabel, formatDisplayValue } from '@/lib/format-display'
 
 /**
  * Rows were accepted, but one or more columns held a value the system
@@ -25,8 +25,8 @@ export function UnmappedValuesNotice({
       <ul className="mt-2 space-y-1">
         {entries.map(([column, values]) => (
           <li key={column}>
-            <span className="font-medium">{formatConstant(column)}:</span>{' '}
-            {values.join(', ')}
+            <span className="font-medium">{formatDisplayLabel(column)}:</span>{' '}
+            {values.map((value) => formatDisplayValue(value)).join(', ')}
           </li>
         ))}
       </ul>

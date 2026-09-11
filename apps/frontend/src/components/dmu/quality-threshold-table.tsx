@@ -1,4 +1,4 @@
-import { formatConstant } from '@/lib/format-constant'
+import { formatDisplayLabel } from '@/lib/format-display'
 import {
   formatThresholdValue,
   isLowerBetter,
@@ -44,7 +44,7 @@ export function QualityThresholdTable({
               className={missed ? 'bg-alert-red-surface' : undefined}
             >
               <TableCell className="font-medium">
-                {formatConstant(item.name)}
+                {formatDisplayLabel(item.name)}
               </TableCell>
               <TableCell className="tabular-nums">
                 {formatThresholdValue(item.name, item.actual)}

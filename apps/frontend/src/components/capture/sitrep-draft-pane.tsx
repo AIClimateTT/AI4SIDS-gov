@@ -9,10 +9,7 @@ import { ViolationsPanel } from '@/components/reports/violations-panel'
 import { EmptyState } from '@/components/shared'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  CORPORATION_LABELS,
-  type CanonicalCorporation,
-} from '@/lib/corporations'
+import { formatDisplayValue } from '@/lib/format-display'
 import { cn } from '@/lib/utils'
 import type { CaptureSession } from '@/types/dmcu'
 
@@ -103,9 +100,7 @@ export function SitrepDraftPane({
   for (const [cid, fact] of Object.entries(citedFacts)) {
     sourceByCid[cid] = fact.citation.module
   }
-  const corporation =
-    CORPORATION_LABELS[session.corporation as CanonicalCorporation] ??
-    session.corporation
+  const corporation = formatDisplayValue(session.corporation)
 
   return (
     <div className="flex h-full min-h-0 flex-col">

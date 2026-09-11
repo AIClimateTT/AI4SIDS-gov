@@ -5,10 +5,7 @@ import { useEffect, useRef } from 'react'
 import { CitationMarkdown } from '@/components/reports/citation-markdown'
 import { stripCitationMarkup } from '@/components/reports/citation-utils'
 import { EmptyState, LoadingBlock } from '@/components/shared'
-import {
-  CORPORATION_LABELS,
-  type CanonicalCorporation,
-} from '@/lib/corporations'
+import { formatDisplayValue } from '@/lib/format-display'
 import { captureQueries } from '@/lib/queries/capture'
 
 type PrintSearch = {
@@ -62,9 +59,7 @@ function SitrepPrintRoute() {
     )
   }
 
-  const corporation =
-    CORPORATION_LABELS[session.corporation as CanonicalCorporation] ??
-    session.corporation
+  const corporation = formatDisplayValue(session.corporation)
   const issued = session.status === 'filed'
 
   return (

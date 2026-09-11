@@ -1,4 +1,4 @@
-import { formatConstant } from '@/lib/format-constant'
+import { formatDisplayLabel } from '@/lib/format-display'
 import {
   formatThresholdValue,
   thresholdStatusLabel,
@@ -17,7 +17,7 @@ function ThresholdRow({ item }: { item: ThresholdStatus }) {
         missed ? 'bg-alert-red-surface text-alert-red' : 'text-foreground',
       )}
     >
-      <span className="font-medium">{formatConstant(item.name)}</span>
+      <span className="font-medium">{formatDisplayLabel(item.name)}</span>
       <span className="tabular-nums text-muted-foreground">
         {formatThresholdValue(item.name, item.actual)}
         <span className="ml-2 text-xs">

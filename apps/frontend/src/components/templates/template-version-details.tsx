@@ -1,6 +1,8 @@
 import { ContentCard } from '@/components/shared/content-card'
 import { Badge } from '@/components/ui/badge'
-import { formatRequirementLabel } from '@/lib/templates'
+import { formatRequirementLabel } from '@/components/reports/citation-display'
+import { formatDisplayLabel, formatDisplayPairs } from '@/lib/format-display'
+import { metricKey } from '@/lib/templates'
 import { CITATION_RULES, type TemplateInfo } from '@/types/dmcu'
 
 type TemplateVersionDetailsProps = {
@@ -20,7 +22,7 @@ export function TemplateVersionDetails({
             <dt className="text-xs uppercase tracking-wide text-muted-foreground">
               Name
             </dt>
-            <dd className="font-mono text-sm">{template.name}</dd>
+            <dd className="text-sm">{formatDisplayLabel(template.name)}</dd>
           </div>
           <div>
             <dt className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -70,7 +72,7 @@ export function TemplateVersionDetails({
         <div className="flex flex-wrap gap-2">
           {template.narration.output_sections.map((section) => (
             <Badge key={section} variant="outline">
-              {section}
+              {formatDisplayLabel(section)}
             </Badge>
           ))}
         </div>
@@ -80,7 +82,9 @@ export function TemplateVersionDetails({
         <ul className="space-y-2 text-sm">
           {template.params.map((param) => (
             <li key={param.name} className="flex items-center gap-2">
-              <span className="font-mono">{param.name}</span>
+              <span className="text-sm font-medium">
+                {formatDisplayLabel(param.name)}
+              </span>
               <Badge variant={param.required ? 'secondary' : 'outline'}>
                 {param.required ? 'required' : 'optional'}
               </Badge>
@@ -100,15 +104,15 @@ export function TemplateVersionDetails({
         <ul className="space-y-3 text-sm">
           {template.data_requirements.map((requirement) => (
             <li
-              key={formatRequirementLabel(requirement)}
+              key={metricKey(requirement.module, requirement.metric)}
               className="rounded-md border px-3 py-2"
             >
-              <p className="font-mono">{formatRequirementLabel(requirement)}</p>
+              <p className="text-sm font-medium">
+                {formatRequirementLabel(requirement.module, requirement.metric)}
+              </p>
               {Object.keys(requirement.params).length > 0 ? (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {Object.entries(requirement.params)
-                    .map(([key, value]) => `${key}: ${value}`)
-                    .join(' · ')}
+                  {formatDisplayPairs(requirement.params)}
                 </p>
               ) : null}
             </li>

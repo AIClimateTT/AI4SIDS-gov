@@ -5,15 +5,22 @@ import { useEffect, useMemo, useState } from 'react'
 import { z } from 'zod'
 
 import { Checkbox } from '@/components/ui/checkbox'
-import { ButtonLink, EmptyState, LoadingBlock, PageHeader } from '@/components/shared'
+import {
+  ButtonLink,
+  EmptyState,
+  LoadingBlock,
+  PageHeader,
+  moduleDisplayName,
+} from '@/components/shared'
 import { ContentCard } from '@/components/shared/content-card'
 import { Label } from '@/components/ui/label'
 import { useAppForm } from '@/hooks/form'
 import { CORPORATION_OPTIONS } from '@/lib/corporations'
-import { formatConstant } from '@/lib/format-constant'
+import { formatDisplayLabel } from '@/lib/format-display'
 import { moduleQueries } from '@/lib/queries/modules'
 import { useCreateReport } from '@/lib/queries/reports'
 import { templateQueries } from '@/lib/queries/templates'
+import { formatRequirementLabel } from '@/components/reports/citation-display'
 import {
   buildDataRequirement,
   dropBlankParams,
@@ -201,20 +208,20 @@ function AdminGeneratePage() {
                     {(field) =>
                       param.name === 'corporation' ? (
                         <field.SelectField
-                          label={formatConstant(param.name)}
+                          label={formatDisplayLabel(param.name)}
                           required={param.required}
                           options={CORPORATION_OPTIONS}
                         />
                       ) : param.name === 'date_from' ||
                         param.name === 'date_to' ? (
                         <field.TextField
-                          label={formatConstant(param.name)}
+                          label={formatDisplayLabel(param.name)}
                           type="date"
                           required={param.required}
                         />
                       ) : (
                         <field.TextField
-                          label={formatConstant(param.name)}
+                          label={formatDisplayLabel(param.name)}
                           required={param.required}
                         />
                       )
@@ -242,7 +249,9 @@ function AdminGeneratePage() {
                 <div className="space-y-4">
                   {modulesQuery.data?.map((module) => (
                     <div key={module.name} className="space-y-2">
-                      <p className="text-sm font-medium">{module.name}</p>
+                      <p className="text-sm font-medium">
+                        {moduleDisplayName(module.name)}
+                      </p>
                       <ul className="space-y-2">
                         {module.metrics.map((metric) => {
                           const key = metricKey(module.name, metric.name)
@@ -256,8 +265,8 @@ function AdminGeneratePage() {
                                 }
                               />
                               <div>
-                                <p className="font-mono text-sm">
-                                  {metric.name}
+                                <p className="text-sm font-medium">
+                                  {formatDisplayLabel(metric.name)}
                                 </p>
                                 <p className="text-sm text-muted-foreground">
                                   {metric.description}
@@ -273,11 +282,11 @@ function AdminGeneratePage() {
               ) : (
                 <ul className="space-y-1 text-sm text-muted-foreground">
                   {selectedTemplate.data_requirements.map((requirement) => (
-                    <li
-                      key={`${requirement.module}.${requirement.metric}`}
-                      className="font-mono"
-                    >
-                      {requirement.module}.{requirement.metric}
+                    <li key={`${requirement.module}.${requirement.metric}`}>
+                      {formatRequirementLabel(
+                        requirement.module,
+                        requirement.metric,
+                      )}
                     </li>
                   ))}
                 </ul>

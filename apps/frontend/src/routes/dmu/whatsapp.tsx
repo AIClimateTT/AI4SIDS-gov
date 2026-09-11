@@ -21,6 +21,7 @@ import { useAppForm } from '@/hooks/form'
 import { CORPORATION_OPTIONS } from '@/lib/corporations'
 import { isReportJobPending, reportQueries } from '@/lib/queries/reports'
 import { formatWhen } from '@/lib/format-when'
+import { formatDisplayLabel } from '@/lib/format-display'
 import {
   useAdjustWhatsAppDraft,
   useExtractWhatsApp,
@@ -620,7 +621,7 @@ function LogCard({
             >
               {LOG_CATEGORIES.map((category) => (
                 <option key={category} value={category}>
-                  {category.replaceAll('_', ' ')}
+                  {formatDisplayLabel(category)}
                 </option>
               ))}
             </select>

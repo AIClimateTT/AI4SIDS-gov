@@ -16,6 +16,7 @@ export {
   sourceEdgeClass,
   sourceLabel,
   sourceOf,
+  moduleDisplayName,
 } from './source-badge'
 export type { FactSource } from './source-badge'
 export { PageHeader } from './page-header'

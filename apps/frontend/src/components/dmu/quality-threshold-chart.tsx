@@ -8,7 +8,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart'
-import { formatConstant } from '@/lib/format-constant'
+import { formatDisplayLabel } from '@/lib/format-display'
 import { chartAxisPercent } from '@/lib/quality-display'
 import type { ThresholdStatus } from '@/types/dmcu'
 
@@ -37,7 +37,7 @@ export function QualityThresholdChart({
     return [
       {
         name: item.name,
-        label: formatConstant(item.name),
+        label: formatDisplayLabel(item.name),
         actual,
         threshold,
       },
