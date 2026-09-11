@@ -5,6 +5,7 @@ from sqlalchemy.orm import sessionmaker
 from app.db import Base, make_engine
 from app.modules.whatsapp.extract import DraftIncident, DraftLog
 from app.modules.whatsapp.store import (
+    attach_briefing_report,
     create_draft,
     draft_incidents,
     get_draft,
@@ -117,3 +118,21 @@ def test_list_drafts_newest_first(tmp_path):
 
     listed = list_drafts(session, limit=10)
     assert [d.filename for d in listed] == ["newer.txt", "older.txt"]
+
+
+def test_attach_briefing_report_does_not_bump_updated_at(tmp_path):
+    session = make_session(tmp_path)
+    draft = create_draft(
+        session,
+        filename="hour.txt",
+        as_at=datetime(2026, 8, 15, 16, 0),
+        message_count=0,
+        pii_redacted=False,
+        incidents=[],
+        logs=[],
+    )
+    before = draft.updated_at
+
+    attached = attach_briefing_report(session, draft, "report-1")
+    assert attached.briefing_report_id == "report-1"
+    assert attached.updated_at == before

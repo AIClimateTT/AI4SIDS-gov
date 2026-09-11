@@ -14,7 +14,7 @@ from app.core.report_store import get_report, save_placeholder_report
 from app.db import get_session
 from app.quality.store import record_event
 from app.modules.capture.schemas import MissingField
-from app.modules.whatsapp.briefing import BRIEFING_TEMPLATE
+from app.modules.whatsapp.briefing import BRIEFING_TEMPLATE, briefing_is_stale
 from app.modules.whatsapp.confirm import ConfirmError, confirm_proposals
 from app.modules.whatsapp.extract import (
     DraftIncident,
@@ -33,6 +33,7 @@ from app.modules.whatsapp.missing import missing_fields
 from app.modules.whatsapp.models import WhatsAppDraft
 from app.modules.whatsapp.parse import messages_from_source
 from app.modules.whatsapp.store import (
+    attach_briefing_report,
     create_draft,
     draft_incidents,
     draft_logs,
@@ -73,6 +74,8 @@ class DraftResponse(BaseModel):
     missing: list[MissingField] = Field(default_factory=list)
     status: str
     error: str | None = None
+    briefing_report_id: str | None = None
+    briefing_stale: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -120,8 +123,13 @@ class BriefingResponse(BaseModel):
     error: str | None = None
 
 
-def _as_response(draft: WhatsAppDraft) -> DraftResponse:
+def _as_response(draft: WhatsAppDraft, session: Session) -> DraftResponse:
     working = working_set_from_draft(draft)
+    report_created_at = None
+    if draft.briefing_report_id:
+        row = get_report(draft.briefing_report_id, session)
+        if row is not None:
+            report_created_at = row.created_at
     return DraftResponse(
         id=draft.id,
         draft_id=draft.id,
@@ -137,6 +145,12 @@ def _as_response(draft: WhatsAppDraft) -> DraftResponse:
         missing=missing_fields(working),
         status=draft.status,
         error=draft.error,
+        briefing_report_id=draft.briefing_report_id,
+        briefing_stale=briefing_is_stale(
+            briefing_report_id=draft.briefing_report_id,
+            draft_updated_at=draft.updated_at,
+            report_created_at=report_created_at,
+        ),
         created_at=draft.created_at,
         updated_at=draft.updated_at,
     )
@@ -283,7 +297,7 @@ async def post_extract(
     )
     session.expire_all()
     draft = _require_draft(session, draft.id)
-    return _as_response(draft)
+    return _as_response(draft, session)
 
 
 @router.get("/whatsapp/drafts", response_model=list[DraftSummary])
@@ -308,7 +322,7 @@ def get_drafts(
 def get_draft_detail(
     draft_id: int, session: Session = Depends(get_session)
 ) -> DraftResponse:
-    return _as_response(_require_draft(session, draft_id))
+    return _as_response(_require_draft(session, draft_id), session)
 
 
 @router.put("/whatsapp/drafts/{draft_id}", response_model=DraftResponse)
@@ -330,7 +344,8 @@ def put_draft(
             incidents=incidents,
             logs=logs,
             manual_fields=request.manual_fields,
-        )
+        ),
+        session,
     )
 
 
@@ -364,7 +379,8 @@ def post_adjust(
             logs=_working.logs,
             messages=messages,
             manual_fields=_working.manual_fields,
-        )
+        ),
+        session,
     )
 
 
@@ -396,7 +412,8 @@ def post_turn(
             logs=working.logs,
             messages=messages,
             manual_fields=working.manual_fields,
-        )
+        ),
+        session,
     )
 
 
@@ -465,7 +482,7 @@ def post_turn_stream(
                 {
                     "type": "CUSTOM",
                     "name": "whatsapp.updated",
-                    "value": _as_response(saved).model_dump(mode="json"),
+                    "value": _as_response(saved, session).model_dump(mode="json"),
                 }
             )
             yield _sse(
@@ -506,6 +523,7 @@ def post_briefing(
         params={"as_at": draft.as_at.isoformat()},
         data_requirements=[],
     )
+    attach_briefing_report(session, draft, report_id)
     enqueue("generate_briefing", draft_id=draft.id, report_id=report_id)
     record_event(
         session,

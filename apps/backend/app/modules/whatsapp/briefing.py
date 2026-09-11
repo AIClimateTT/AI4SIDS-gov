@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from app.core.contracts import NarrationConfig, RenderConfig, Template, TemplateParam
 from app.core.engine import GeneratedReport, narrate_fact_table
 from app.core.llm import LLMClient
@@ -38,6 +40,24 @@ BRIEFING_TEMPLATE = Template(
 
 class BriefingError(ValueError):
     pass
+
+
+def _naive(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value
+    return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def briefing_is_stale(
+    *,
+    briefing_report_id: str | None,
+    draft_updated_at: datetime,
+    report_created_at: datetime | None,
+) -> bool:
+    """True when the working set changed after the attached briefing report."""
+    if not briefing_report_id or report_created_at is None:
+        return False
+    return _naive(draft_updated_at) > _naive(report_created_at)
 
 
 def generate_briefing(

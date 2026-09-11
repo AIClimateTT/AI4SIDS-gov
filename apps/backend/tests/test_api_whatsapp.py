@@ -311,6 +311,49 @@ def test_briefing_saves_provisional_report_without_sitrep_rows(monkeypatch):
     assert session.query(SitrepIncident).count() == 0
     session.close()
 
+    draft = client.get(f"/whatsapp/drafts/{extracted['id']}")
+    assert draft.status_code == 200, draft.text
+    body_draft = draft.json()
+    assert body_draft["briefing_report_id"] == body["id"]
+    assert body_draft["briefing_stale"] is False
+
+
+def test_briefing_marks_stale_after_working_set_changes(monkeypatch):
+    from datetime import datetime, timedelta, timezone
+
+    from app.core.llm import FakeLLMClient
+    from app.modules.whatsapp import store as wa_store
+
+    class ExtractThenNarrate:
+        def __init__(self):
+            self._used_extract = False
+            self._fake = FakeLLMClient()
+
+        def generate(self, system_prompt: str, user_content: str) -> str:
+            if not self._used_extract:
+                self._used_extract = True
+                return EXTRACT_JSON
+            return self._fake.generate(system_prompt, user_content)
+
+    client = make_client(monkeypatch, llm_client=ExtractThenNarrate())
+    extracted = _extract(client)
+
+    response = client.post(f"/whatsapp/drafts/{extracted['id']}/briefing")
+    assert response.status_code == 202, response.text
+    assert client.get(f"/whatsapp/drafts/{extracted['id']}").json()["briefing_stale"] is False
+
+    later = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(seconds=5)
+    monkeypatch.setattr(wa_store, "_now", lambda: later)
+    incidents = extracted["incidents"]
+    incidents[0]["incident_summary"] = "4 houses flooded"
+    updated = client.put(
+        f"/whatsapp/drafts/{extracted['id']}",
+        json={"incidents": incidents, "logs": extracted["logs"]},
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["briefing_stale"] is True
+    assert updated.json()["briefing_report_id"] == response.json()["id"]
+
 
 def test_briefing_rejects_empty_included_set(monkeypatch):
     client = make_client(monkeypatch)

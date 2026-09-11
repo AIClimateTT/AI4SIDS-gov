@@ -102,6 +102,22 @@ def update_draft(
     return draft
 
 
+def attach_briefing_report(
+    session: Session,
+    draft: WhatsAppDraft,
+    report_id: str,
+) -> WhatsAppDraft:
+    """Point the draft at a briefing report without bumping updated_at.
+
+    updated_at is the working-set clock used for stale. Attaching a report is
+    not a facts change, so a just-generated briefing must not look stale.
+    """
+    draft.briefing_report_id = report_id
+    session.commit()
+    session.refresh(draft)
+    return draft
+
+
 def draft_incidents(draft: WhatsAppDraft) -> list[DraftIncident]:
     return coerce_draft_incidents(draft.incidents)
 
