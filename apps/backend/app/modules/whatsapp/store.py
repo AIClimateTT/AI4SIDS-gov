@@ -6,6 +6,10 @@ from sqlalchemy.orm import Session
 from app.modules.whatsapp.extract import (
     DraftIncident,
     DraftLog,
+    WhatsAppMessage,
+    WhatsAppWorkingSet,
+    coerce_draft_incidents,
+    coerce_draft_logs,
     redact_draft_incidents,
     redact_draft_logs,
 )
@@ -29,6 +33,8 @@ def create_draft(
     source_text: str | None = None,
     source_kind: str = "export",
     error: str | None = None,
+    messages: list[WhatsAppMessage] | None = None,
+    manual_fields: list[str] | None = None,
 ) -> WhatsAppDraft:
     now = _now()
     draft = WhatsAppDraft(
@@ -40,6 +46,8 @@ def create_draft(
             row.model_dump() for row in redact_draft_incidents(incidents)
         ],
         logs=[row.model_dump() for row in redact_draft_logs(logs)],
+        messages=[item.model_dump(mode="json") for item in (messages or [])],
+        manual_fields=list(manual_fields or []),
         status=status,
         error=error,
         source_text=source_text,
@@ -73,6 +81,8 @@ def update_draft(
     as_at: datetime | None = None,
     incidents: list[DraftIncident] | None = None,
     logs: list[DraftLog] | None = None,
+    messages: list[WhatsAppMessage] | None = None,
+    manual_fields: list[str] | None = None,
 ) -> WhatsAppDraft:
     if as_at is not None:
         draft.as_at = as_at
@@ -82,6 +92,10 @@ def update_draft(
         ]
     if logs is not None:
         draft.logs = [row.model_dump() for row in redact_draft_logs(logs)]
+    if messages is not None:
+        draft.messages = [item.model_dump(mode="json") for item in messages]
+    if manual_fields is not None:
+        draft.manual_fields = list(manual_fields)
     draft.updated_at = _now()
     session.commit()
     session.refresh(draft)
@@ -89,11 +103,30 @@ def update_draft(
 
 
 def draft_incidents(draft: WhatsAppDraft) -> list[DraftIncident]:
-    return [DraftIncident.model_validate(row) for row in draft.incidents]
+    return coerce_draft_incidents(draft.incidents)
 
 
 def draft_logs(draft: WhatsAppDraft) -> list[DraftLog]:
-    return [DraftLog.model_validate(row) for row in draft.logs]
+    return coerce_draft_logs(draft.logs)
+
+
+def draft_messages(draft: WhatsAppDraft) -> list[WhatsAppMessage]:
+    return [
+        WhatsAppMessage.model_validate(item) for item in (draft.messages or [])
+    ]
+
+
+def draft_manual_fields(draft: WhatsAppDraft) -> list[str]:
+    return [str(item) for item in (draft.manual_fields or [])]
+
+
+def working_set_from_draft(draft: WhatsAppDraft) -> WhatsAppWorkingSet:
+    return WhatsAppWorkingSet(
+        as_at=draft.as_at,
+        incidents=draft_incidents(draft),
+        logs=draft_logs(draft),
+        manual_fields=draft_manual_fields(draft),
+    )
 
 
 def mark_draft_running(draft: WhatsAppDraft, session: Session) -> WhatsAppDraft:

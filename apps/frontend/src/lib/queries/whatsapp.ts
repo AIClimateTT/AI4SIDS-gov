@@ -107,8 +107,12 @@ export function useExtractWhatsApp() {
 }
 
 export function useUpdateWhatsAppDraft() {
+  const queryClient = useQueryClient()
   return useMutation({
     ...whatsappMutations.update(),
+    onSuccess: (draft) => {
+      queryClient.setQueryData(whatsappKeys.draft(draft.id), draft)
+    },
     onError: (error: Error) =>
       toast.error('Failed to save draft', {
         description: error.message,

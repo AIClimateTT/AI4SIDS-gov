@@ -202,6 +202,42 @@ def test_fake_llm_client_returns_extract_json_for_a_whatsapp_transcript():
     assert parsed["incidents"][0]["corporation"] is None
 
 
+def test_fake_llm_client_returns_whatsapp_turn_json_for_a_draft_payload():
+    payload = json.dumps(
+        {
+            "working": {
+                "as_at": "2026-08-15T16:00:00",
+                "incidents": [
+                    {
+                        "row_id": "1",
+                        "corporation": None,
+                        "incident_summary": "3 houses flooded",
+                        "source_index": 1,
+                        "source_quote": "3 houses flooded",
+                        "included": False,
+                    }
+                ],
+                "logs": [],
+                "manual_fields": [],
+            },
+            "missing": [],
+            "source_kind": "paste",
+            "source": "Diego Martin: 3 houses flooded",
+            "messages": [],
+            "user_message": "Diego Martin not Siparia",
+        }
+    )
+
+    raw = FakeLLMClient().generate("system prompt", payload)
+    parsed = json.loads(raw)
+
+    assert parsed["assistant_message"]
+    assert parsed["working"]["incidents"][0]["corporation"] == (
+        "diego_martin_regional_corporati"
+    )
+    assert parsed["working"]["incidents"][0]["included"] is True
+
+
 def test_fake_llm_client_returns_canned_capture_json_for_a_capture_payload():
     payload = json.dumps(
         {

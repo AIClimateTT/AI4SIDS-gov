@@ -18,6 +18,8 @@ class WhatsAppDraft(Base):
     pii_redacted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     incidents: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     logs: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    messages: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    manual_fields: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     status: Mapped[str] = mapped_column(String, nullable=False, default="ready")
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_text: Mapped[str | None] = mapped_column(Text, nullable=True)

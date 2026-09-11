@@ -96,6 +96,8 @@ def test_the_backfilled_columns_keep_their_shape(tmp_path):
     assert "status" in drafts
     assert "source_text" in drafts
     assert "source_kind" in drafts
+    assert "messages" in drafts
+    assert "manual_fields" in drafts
 
 
 def test_capture_sessions_have_sitrep_columns(tmp_path):

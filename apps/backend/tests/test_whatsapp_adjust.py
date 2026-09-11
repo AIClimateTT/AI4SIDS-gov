@@ -201,3 +201,25 @@ def test_adjust_drops_an_invented_log_quantity():
     )
 
     assert logs[0].quantity is None
+
+
+def test_adjust_keeps_a_figure_present_in_source_text():
+    incidents, _ = adjust_working_set(
+        [_incident()],
+        [],
+        "attribute this to Diego Martin",
+        StubLLM(_response({"injuries_count": 200})),
+        source_text="200 sandbags remaining at depot",
+    )
+
+    assert incidents[0].injuries_count == 200
+
+
+def test_adjust_assigns_row_ids():
+    incidents, _ = adjust_working_set(
+        [_incident()],
+        [],
+        "keep this row",
+        StubLLM(_response()),
+    )
+    assert incidents[0].row_id

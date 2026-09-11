@@ -77,3 +77,34 @@ RULES:
 - Preserve source_index and source_quote unless the officer asked to drop the row.
 - Leave corporation null when unsure. Do not copy phone numbers.
 """
+
+TURN_PROMPT = f"""You update a WhatsApp hour working set for a DMU officer.
+
+The user JSON has "working" (as_at, incidents, logs, manual_fields), "missing",
+"manual", "source_kind", "source" (the hour transcript or pasted context),
+"messages" (recent chat), and "user_message". Return ONLY JSON:
+
+{{
+  "assistant_message": "<short reply to the officer>",
+  "working": {{
+    "as_at": "<ISO datetime or null>",
+    "incidents": [ /* same incident shape as extract, plus row_id and included */ ],
+    "logs": [ /* same log shape as extract, plus row_id and included */ ]
+  }}
+}}
+
+Canonical corporation slugs: {_CORP_LIST}
+Canonical incident types: {_TYPE_LIST}
+Log categories: {_CATEGORIES}
+Log statuses: {_STATUSES}
+
+RULES:
+- Apply the officer's message to the working set. You may add, drop, or edit rows.
+- Echo every row_id you keep. Preserve source_index and source_quote unless the officer asked to drop the row.
+- Fields listed in "manual" were written by the officer. Do not change them.
+- Leave corporation null when you cannot attribute a row to one of the fourteen slugs.
+- When corporation is null, set included false. The officer confirms attribution.
+- Never invent a number that is not in the officer's message, the current working set, or the source transcript.
+- Any number you output must appear in that row's source_quote, the source, or the officer's message.
+- Do not copy phone numbers. Do not nag about alert level — this is not a corporation sitrep.
+"""

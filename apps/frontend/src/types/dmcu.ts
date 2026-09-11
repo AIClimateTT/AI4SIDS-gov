@@ -364,8 +364,8 @@ export type ProposedLog = {
   source_quote: string
 }
 
-export type DraftIncident = ProposedIncident & { included: boolean }
-export type DraftLog = ProposedLog & { included: boolean }
+export type DraftIncident = ProposedIncident & { included: boolean; row_id: string }
+export type DraftLog = ProposedLog & { included: boolean; row_id: string }
 
 export type WhatsAppDraft = {
   id: number
@@ -377,6 +377,9 @@ export type WhatsAppDraft = {
   pii_redacted: boolean
   incidents: DraftIncident[]
   logs: DraftLog[]
+  messages: CaptureMessage[]
+  manual_fields: string[]
+  missing: CaptureMissingField[]
   status?: string
   error?: string | null
   created_at: string
@@ -397,6 +400,7 @@ export type WhatsAppDraftUpdate = {
   as_at?: string
   incidents: DraftIncident[]
   logs: DraftLog[]
+  manual_fields?: string[]
 }
 
 export type WhatsAppExtractResult = WhatsAppDraft

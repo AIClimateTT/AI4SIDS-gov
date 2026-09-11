@@ -8,6 +8,72 @@ from langchain_openai import ChatOpenAI
 from app.config import settings
 
 _FAKE_STREAM_CHUNK = 8
+
+# Short names an officer might type, longest first so "San Juan" wins
+# over a later "Juan" fragment. Used only by the fake provider.
+_CORP_HINTS = (
+    ("couva/tabaquite/talparo", "couva_tabaquite_talparo_regiona"),
+    ("san juan/laventille", "san_juan_laventille_regional_co"),
+    ("tunapuna/piarco", "tunapuna_piarco_regional_corpor"),
+    ("mayaro/rio claro", "mayaro_rio_claro_regional_corpo"),
+    ("port of spain", "port_of_spain_city_corporation"),
+    ("princes town", "princes_town_regional_corporati"),
+    ("diego martin", "diego_martin_regional_corporati"),
+    ("sangre grande", "sangre_grande_regional_corporat"),
+    ("point fortin", "point_fortin_borough_corporatio"),
+    ("san fernando", "san_fernando_city_corporation"),
+    ("penal/debe", "penal_debe_regional_corporation"),
+    ("chaguanas", "chaguanas_borough_corporation"),
+    ("siparia", "siparia_regional_corporation"),
+    ("arima", "arima_borough_corporation"),
+)
+
+
+def _corp_mentioned(text: str) -> str | None:
+    lowered = text.lower()
+    found: list[tuple[int, str]] = []
+    for hint, slug in _CORP_HINTS:
+        idx = lowered.find(hint)
+        if idx >= 0:
+            found.append((idx, slug))
+    if not found:
+        return None
+    found.sort()
+    return found[0][1]
+
+
+def _assign_fake_corp(row: object, slug: str) -> object:
+    if not isinstance(row, dict):
+        return row
+    next_row = dict(row)
+    next_row["corporation"] = slug
+    next_row["included"] = True
+    return next_row
+
+
+def _fake_whatsapp_turn(data: dict) -> str:
+    working = dict(data.get("working") or {})
+    user = str(data.get("user_message") or "")
+    slug = _corp_mentioned(user)
+    incidents = list(working.get("incidents") or [])
+    logs = list(working.get("logs") or [])
+    if slug:
+        incidents = [_assign_fake_corp(row, slug) for row in incidents]
+        logs = [_assign_fake_corp(row, slug) for row in logs]
+    return json.dumps(
+        {
+            "assistant_message": (
+                "Updated. Tell me what else to change, or correct anything that looks wrong."
+            ),
+            "working": {
+                "as_at": working.get("as_at"),
+                "incidents": incidents,
+                "logs": logs,
+            },
+        }
+    )
+
+
 _FAKE_CAPTURE_JSON = json.dumps(
     {
         "assistant_message": (
@@ -70,6 +136,10 @@ class FakeLLMClient:
                     "logs": [],
                 }
             )
+        if isinstance(data, dict) and (
+            "working" in data or "source_kind" in data
+        ):
+            return _fake_whatsapp_turn(data)
         if isinstance(data, dict) and ("capture" in data or "user_message" in data):
             return _FAKE_CAPTURE_JSON
         lines = []

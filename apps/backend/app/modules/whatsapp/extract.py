@@ -1,6 +1,7 @@
 import json
 import re
-from typing import Any
+from datetime import datetime
+from typing import Any, TypeVar
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
@@ -80,10 +81,74 @@ class ExtractionResult(BaseModel):
 
 class DraftIncident(ProposedIncident):
     included: bool = True
+    row_id: str = ""
 
 
 class DraftLog(ProposedLog):
     included: bool = True
+    row_id: str = ""
+
+
+class WhatsAppMessage(BaseModel):
+    role: str
+    content: str
+    created_at: datetime
+
+
+class WhatsAppWorkingSet(BaseModel):
+    as_at: datetime | None = None
+    incidents: list[DraftIncident] = Field(default_factory=list)
+    logs: list[DraftLog] = Field(default_factory=list)
+    manual_fields: list[str] = Field(default_factory=list)
+
+
+RowT = TypeVar("RowT", DraftIncident, DraftLog)
+
+
+def _is_usable_explicit_id(row_id: str | None) -> bool:
+    """A model-supplied row_id is usable verbatim only if it cannot be
+    mistaken for part of a field path. The path grammar is
+    ``<kind>:<row_id>.<field>``, so an id containing "." or ":" would let a
+    row's own id swallow (or be swallowed by) a neighbouring path segment.
+    Such an id is treated as though it were never supplied.
+    """
+    return bool(row_id) and "." not in row_id and ":" not in row_id
+
+
+def assign_row_ids(rows: list[RowT]) -> list[RowT]:
+    """Give every row a stable, unique row_id, without letting an id-less
+    row steal an id that a later row in the same list already owns.
+
+    Two passes:
+    1. Reserve every explicitly-provided, non-empty, delimiter-safe row_id
+       across all rows. An id containing "." or ":" is not reserved — it is
+       structurally incapable of round-tripping through the field-path
+       grammar, so it is discarded rather than kept.
+    2. Walk the rows in order. A row whose explicit id is reserved and not
+       yet used keeps it (first occurrence wins on duplicates). Anything
+       else (missing id, delimiter-unsafe id, or an id already used by an
+       earlier row) gets the lowest positive integer id that is neither
+       reserved nor already used.
+    """
+    reserved: set[str] = {
+        row.row_id for row in rows if _is_usable_explicit_id(row.row_id)
+    }
+
+    used: set[str] = set()
+    next_id = 1
+    result: list[RowT] = []
+    for row in rows:
+        row_id = row.row_id
+        if _is_usable_explicit_id(row_id) and row_id not in used:
+            used.add(row_id)
+        else:
+            while str(next_id) in reserved or str(next_id) in used:
+                next_id += 1
+            row_id = str(next_id)
+            used.add(row_id)
+            row = row.model_copy(update={"row_id": row_id})
+        result.append(row)
+    return result
 
 
 def default_included(corporation: str | None) -> bool:
@@ -91,20 +156,24 @@ def default_included(corporation: str | None) -> bool:
 
 
 def to_draft_incidents(incidents: list[ProposedIncident]) -> list[DraftIncident]:
-    return [
-        DraftIncident(
-            **incident.model_dump(),
-            included=default_included(incident.corporation),
-        )
-        for incident in incidents
-    ]
+    return assign_row_ids(
+        [
+            DraftIncident(
+                **incident.model_dump(),
+                included=default_included(incident.corporation),
+            )
+            for incident in incidents
+        ]
+    )
 
 
 def to_draft_logs(logs: list[ProposedLog]) -> list[DraftLog]:
-    return [
-        DraftLog(**log.model_dump(), included=default_included(log.corporation))
-        for log in logs
-    ]
+    return assign_row_ids(
+        [
+            DraftLog(**log.model_dump(), included=default_included(log.corporation))
+            for log in logs
+        ]
+    )
 
 
 def redact_draft_incidents(incidents: list[DraftIncident]) -> list[DraftIncident]:
@@ -201,10 +270,15 @@ def coerce_draft_incidents(raw_list: list | None) -> list[DraftIncident]:
             included = False
         elif included is None:
             included = True
+        row_id = raw.get("row_id") if isinstance(raw.get("row_id"), str) else ""
         incidents.append(
-            DraftIncident(**incident.model_dump(), included=bool(included))
+            DraftIncident(
+                **incident.model_dump(),
+                included=bool(included),
+                row_id=row_id,
+            )
         )
-    return incidents
+    return assign_row_ids(incidents)
 
 
 def coerce_draft_logs(raw_list: list | None) -> list[DraftLog]:
@@ -221,8 +295,11 @@ def coerce_draft_logs(raw_list: list | None) -> list[DraftLog]:
             included = False
         elif included is None:
             included = True
-        logs.append(DraftLog(**log.model_dump(), included=bool(included)))
-    return logs
+        row_id = raw.get("row_id") if isinstance(raw.get("row_id"), str) else ""
+        logs.append(
+            DraftLog(**log.model_dump(), included=bool(included), row_id=row_id)
+        )
+    return assign_row_ids(logs)
 
 
 def _coerce_proposals(payload: dict) -> ExtractionResult:

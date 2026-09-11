@@ -403,3 +403,149 @@ def test_extract_empty_file_with_pasted_text_is_paste(monkeypatch):
     assert response.status_code == 202, response.text
     assert response.json()["source_kind"] == "paste"
     assert response.json()["filename"] == "pasted.txt"
+
+
+def test_extract_returns_row_ids_and_empty_thread(monkeypatch):
+    client = make_client(monkeypatch)
+    extracted = _extract(client)
+    assert extracted["incidents"][0]["row_id"]
+    assert extracted["logs"][0]["row_id"]
+    assert extracted["messages"] == []
+    assert extracted["manual_fields"] == []
+    assert isinstance(extracted["missing"], list)
+
+
+def test_put_draft_records_manual_fields(monkeypatch):
+    client = make_client(monkeypatch)
+    extracted = _extract(client)
+    incidents = extracted["incidents"]
+    incidents[0]["corporation"] = CORP
+    response = client.put(
+        f"/whatsapp/drafts/{extracted['id']}",
+        json={
+            "incidents": incidents,
+            "logs": extracted["logs"],
+            "manual_fields": [f"incident:{incidents[0]['row_id']}.corporation"],
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["manual_fields"] == [
+        f"incident:{incidents[0]['row_id']}.corporation"
+    ]
+
+
+def _turn_response(summary: str = "5 houses flooded") -> str:
+    return json.dumps(
+        {
+            "assistant_message": f"Updated: {summary}.",
+            "working": {
+                "as_at": "2026-08-15T16:00:00",
+                "incidents": [
+                    {
+                        "row_id": "1",
+                        "corporation": CORP,
+                        "incident_summary": summary,
+                        "source_index": 1,
+                        "source_quote": "not 3, 5 houses",
+                        "included": True,
+                    }
+                ],
+                "logs": [],
+            },
+        }
+    )
+
+
+def test_turn_updates_draft_and_appends_messages(monkeypatch):
+    client = make_client(monkeypatch, llm_responses=[EXTRACT_JSON, _turn_response()])
+    extracted = _extract(client)
+
+    response = client.post(
+        f"/whatsapp/drafts/{extracted['id']}/turns",
+        json={"message": "use the later correction of 5 houses"},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["incidents"][0]["incident_summary"] == "5 houses flooded"
+    assert [item["role"] for item in body["messages"]] == ["user", "assistant"]
+    assert "5 houses" in body["messages"][-1]["content"]
+
+
+def test_turn_rejects_empty_message(monkeypatch):
+    client = make_client(monkeypatch)
+    extracted = _extract(client)
+    response = client.post(
+        f"/whatsapp/drafts/{extracted['id']}/turns",
+        json={"message": "  "},
+    )
+    assert response.status_code == 400
+    assert "message" in response.json()["detail"].lower()
+
+
+def test_turn_rejects_draft_that_is_not_ready(monkeypatch):
+    client = make_client(monkeypatch)
+    extracted = _extract(client)
+    from sqlalchemy.orm import sessionmaker
+
+    from app.db import engine as db_engine
+    from app.modules.whatsapp.store import get_draft, mark_draft_running
+
+    Session = sessionmaker(bind=db_engine)
+    session = Session()
+    draft = get_draft(session, extracted["id"])
+    assert draft is not None
+    mark_draft_running(draft, session)
+    session.close()
+
+    response = client.post(
+        f"/whatsapp/drafts/{extracted['id']}/turns",
+        json={"message": "Diego Martin not Siparia"},
+    )
+    assert response.status_code == 400
+
+
+def _parse_sse(text: str) -> list[dict]:
+    events = []
+    for block in text.split("\n\n"):
+        for line in block.splitlines():
+            if line.startswith("data: "):
+                events.append(json.loads(line[6:]))
+    return events
+
+
+def test_stream_turn_emits_text_then_whatsapp_updated(monkeypatch):
+    client = make_client(monkeypatch, llm_responses=[EXTRACT_JSON, _turn_response()])
+    extracted = _extract(client)
+    draft_id = extracted["id"]
+
+    with client.stream(
+        "POST",
+        f"/whatsapp/drafts/{draft_id}/turns/stream",
+        json={
+            "messages": [
+                {"role": "user", "content": "use the later correction of 5 houses"}
+            ],
+            "data": {"draft_id": draft_id},
+        },
+    ) as response:
+        assert response.status_code == 200, response.read()
+        events = _parse_sse("".join(response.iter_text()))
+
+    types = [event["type"] for event in events]
+    assert types[0] == "RUN_STARTED"
+    assert "TEXT_MESSAGE_START" in types
+    assert "TEXT_MESSAGE_CONTENT" in types
+    assert "TEXT_MESSAGE_END" in types
+    assert "CUSTOM" in types
+    assert types[-1] == "RUN_FINISHED"
+
+    deltas = "".join(
+        event["delta"] for event in events if event["type"] == "TEXT_MESSAGE_CONTENT"
+    )
+    assert "5 houses" in deltas
+
+    custom = next(event for event in events if event["type"] == "CUSTOM")
+    assert custom["name"] == "whatsapp.updated"
+    snapshot = custom["value"]
+    assert snapshot["incidents"][0]["incident_summary"] == "5 houses flooded"
+    assert snapshot["messages"]
