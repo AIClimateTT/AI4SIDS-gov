@@ -52,7 +52,24 @@ class FakeLLMClient:
             yield text[start : start + _FAKE_STREAM_CHUNK]
 
     def _auto_narrative(self, user_content: str) -> str:
-        data = json.loads(user_content)
+        try:
+            data = json.loads(user_content)
+        except json.JSONDecodeError:
+            # WhatsApp extract sends a redacted transcript, not fact-table JSON.
+            quote = user_content.strip()[:240] or "Pasted context"
+            return json.dumps(
+                {
+                    "incidents": [
+                        {
+                            "corporation": None,
+                            "incident_summary": quote,
+                            "source_index": 1,
+                            "source_quote": quote,
+                        }
+                    ],
+                    "logs": [],
+                }
+            )
         if isinstance(data, dict) and ("capture" in data or "user_message" in data):
             return _FAKE_CAPTURE_JSON
         lines = []

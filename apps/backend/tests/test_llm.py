@@ -191,6 +191,17 @@ def test_get_default_llm_client_is_the_batch_client(monkeypatch):
     assert client._model == "gpt-oss:20b"
 
 
+def test_fake_llm_client_returns_extract_json_for_a_whatsapp_transcript():
+    raw = FakeLLMClient().generate(
+        "system prompt",
+        "[1] paste: Diego Martin: 5 houses flooded on Main Rd.",
+    )
+    parsed = json.loads(raw)
+    assert parsed["incidents"][0]["source_index"] == 1
+    assert "5 houses" in parsed["incidents"][0]["incident_summary"]
+    assert parsed["incidents"][0]["corporation"] is None
+
+
 def test_fake_llm_client_returns_canned_capture_json_for_a_capture_payload():
     payload = json.dumps(
         {

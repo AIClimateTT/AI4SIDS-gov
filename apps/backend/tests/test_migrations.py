@@ -95,6 +95,7 @@ def test_the_backfilled_columns_keep_their_shape(tmp_path):
     drafts = {r[1]: r for r in conn.execute("PRAGMA table_info(whatsapp_drafts)")}
     assert "status" in drafts
     assert "source_text" in drafts
+    assert "source_kind" in drafts
 
 
 def test_capture_sessions_have_sitrep_columns(tmp_path):
