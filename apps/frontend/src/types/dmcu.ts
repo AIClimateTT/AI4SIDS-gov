@@ -371,6 +371,7 @@ export type WhatsAppDraft = {
   id: number
   draft_id: number
   filename: string
+  source_kind: 'export' | 'paste'
   as_at: string
   message_count: number
   pii_redacted: boolean
@@ -385,6 +386,7 @@ export type WhatsAppDraft = {
 export type WhatsAppDraftSummary = {
   id: number
   filename: string
+  source_kind: 'export' | 'paste'
   as_at: string
   updated_at: string
   incident_count: number

@@ -9,14 +9,23 @@ import type {
   WhatsAppExtractResult,
 } from '@/types/dmcu'
 
+export type WhatsAppExtractInput = {
+  file?: File
+  text?: string
+  asAt: string
+}
+
 export async function extractWhatsApp(
-  file: File,
-  asAt: string,
+  input: WhatsAppExtractInput,
 ): Promise<WhatsAppExtractResult> {
   return withApiError(async () => {
     const form = new FormData()
-    form.append('file', file)
-    form.append('as_at', asAt)
+    form.append('as_at', input.asAt)
+    if (input.file) {
+      form.append('file', input.file)
+    } else if (input.text) {
+      form.append('text', input.text)
+    }
     const { data } = await apiClient.post<WhatsAppExtractResult>(
       '/whatsapp/extract',
       form,

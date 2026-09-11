@@ -1,7 +1,6 @@
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
-import { z } from 'zod'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -17,12 +16,13 @@ import { ContentCard } from '@/components/shared/content-card'
 import { RoleMismatchNotice } from '@/components/identity/role-mismatch-notice'
 import { CitationMarkdown } from '@/components/reports'
 import { SubmissionResult } from '@/components/submissions/submission-result'
-import { useAppForm } from '@/hooks/form'
+import { WhatsAppSourceForm } from '@/components/whatsapp/source-form'
 import { CORPORATION_OPTIONS } from '@/lib/corporations'
 import { isReportJobPending, reportQueries } from '@/lib/queries/reports'
 import { formatWhen } from '@/lib/format-when'
 import { formatDisplayLabel } from '@/lib/format-display'
 import {
+  isWhatsAppExtractPending,
   useAdjustWhatsAppDraft,
   useExtractWhatsApp,
   useGenerateWhatsAppBriefing,
@@ -35,6 +35,8 @@ import type {
   DraftLog,
   SubmissionIngestResult,
   WhatsAppBriefingResult,
+  WhatsAppDraft,
+  WhatsAppDraftSummary,
 } from '@/types/dmcu'
 
 type WhatsAppSearch = { draft?: number }
@@ -58,25 +60,18 @@ const LOG_CATEGORIES = [
   'other',
 ] as const
 
-const uploadSchema = z.object({
-  as_at: z.string().min(1, 'As at is required'),
-  file: z.instanceof(File, { message: 'Choose a WhatsApp .txt export' }),
-})
-
-function nowDatetimeLocal(): string {
-  const now = new Date()
-  const pad = (value: number) => String(value).padStart(2, '0')
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(
-    now.getHours(),
-  )}:${pad(now.getMinutes())}`
-}
-
 function toIsoDateTime(value: string): string {
   return value.length === 16 ? `${value}:00` : value
 }
 
 function hasCorporation(corporation: string | null): boolean {
   return corporation != null && corporation !== ''
+}
+
+function sourceTitle(
+  draft: Pick<WhatsAppDraft | WhatsAppDraftSummary, 'filename' | 'source_kind'>,
+): string {
+  return draft.source_kind === 'paste' ? 'Pasted context' : draft.filename
 }
 
 function WhatsAppPage() {
@@ -96,36 +91,18 @@ function UploadView({ onOpened }: { onOpened: (id: number) => void }) {
   const extract = useExtractWhatsApp()
   const draftsQuery = useQuery(whatsappQueries.list())
 
-  const form = useAppForm({
-    defaultValues: {
-      as_at: nowDatetimeLocal(),
-      file: undefined as File | undefined,
-    },
-    validators: {
-      onSubmit: uploadSchema,
-    },
-    onSubmit: async ({ value }) => {
-      if (!value.file) return
-      const extracted = await extract.mutateAsync({
-        file: value.file,
-        asAt: toIsoDateTime(value.as_at),
-      })
-      onOpened(extracted.id)
-    },
-  })
-
   return (
     <div className="space-y-6">
       <PageHeader
         title="WhatsApp hour"
-        description="Extract a group chat into a draft, adjust it, then generate a provisional briefing for the minister."
+        description="Paste a snippet or upload a .txt export, extract a draft, then generate a provisional briefing for the minister."
       />
       <RoleMismatchNotice expected="dmu" />
 
       {draftsQuery.data && draftsQuery.data.length > 0 ? (
         <ContentCard
           title="Recent drafts"
-          description="Resume a working set instead of uploading again."
+          description="Resume a working set instead of starting again."
         >
           <ul className="space-y-2">
             {draftsQuery.data.map((item) => (
@@ -136,7 +113,7 @@ function UploadView({ onOpened }: { onOpened: (id: number) => void }) {
                   onClick={() => onOpened(item.id)}
                 >
                   <span className="flex w-full flex-col">
-                    <span className="text-sm font-medium">{item.filename}</span>
+                    <span className="text-sm font-medium">{sourceTitle(item)}</span>
                     <span className="text-xs text-muted-foreground">
                       {item.incident_count} incidents · {item.log_count} logs ·{' '}
                       {formatWhen(item.updated_at)}
@@ -150,35 +127,21 @@ function UploadView({ onOpened }: { onOpened: (id: number) => void }) {
       ) : null}
 
       <ContentCard
-        title="Upload export"
-        description="WhatsApp → Chat → Export chat → Without media. A .txt file."
+        title="Start from context"
+        description="Paste the hour, or WhatsApp → Chat → Export chat → Without media."
       >
-        <form
-          className="space-y-4"
-          onSubmit={(event) => {
-            event.preventDefault()
-            void form.handleSubmit()
+        <WhatsAppSourceForm
+          pending={extract.isPending}
+          error={extract.error?.message}
+          onSubmit={async (input) => {
+            const extracted = await extract.mutateAsync({
+              file: input.file,
+              text: input.text,
+              asAt: toIsoDateTime(input.asAt),
+            })
+            onOpened(extracted.id)
           }}
-        >
-          <form.AppForm>
-            <form.AppField name="as_at">
-              {(field) => (
-                <field.TextField label="As at" type="datetime-local" required />
-              )}
-            </form.AppField>
-            <form.AppField name="file">
-              {(field) => (
-                <field.FileField label="WhatsApp export" accept=".txt,text/plain" />
-              )}
-            </form.AppField>
-            <div className="flex justify-end">
-              <form.SubmitButton label="Extract" />
-            </div>
-          </form.AppForm>
-        </form>
-        {extract.isError ? (
-          <p className="mt-4 text-sm text-destructive">{extract.error.message}</p>
-        ) : null}
+        />
       </ContentCard>
     </div>
   )
@@ -288,15 +251,28 @@ function DraftWorkspace({ draftId }: { draftId: number }) {
       {draftQuery.data ? (
         <>
           <ContentCard
-            title={draftQuery.data.filename}
-            description={`${draftQuery.data.message_count} messages parsed. Attributed rows are included in the briefing unless you drop them.`}
+            title={sourceTitle(draftQuery.data)}
+            description={
+              isWhatsAppExtractPending(draftQuery.data.status)
+                ? 'Extracting operational facts from the source…'
+                : `${draftQuery.data.message_count} messages parsed. Attributed rows are included in the briefing unless you drop them.`
+            }
           >
             {draftQuery.data.pii_redacted ? (
               <p className="mb-4 text-sm text-muted-foreground">
-                Phone numbers in the export were redacted before extraction.
+                Phone numbers in the source were redacted before extraction.
               </p>
             ) : null}
 
+            {isWhatsAppExtractPending(draftQuery.data.status) ? (
+              <p className="text-sm text-muted-foreground">Extracting the hour…</p>
+            ) : draftQuery.data.status === 'failed' ? (
+              <EmptyState
+                title="Extraction failed"
+                description={draftQuery.data.error ?? 'The extract job failed.'}
+              />
+            ) : (
+              <>
             <div className="mb-6 space-y-2">
               <Label htmlFor="whatsapp-adjust">Adjust extraction</Label>
               <Textarea
@@ -319,7 +295,7 @@ function DraftWorkspace({ draftId }: { draftId: number }) {
             {incidents.length === 0 && logs.length === 0 ? (
               <EmptyState
                 title="Nothing operational was proposed"
-                description="Ask for an adjustment, or upload a different export."
+                description="Ask for an adjustment, or start from different context."
               />
             ) : (
               <div className="space-y-8">
@@ -360,6 +336,8 @@ function DraftWorkspace({ draftId }: { draftId: number }) {
                   </section>
                 ) : null}
               </div>
+            )}
+              </>
             )}
           </ContentCard>
 

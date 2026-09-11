@@ -32,6 +32,10 @@ export const whatsappKeys = {
 // Query Options
 // ---------------------------------------------------------------------------
 
+export function isWhatsAppExtractPending(status?: string) {
+  return status === 'queued' || status === 'running'
+}
+
 export const whatsappQueries = {
   list: () =>
     queryOptions({
@@ -43,6 +47,8 @@ export const whatsappQueries = {
       queryKey: whatsappKeys.draft(id),
       queryFn: () => getWhatsAppDraft(id),
       enabled: Number.isInteger(id) && id > 0,
+      refetchInterval: (query) =>
+        isWhatsAppExtractPending(query.state.data?.status) ? 2000 : false,
     }),
 }
 
@@ -53,8 +59,8 @@ export const whatsappQueries = {
 export const whatsappMutations = {
   extract: () =>
     mutationOptions({
-      mutationFn: ({ file, asAt }: { file: File; asAt: string }) =>
-        extractWhatsApp(file, asAt),
+      mutationFn: (input: { file?: File; text?: string; asAt: string }) =>
+        extractWhatsApp(input),
     }),
   update: () =>
     mutationOptions({
