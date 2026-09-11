@@ -14,7 +14,7 @@ import { overviewKeys } from '@/lib/queries/overview'
 import { reportKeys } from '@/lib/queries/reports'
 import { eventKeys, submissionKeys } from '@/lib/queries/submissions'
 import { mutationOptions } from '@/lib/queries/tanstack-helpers'
-import type { WhatsAppDraftUpdate } from '@/types/dmcu'
+import type { WhatsAppDraft, WhatsAppDraftUpdate } from '@/types/dmcu'
 
 // ---------------------------------------------------------------------------
 // Key Factory
@@ -139,7 +139,20 @@ export function useGenerateWhatsAppBriefing() {
   const queryClient = useQueryClient()
   return useMutation({
     ...whatsappMutations.briefing(),
-    onSuccess: () => {
+    onSuccess: (result, id) => {
+      queryClient.setQueryData(
+        whatsappKeys.draft(id),
+        (current: WhatsAppDraft | undefined) =>
+          current
+            ? {
+                ...current,
+                briefing_report_id: result.id,
+                briefing_stale: false,
+              }
+            : current,
+      )
+      void queryClient.invalidateQueries({ queryKey: whatsappKeys.draft(id) })
+      void queryClient.invalidateQueries({ queryKey: reportKeys.detail(result.id) })
       void queryClient.invalidateQueries({ queryKey: reportKeys.lists() })
       void queryClient.invalidateQueries({ queryKey: overviewKeys.summary() })
       toast.success('Briefing started')

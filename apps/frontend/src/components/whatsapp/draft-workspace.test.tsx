@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { UIMessage } from '@tanstack/ai-react'
 import type { ReactElement } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -44,6 +44,8 @@ const { mockState, draft } = vi.hoisted(() => {
     ],
     status: 'ready',
     error: null,
+    briefing_report_id: null,
+    briefing_stale: false,
     created_at: '2026-08-15T16:00:00',
     updated_at: '2026-08-15T16:00:00',
   }
@@ -116,5 +118,21 @@ describe('WhatsAppDraftWorkspace', () => {
     expect(
       screen.getByPlaceholderText(WHATSAPP_COMPOSER_PLACEHOLDER),
     ).not.toBeNull()
+  })
+
+  it('shows Record and Briefing tabs beside the working set', () => {
+    renderWorkspace(
+      <WhatsAppDraftWorkspace draftId={4} onNewExtract={vi.fn()} />,
+    )
+    fireEvent.click(screen.getByText('View record'))
+    expect(screen.getByRole('tab', { name: 'Record' })).not.toBeNull()
+    expect(screen.getByRole('tab', { name: 'Briefing' })).not.toBeNull()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Briefing' }))
+    expect(
+      screen.getByText('Generate a provisional briefing from the included rows'),
+    ).not.toBeNull()
+    expect(screen.getByRole('button', { name: 'Review & brief' })).not.toBeNull()
+    expect(screen.getByRole('button', { name: 'File to store' })).not.toBeNull()
   })
 })

@@ -1,4 +1,3 @@
-import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -488,52 +487,4 @@ function parseOptionalNumber(raw: string): number | null {
   if (raw.trim() === '') return null
   const value = Number(raw)
   return Number.isFinite(value) ? value : null
-}
-
-export function RecordFooterActions({
-  includedCount,
-  briefingPending,
-  promotePending,
-  onBriefing,
-  onPromote,
-  briefingError,
-  promoteError,
-}: {
-  includedCount: number
-  briefingPending: boolean
-  promotePending: boolean
-  onBriefing: () => void
-  onPromote: () => void
-  briefingError?: string
-  promoteError?: string
-}) {
-  return (
-    <>
-      <div className="flex flex-wrap items-center justify-end gap-3">
-        <Button
-          variant="outline"
-          disabled={includedCount === 0 || promotePending}
-          onClick={onPromote}
-        >
-          {promotePending ? 'Filing…' : 'File to store'}
-        </Button>
-        <Button
-          disabled={includedCount === 0 || briefingPending}
-          onClick={onBriefing}
-        >
-          {briefingPending ? 'Generating…' : 'Generate briefing'}
-        </Button>
-      </div>
-      <p className="text-right text-xs text-muted-foreground">
-        File to store is optional. It writes corporation submissions after you have
-        time to review. The briefing does not wait for that.
-      </p>
-      {briefingError ? (
-        <p className="text-sm text-destructive">{briefingError}</p>
-      ) : null}
-      {promoteError ? (
-        <p className="text-sm text-destructive">{promoteError}</p>
-      ) : null}
-    </>
-  )
 }

@@ -1,4 +1,3 @@
-import { Link } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   useCallback,
@@ -13,12 +12,9 @@ import {
   createSseConnection,
   type ChatCustomEvent,
 } from '@/components/chat/use-app-chat'
-import {
-  RecordFooterActions,
-  WhatsAppDraftRecord,
-} from '@/components/whatsapp/draft-record'
-import { CitationMarkdown } from '@/components/reports'
-import { SubmissionResult } from '@/components/submissions/submission-result'
+import { WhatsAppBriefingPane } from '@/components/whatsapp/briefing-pane'
+import { WhatsAppDraftRecord } from '@/components/whatsapp/draft-record'
+import { ReviewBriefingSheet } from '@/components/whatsapp/review-briefing-sheet'
 import {
   EmptyState,
   LoadingBlock,
@@ -36,6 +32,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { isReportJobPending, reportQueries } from '@/lib/queries/reports'
 import {
   isWhatsAppExtractPending,
@@ -46,8 +43,8 @@ import {
   whatsappQueries,
 } from '@/lib/queries/whatsapp'
 import type {
+  ReportDetail,
   SubmissionIngestResult,
-  WhatsAppBriefingResult,
   WhatsAppDraft,
   WhatsAppDraftUpdate,
 } from '@/types/dmcu'
@@ -141,13 +138,14 @@ function ConversationLayout({
   const briefing = useGenerateWhatsAppBriefing()
   const promote = usePromoteWhatsAppDraft()
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [reviewOpen, setReviewOpen] = useState(false)
   const isDesktop = useDesktopSplit()
-  const [briefingResult, setBriefingResult] =
-    useState<WhatsAppBriefingResult | null>(null)
-  const briefingReport = useQuery(reportQueries.detail(briefingResult?.id ?? ''))
+  const briefingReport = useQuery(
+    reportQueries.detail(draft.briefing_report_id ?? ''),
+  )
   const briefingPending =
     briefing.isPending ||
-    isReportJobPending(briefingReport.data?.status ?? briefingResult?.status)
+    isReportJobPending(briefingReport.data?.status)
   const [promoteResults, setPromoteResults] = useState<
     SubmissionIngestResult[] | null
   >(null)
@@ -184,8 +182,7 @@ function ConversationLayout({
     draft.logs.filter((row) => row.included && hasCorporation(row.corporation)).length
 
   async function handleBriefing() {
-    const result = await briefing.mutateAsync(draft.id)
-    setBriefingResult(result)
+    await briefing.mutateAsync(draft.id)
   }
 
   async function handlePromote() {
@@ -193,65 +190,21 @@ function ConversationLayout({
     setPromoteResults(result.submissions)
   }
 
-  const recordPane = (
-    <WhatsAppDraftRecord
+  const artifactPane = (
+    <ArtifactPane
       draft={draft}
       disabled={update.isPending}
       pending={update.isPending}
+      includedCount={includedCount}
+      briefingPending={briefingPending}
+      promotePending={promote.isPending}
+      report={briefingReport.data}
       onSave={handleSave}
-      footer={
-        <>
-          <RecordFooterActions
-            includedCount={includedCount}
-            briefingPending={briefingPending}
-            promotePending={promote.isPending}
-            onBriefing={() => void handleBriefing()}
-            onPromote={() => void handlePromote()}
-            briefingError={briefing.error?.message}
-            promoteError={promote.error?.message}
-          />
-          {briefingResult ? (
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">
-                Provisional briefing — not a cited national SITREP.
-              </p>
-              {briefingPending ? (
-                <p className="text-sm text-muted-foreground">Generating briefing…</p>
-              ) : (briefingReport.data?.status ?? briefingResult.status) ===
-                'failed' ? (
-                <p className="text-sm text-destructive">
-                  {briefingReport.data?.error ?? 'Briefing generation failed.'}
-                </p>
-              ) : (
-                <CitationMarkdown
-                  markdown={
-                    briefingReport.data?.markdown || briefingResult.markdown
-                  }
-                />
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                render={
-                  <Link
-                    to="/dmu/reports/$reportId"
-                    params={{ reportId: briefingResult.id }}
-                  />
-                }
-              >
-                Open report
-              </Button>
-            </div>
-          ) : null}
-          {promoteResults ? (
-            <div className="space-y-4">
-              {promoteResults.map((result) => (
-                <SubmissionResult key={result.submission_id} result={result} />
-              ))}
-            </div>
-          ) : null}
-        </>
-      }
+      onReview={() => setReviewOpen(true)}
+      onPromote={() => void handlePromote()}
+      briefingError={briefing.error?.message}
+      promoteError={promote.error?.message}
+      promoteResults={promoteResults}
     />
   )
 
@@ -295,7 +248,7 @@ function ConversationLayout({
           <ResizablePanel defaultSize="32%" minSize="28%" className="min-h-0">
             <div className="m-2 flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-background shadow-sm">
               {railHeader}
-              <div className="flex min-h-0 flex-1 flex-col">{recordPane}</div>
+              {artifactPane}
             </div>
           </ResizablePanel>
         </ResizablePanelGroup>
@@ -326,11 +279,83 @@ function ConversationLayout({
                 New extract
               </Button>
             </div>
-            {recordPane}
+            {artifactPane}
           </div>
         </SheetContent>
       </Sheet>
+      <ReviewBriefingSheet
+        draft={draft}
+        open={reviewOpen}
+        onOpenChange={setReviewOpen}
+        briefingPending={briefingPending}
+        promotePending={promote.isPending}
+        onBrief={() => void handleBriefing()}
+        onPromote={() => void handlePromote()}
+      />
     </div>
+  )
+}
+
+function ArtifactPane({
+  draft,
+  disabled,
+  pending,
+  includedCount,
+  briefingPending,
+  promotePending,
+  report,
+  onSave,
+  onReview,
+  onPromote,
+  briefingError,
+  promoteError,
+  promoteResults,
+}: {
+  draft: WhatsAppDraft
+  disabled: boolean
+  pending: boolean
+  includedCount: number
+  briefingPending: boolean
+  promotePending: boolean
+  report: ReportDetail | undefined
+  onSave: (payload: WhatsAppDraftUpdate) => void
+  onReview: () => void
+  onPromote: () => void
+  briefingError?: string
+  promoteError?: string
+  promoteResults: SubmissionIngestResult[] | null
+}) {
+  return (
+    <Tabs defaultValue="record" className="flex h-full min-h-0 flex-col gap-0">
+      <div className="flex shrink-0 items-center border-b px-3 py-2">
+        <TabsList variant="line">
+          <TabsTrigger value="record">Record</TabsTrigger>
+          <TabsTrigger value="briefing">Briefing</TabsTrigger>
+        </TabsList>
+      </div>
+      <TabsContent value="record" className="min-h-0 overflow-hidden">
+        <WhatsAppDraftRecord
+          draft={draft}
+          disabled={disabled}
+          pending={pending}
+          onSave={onSave}
+        />
+      </TabsContent>
+      <TabsContent value="briefing" className="min-h-0 overflow-hidden">
+        <WhatsAppBriefingPane
+          draft={draft}
+          report={report}
+          includedCount={includedCount}
+          briefingPending={briefingPending}
+          promotePending={promotePending}
+          onReview={onReview}
+          onPromote={onPromote}
+          briefingError={briefingError}
+          promoteError={promoteError}
+          promoteResults={promoteResults}
+        />
+      </TabsContent>
+    </Tabs>
   )
 }
 

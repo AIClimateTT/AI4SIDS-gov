@@ -382,6 +382,8 @@ export type WhatsAppDraft = {
   missing: CaptureMissingField[]
   status?: string
   error?: string | null
+  briefing_report_id?: string | null
+  briefing_stale?: boolean
   created_at: string
   updated_at: string
 }
