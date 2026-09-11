@@ -1,6 +1,7 @@
 import re
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Literal
 
 # WhatsApp inserts these around timestamps and senders. Strip before matching.
 _LTR = "\u200e"
@@ -30,6 +31,8 @@ _PHONE_RE = re.compile(
 )
 
 _ENCRYPTED_MARKER = "messages and calls are end-to-end encrypted"
+
+SourceKind = Literal["export", "paste"]
 
 
 @dataclass(frozen=True)
@@ -120,3 +123,33 @@ def parse_export(text: str) -> list[ParsedMessage]:
 
     flush()
     return messages
+
+
+def messages_from_source(text: str) -> tuple[list[ParsedMessage], SourceKind, bool]:
+    """Redact, then parse as a WhatsApp export if any messages match.
+
+    If parse_export finds nothing, return a single synthetic message:
+    index=1, timestamp=None, sender="paste", body=<redacted text>.
+    Empty / whitespace-only text returns no messages. This helper does not raise.
+    """
+    redacted, pii = redact_phones(text or "")
+    stripped = redacted.strip()
+    if not stripped:
+        return [], "paste", False
+
+    messages = parse_export(redacted)
+    if messages:
+        return messages, "export", pii
+
+    return (
+        [
+            ParsedMessage(
+                index=1,
+                timestamp=None,
+                sender="paste",
+                body=stripped,
+            )
+        ],
+        "paste",
+        pii,
+    )

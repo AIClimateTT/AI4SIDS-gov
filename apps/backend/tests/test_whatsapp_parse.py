@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from app.modules.whatsapp.parse import parse_export, redact_phones
+from app.modules.whatsapp.parse import messages_from_source, parse_export, redact_phones
 
 
 BRACKET_EXPORT = """\
@@ -97,3 +97,40 @@ def test_redact_phones_leaves_dates_and_times_alone():
 def test_empty_export_returns_no_messages():
     assert parse_export("") == []
     assert parse_export("   \n\n") == []
+
+
+def test_messages_from_source_keeps_a_bracket_export():
+    messages, kind, pii = messages_from_source(BRACKET_EXPORT)
+    assert kind == "export"
+    assert pii is False
+    assert len(messages) == 2
+    assert messages[0].sender == "Jane Doe"
+
+
+def test_messages_from_source_wraps_free_text_as_one_paste_message():
+    text = "Diego Martin: 5 houses flooded on Main Rd. Siparia standing by."
+    messages, kind, pii = messages_from_source(text)
+    assert kind == "paste"
+    assert pii is False
+    assert len(messages) == 1
+    assert messages[0].index == 1
+    assert messages[0].sender == "paste"
+    assert messages[0].timestamp is None
+    assert "5 houses" in messages[0].body
+
+
+def test_messages_from_source_redacts_phones_in_pasted_text():
+    messages, kind, pii = messages_from_source(
+        "Call +1 868-555-1234 about the depot"
+    )
+    assert kind == "paste"
+    assert pii is True
+    assert "[phone]" in messages[0].body
+    assert "868-555-1234" not in messages[0].body
+
+
+def test_messages_from_source_empty_text_returns_no_messages():
+    messages, kind, pii = messages_from_source("   \n")
+    assert messages == []
+    assert kind == "paste"
+    assert pii is False
