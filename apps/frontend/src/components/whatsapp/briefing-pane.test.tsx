@@ -2,9 +2,13 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('@tanstack/react-router', () => ({
-  Link: ({ children }: { children?: React.ReactNode }) => <a>{children}</a>,
-}))
+vi.mock('@tanstack/react-router', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-router')>()
+  return {
+    ...actual,
+    Link: ({ children }: { children?: React.ReactNode }) => <a>{children}</a>,
+  }
+})
 
 import {
   BRIEFING_EMPTY_TITLE,
