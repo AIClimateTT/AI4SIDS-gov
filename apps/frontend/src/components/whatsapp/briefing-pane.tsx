@@ -1,9 +1,7 @@
-import { Link } from '@tanstack/react-router'
-
 import { CitationMarkdown } from '@/components/reports'
 import { factsByCid } from '@/components/reports/citation-display'
+import { ButtonLink, EmptyState } from '@/components/shared'
 import { SubmissionResult } from '@/components/submissions/submission-result'
-import { EmptyState } from '@/components/shared'
 import { Button } from '@/components/ui/button'
 import { FILE_TO_STORE_WARNING } from '@/components/whatsapp/review-briefing-sheet'
 import { isReportJobPending } from '@/lib/queries/reports'
@@ -74,18 +72,14 @@ export function WhatsAppBriefingPane({
               factsByCid={citedFacts}
             />
             {draft.briefing_report_id ? (
-              <Button
+              <ButtonLink
                 variant="outline"
                 size="sm"
-                render={
-                  <Link
-                    to="/dmu/reports/$reportId"
-                    params={{ reportId: draft.briefing_report_id }}
-                  />
-                }
+                to="/dmu/reports/$reportId"
+                params={{ reportId: draft.briefing_report_id }}
               >
                 Open report
-              </Button>
+              </ButtonLink>
             ) : null}
           </>
         ) : (

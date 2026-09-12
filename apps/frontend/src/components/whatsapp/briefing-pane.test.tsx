@@ -2,11 +2,13 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('@tanstack/react-router', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@tanstack/react-router')>()
+vi.mock('@/components/shared', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/shared')>()
   return {
     ...actual,
-    Link: ({ children }: { children?: React.ReactNode }) => <a>{children}</a>,
+    ButtonLink: ({ children }: { children?: React.ReactNode }) => (
+      <a>{children}</a>
+    ),
   }
 })
 
