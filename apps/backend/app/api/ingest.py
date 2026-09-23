@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.registry import get_module
 from app.db import get_session
+from app.modules.survey123.ingest import IngestFormatError
 from app.quality.store import record_event
 
 router = APIRouter()
@@ -36,7 +37,10 @@ async def ingest(
         tmp_path = Path(tmp.name)
 
     try:
-        result = module.ingest(tmp_path)
+        try:
+            result = module.ingest(tmp_path)
+        except IngestFormatError as exc:
+            raise HTTPException(status_code=400, detail=exc.detail) from exc
     finally:
         tmp_path.unlink(missing_ok=True)
 

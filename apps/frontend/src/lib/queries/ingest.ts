@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
 import { ingestModule } from '@/lib/api/ingest'
+import { incidentKeys } from '@/lib/queries/incidents'
 import { mutationOptions } from '@/lib/queries/tanstack-helpers'
 import { overviewKeys } from '@/lib/queries/overview'
 import type { IngestModuleName } from '@/types/dmcu'
@@ -44,6 +45,7 @@ export function useIngestModule(onSuccess?: () => void) {
     ...ingestMutations.upload(),
     onSuccess: (result) => {
       void queryClient.invalidateQueries({ queryKey: overviewKeys.summary() })
+      void queryClient.invalidateQueries({ queryKey: incidentKeys.lists() })
       toast.success(
         `Ingested ${result.rows_inserted} inserted, ${result.rows_updated} updated`,
       )

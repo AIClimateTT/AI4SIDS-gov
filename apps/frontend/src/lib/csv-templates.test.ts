@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   INCIDENT_CSV_HEADERS,
   LOG_CSV_HEADERS,
+  SURVEY123_CSV_HEADERS,
   csvTemplateText,
 } from '@/lib/csv-templates'
 
@@ -24,6 +25,15 @@ describe('csv templates', () => {
     expect(LOG_CSV_HEADERS).toEqual([
       'Category', 'Statement', 'Item', 'Quantity', 'Unit', 'Status',
     ])
+  })
+
+  it('names the columns a Survey123 export must include', () => {
+    expect(SURVEY123_CSV_HEADERS[0]).toBe('ObjectID')
+    expect(SURVEY123_CSV_HEADERS[1]).toBe('GlobalID')
+    expect(SURVEY123_CSV_HEADERS).toContain('Date of Event')
+    expect(csvTemplateText(SURVEY123_CSV_HEADERS).startsWith('ObjectID,GlobalID,')).toBe(
+      true,
+    )
   })
 
   it('renders a header-only csv', () => {

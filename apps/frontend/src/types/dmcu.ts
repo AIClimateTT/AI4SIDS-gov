@@ -271,6 +271,39 @@ export type IngestResult = {
   pii_columns_dropped: string[]
 }
 
+export type IncidentSource = 'survey123' | 'sitreps'
+
+export type IncidentListSource = IncidentSource | 'all'
+
+export type IncidentListItem = {
+  id: string
+  source: IncidentSource
+  corporation: string | null
+  community: string | null
+  incident_type: string | null
+  event_date: string | null
+  incident_summary: string | null
+  injuries_occurred: boolean
+  injuries_count: number | null
+  deaths_occurred: boolean
+  deaths_count: number | null
+  ingested_at: string
+  validation_status: string | null
+  is_duplicate: boolean | null
+}
+
+export type IncidentListParams = {
+  page?: number
+  pageSize?: number
+  q?: string
+  source?: IncidentListSource
+}
+
+export type IncidentListResponse = {
+  items: IncidentListItem[]
+  total: number
+}
+
 export type EventSummary = {
   id: number
   corporation: string
