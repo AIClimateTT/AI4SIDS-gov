@@ -48,6 +48,34 @@ def test_post_ingest_survey123_returns_ingest_result():
     assert "Name of Person" in body["pii_columns_dropped"]
 
 
+def test_post_ingest_survey123_missing_global_id_returns_400():
+    client = make_client()
+    payload = b"ObjectID,Community\n1,Sangre Grande\n"
+
+    response = client.post(
+        "/ingest/survey123",
+        files={"file": ("bad.csv", payload, "text/csv")},
+    )
+
+    assert response.status_code == 400
+    assert "GlobalID" in response.json()["detail"]
+
+
+def test_post_ingest_survey123_bad_date_names_the_row_and_column():
+    client = make_client()
+    payload = b"ObjectID,GlobalID,Date of Event\n1,GUID-1,not-a-date\n"
+
+    response = client.post(
+        "/ingest/survey123",
+        files={"file": ("bad.csv", payload, "text/csv")},
+    )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert "Row 2" in detail
+    assert "Date of Event" in detail
+
+
 def test_post_ingest_sitreps_is_retired_in_favour_of_submissions():
     # Task 5 removed the CSV-ingest branch for sitreps entirely: sitreps data
     # now arrives as a submission (see tests/test_api_submissions.py), not as a

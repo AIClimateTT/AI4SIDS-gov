@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.auth import router as auth_router
+from app.api.incidents import router as incidents_router
 from app.api.ingest import router as ingest_router
 from app.api.meta import router as meta_router
 from app.api.overview import router as overview_router
@@ -42,6 +43,7 @@ def create_app() -> FastAPI:
     app.include_router(overview_router)
     app.include_router(reports_router)
     app.include_router(ingest_router)
+    app.include_router(incidents_router)
     app.include_router(submissions_router)
     app.include_router(whatsapp_router)
     app.include_router(capture_router)

@@ -34,6 +34,29 @@ PII_COLUMNS = [
 
 DUPLICATE_MARKER = "duplicate entry"
 
+REQUIRED_COLUMNS = ("ObjectID", "GlobalID")
+
+
+class IngestFormatError(Exception):
+    """A Survey123 CSV the officer can fix. The API maps this to HTTP 400."""
+
+    def __init__(self, detail: str) -> None:
+        self.detail = detail
+        super().__init__(detail)
+
+
+def require_survey123_headers(fieldnames: list[str] | None) -> None:
+    present = set(fieldnames or [])
+    missing = [name for name in REQUIRED_COLUMNS if name not in present]
+    if not missing:
+        return
+    joined = ", ".join(missing)
+    raise IngestFormatError(
+        f"Survey123 CSV is missing required column(s): {joined}. "
+        "ObjectID and GlobalID are required, and dates must be ISO-8601 "
+        "(2024-06-01T09:00:00)."
+    )
+
 
 def parse_bool(raw: str | None) -> bool:
     return (raw or "").strip().lower() == "true"
@@ -64,11 +87,40 @@ def parse_decimal(raw: str | None) -> Decimal | None:
         return None
 
 
-def parse_datetime(raw: str | None) -> datetime | None:
-    cleaned = (raw or "").strip()
-    if not cleaned:
+def _cell(row: dict[str, str], column: str) -> str:
+    return (row.get(column) or "").strip()
+
+
+def _require_global_id(row: dict[str, str], row_number: int) -> str:
+    value = _cell(row, "GlobalID")
+    if not value:
+        raise IngestFormatError(f"Row {row_number}: GlobalID is required")
+    return value
+
+
+def _require_object_id(row: dict[str, str], row_number: int) -> int:
+    raw = _cell(row, "ObjectID")
+    if not raw:
+        raise IngestFormatError(f"Row {row_number}: ObjectID is required")
+    try:
+        return int(raw)
+    except ValueError:
+        raise IngestFormatError(
+            f"Row {row_number}: ObjectID must be a whole number"
+        ) from None
+
+
+def _parse_datetime_cell(row: dict[str, str], column: str, row_number: int) -> datetime | None:
+    raw = _cell(row, column)
+    if not raw:
         return None
-    return datetime.fromisoformat(cleaned)
+    try:
+        return datetime.fromisoformat(raw)
+    except ValueError:
+        raise IngestFormatError(
+            f"Row {row_number}: {column} must be an ISO-8601 datetime "
+            "(2024-06-01T09:00:00)"
+        ) from None
 
 
 def compute_dedup_hash(id_number_raw: str | None, salt: str) -> str | None:
@@ -84,15 +136,15 @@ def is_duplicate_marker(name_raw: str | None, summary_raw: str | None) -> bool:
     ).strip().lower() == DUPLICATE_MARKER
 
 
-def parse_row(row: dict[str, str], salt: str) -> dict:
+def parse_row(row: dict[str, str], salt: str, *, row_number: int = 2) -> dict:
     corporation, raw_corporation = normalize_corporation(row.get("Municipal Boundary"))
     incident_type, raw_incident_type = normalize_incident_type(row.get("Incident Type"))
     address = (row.get("Address") or "").strip()
     street = address.split(",")[0].strip() if address else None
 
     return {
-        "global_id": row["GlobalID"].strip(),
-        "object_id": int(row["ObjectID"]),
+        "global_id": _require_global_id(row, row_number),
+        "object_id": _require_object_id(row, row_number),
         "corporation": corporation,
         "raw_corporation": raw_corporation,
         "community": (row.get("Community") or "").strip() or None,
@@ -101,11 +153,11 @@ def parse_row(row: dict[str, str], salt: str) -> dict:
         "raw_incident_type": raw_incident_type,
         "incident_type_other": (row.get("Other - Incident Type") or "").strip() or None,
         "incident_summary": (row.get("Incident Summary") or "").strip() or None,
-        "event_date": parse_datetime(row.get("Date of Event")),
+        "event_date": _parse_datetime_cell(row, "Date of Event", row_number),
         "event_time": (row.get("Time of Event") or "").strip() or None,
-        "assessment_date": parse_datetime(row.get("Assessment Date")),
-        "creation_date": parse_datetime(row.get("CreationDate")),
-        "edit_date": parse_datetime(row.get("EditDate")),
+        "assessment_date": _parse_datetime_cell(row, "Assessment Date", row_number),
+        "creation_date": _parse_datetime_cell(row, "CreationDate", row_number),
+        "edit_date": _parse_datetime_cell(row, "EditDate", row_number),
         "occupants_count": parse_occupants(
             row.get("Household Occupants"), row.get("If more than 6 persons - Household Occupants")
         ),
@@ -137,9 +189,14 @@ def parse_row(row: dict[str, str], salt: str) -> dict:
 def ingest_csv(file_path: Path, session: Session, salt: str) -> IngestResult:
     with open(file_path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
+        require_survey123_headers(list(reader.fieldnames or []))
         raw_rows = list(reader)
 
-    parsed = [(raw, parse_row(raw, salt)) for raw in raw_rows]
+    # Spreadsheet row: the header is row 1, so the first data row is row 2.
+    parsed = [
+        (raw, parse_row(raw, salt, row_number=index + 2))
+        for index, raw in enumerate(raw_rows)
+    ]
 
     batch_groups: dict[tuple[str, datetime], list[int]] = {}
     for idx, (_raw, fields) in enumerate(parsed):
