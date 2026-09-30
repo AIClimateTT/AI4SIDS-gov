@@ -158,7 +158,7 @@ def parse_incident_row(
     if raw_date is None:
         return None, RowError(row_number=row_number, reason="Date of Event is required")
     try:
-        event_date = datetime.fromisoformat(raw_date)
+        event_date = datetime.fromisoformat(raw_date).date()
     except ValueError:
         return None, RowError(
             row_number=row_number,

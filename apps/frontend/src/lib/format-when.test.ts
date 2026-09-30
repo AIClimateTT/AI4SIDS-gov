@@ -41,4 +41,10 @@ describe('formatDay', () => {
   it('renders an em dash for a missing day', () => {
     expect(formatDay(null)).toBe('—')
   })
+
+  it('keeps a bare calendar day on that day in any timezone', () => {
+    // new Date('2024-06-01') is UTC midnight: 31 May west of Greenwich.
+    expect(formatDay('2024-06-01')).toContain('01')
+    expect(formatDay('2024-06-01')).toContain('Jun')
+  })
 })

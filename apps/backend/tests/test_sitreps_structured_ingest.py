@@ -96,7 +96,7 @@ def test_structured_defaults_fill_date_and_casualty_flags(tmp_path):
 
     assert result.row_errors == []
     incident = session.query(SitrepIncident).one()
-    assert incident.event_date.date().isoformat() == "2026-08-18"
+    assert incident.event_date.isoformat() == "2026-08-18"
     assert incident.injuries_occurred is True
     assert incident.injuries_count == 2
     assert incident.deaths_occurred is False

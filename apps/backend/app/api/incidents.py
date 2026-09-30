@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -17,7 +17,7 @@ class IncidentListItem(BaseModel):
     corporation: str | None
     community: str | None
     incident_type: str | None
-    event_date: datetime | None
+    event_date: date | None
     incident_summary: str | None
     injuries_occurred: bool
     injuries_count: int | None
