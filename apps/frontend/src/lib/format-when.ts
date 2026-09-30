@@ -10,7 +10,12 @@
  * day needs to be unambiguous.
  *
  * `as_at` and `updated_at` come off the API naive (no offset), so they are
- * parsed as local time — the same behaviour the bare calls had.
+ * parsed as local time — the same behaviour the bare calls had. Timestamps
+ * that carry an offset (stored as UTC) are converted to the reader's clock.
+ *
+ * A bare calendar day ("2024-06-01", e.g. `event_date`) is built as a local
+ * date. `new Date("2024-06-01")` would read it as UTC midnight, which is the
+ * evening of 31 May in Trinidad.
  */
 const WHEN: Intl.DateTimeFormatOptions = {
   day: '2-digit',
@@ -34,8 +39,12 @@ const DAY: Intl.DateTimeFormatOptions = {
  */
 const UNKNOWN = '—'
 
+const CALENDAR_DAY = /^(\d{4})-(\d{2})-(\d{2})$/
+
 function parse(value: string | null | undefined): Date | null {
   if (!value) return null
+  const day = CALENDAR_DAY.exec(value)
+  if (day) return new Date(Number(day[1]), Number(day[2]) - 1, Number(day[3]))
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? null : date
 }

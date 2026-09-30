@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from types import SimpleNamespace
 
@@ -36,11 +36,11 @@ def _is_presentable(fact: Fact) -> bool:
     return bool(value)
 
 
-def _parse_event_date(raw: str | None) -> datetime | None:
+def _parse_event_date(raw: str | None) -> date | None:
     if not raw:
         return None
     try:
-        return datetime.fromisoformat(raw)
+        return datetime.fromisoformat(raw).date()
     except ValueError:
         return None
 

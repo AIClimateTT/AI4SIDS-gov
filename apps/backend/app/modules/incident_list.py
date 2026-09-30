@@ -5,11 +5,12 @@ sitrep_incidents. They stay separate tables. This list only projects the
 columns an officer scans, tagged with which table the row came from.
 """
 
-from datetime import datetime
+from datetime import date
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.localtime import as_utc
 from app.modules.sitreps.models import SitrepIncident
 from app.modules.survey123.models import FieldObservation
 
@@ -48,7 +49,7 @@ def list_incidents(
 def _sort_key(row: dict) -> tuple:
     event_date = row["event_date"]
     # Dated rows sort ahead of undated ones when reversed, then newest first.
-    return (event_date is not None, event_date or datetime.min, row["ingested_at"])
+    return (event_date is not None, event_date or date.min, as_utc(row["ingested_at"]))
 
 
 def _matches(row: dict, needle: str) -> bool:
@@ -72,7 +73,7 @@ def _field_row(row: FieldObservation) -> dict:
         "injuries_count": row.injuries_count,
         "deaths_occurred": row.deaths_occurred,
         "deaths_count": row.deaths_count,
-        "ingested_at": row.ingested_at,
+        "ingested_at": as_utc(row.ingested_at),
         "validation_status": row.validation_status,
         "is_duplicate": row.is_duplicate,
     }
@@ -91,7 +92,7 @@ def _sitrep_row(row: SitrepIncident) -> dict:
         "injuries_count": row.injuries_count,
         "deaths_occurred": row.deaths_occurred,
         "deaths_count": row.deaths_count,
-        "ingested_at": row.ingested_at,
+        "ingested_at": as_utc(row.ingested_at),
         "validation_status": None,
         "is_duplicate": None,
     }

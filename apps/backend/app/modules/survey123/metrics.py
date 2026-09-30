@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Literal
 
@@ -6,6 +6,7 @@ from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
 from app.core.contracts import Citation, Fact, MetricSpec
+from app.core.localtime import to_local
 from app.modules.survey123.models import FieldObservation
 
 
@@ -177,17 +178,14 @@ def apply_common_filters(stmt: Select, params: dict, model=FieldObservation) -> 
         stmt = stmt.where(model.community == params["community"])
     if params.get("submission_id") and column_exists(model, "submission_id"):
         stmt = stmt.where(model.submission_id == int(params["submission_id"]))
+    # event_date is a calendar day, so compare days: date_to includes the whole
+    # of that day, and a time of day on either bound has no meaning.
     date_from = parse_date_param(params.get("date_from"))
     if date_from is not None:
-        stmt = stmt.where(model.event_date >= date_from)
+        stmt = stmt.where(model.event_date >= date_from.date())
     date_to = parse_date_param(params.get("date_to"))
     if date_to is not None:
-        # date_to arrives as a date-only ISO string (e.g. "2024-06-30"), which
-        # parse_date_param parses to midnight. Real event_date values carry a
-        # time of day, so "<= midnight" would silently exclude every incident
-        # that occurred later that same day. Compare against the start of the
-        # NEXT day instead, so date_to is inclusive of the whole day.
-        stmt = stmt.where(model.event_date < date_to + timedelta(days=1))
+        stmt = stmt.where(model.event_date <= date_to.date())
     return stmt
 
 
@@ -649,7 +647,8 @@ def data_coverage(params: dict, session: Session, model=FieldObservation) -> lis
         pct_validated = round(100.0 * sum(1 for r in corp_rows if r.validation_status == "validated") / n, 1)
         pct_duplicates = round(100.0 * sum(1 for r in corp_rows if r.is_duplicate) / n, 1)
         latest = max((r.creation_date for r in corp_rows if r.creation_date is not None), default=None)
-        latest_label = latest.isoformat() if latest is not None else "unknown"
+        # creation_date is stored as UTC; the report is read in Trinidad.
+        latest_label = to_local(latest).isoformat() if latest is not None else "unknown"
         global_ids = [record_ref_of(r) for r in corp_rows]
         citation = build_citation(
             "data_coverage",

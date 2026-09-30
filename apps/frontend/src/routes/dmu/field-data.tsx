@@ -23,7 +23,7 @@ import {
   downloadCsvTemplate,
 } from '@/lib/csv-templates'
 import { formatConstant } from '@/lib/format-constant'
-import { formatWhen } from '@/lib/format-when'
+import { formatDay, formatWhen } from '@/lib/format-when'
 import { incidentQueries } from '@/lib/queries/incidents'
 import { useIngestModule } from '@/lib/queries/ingest'
 import type {
@@ -85,7 +85,7 @@ const columns: ColumnDef<IncidentListItem>[] = [
   {
     accessorKey: 'event_date',
     header: 'Date',
-    cell: ({ row }) => formatWhen(row.original.event_date),
+    cell: ({ row }) => formatDay(row.original.event_date),
   },
   {
     accessorKey: 'incident_summary',
@@ -306,6 +306,17 @@ function IngestResultView({ result }: { result: IngestResult }) {
       <UnmappedValuesNotice unmappedValues={result.unmapped_values} />
 
       <PiiDroppedNotice columns={result.pii_columns_dropped} />
+
+      {result.warnings?.length ? (
+        <div className="rounded-md border border-dashed p-3 text-sm">
+          <p className="font-medium">Check before relying on these rows</p>
+          <ul className="mt-2 list-disc space-y-1 pl-4 text-muted-foreground">
+            {result.warnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </div>
   )
 }

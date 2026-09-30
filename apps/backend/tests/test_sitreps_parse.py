@@ -1,5 +1,5 @@
 import csv
-from datetime import datetime
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
@@ -29,7 +29,7 @@ def test_parses_a_well_formed_row():
     assert fields["community"] == "Petit Valley"
     assert fields["street"] == "Cameron Road"
     assert fields["incident_type"] == "fallen_tree"
-    assert fields["event_date"] == datetime(2023, 6, 27)
+    assert fields["event_date"] == date(2023, 6, 27)
     assert fields["action_taken"] == "DMU removed fallen tree."
     assert fields["follow_up_flags"] == {
         "relief_supplied": True,

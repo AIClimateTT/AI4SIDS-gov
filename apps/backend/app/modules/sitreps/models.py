@@ -1,9 +1,10 @@
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
     JSON,
     Boolean,
+    Date,
     DateTime,
     ForeignKey,
     Integer,
@@ -115,7 +116,8 @@ class SitrepIncident(Base):
     raw_incident_type: Mapped[str | None] = mapped_column(String, nullable=True)
     incident_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    event_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # A Trinidad calendar day, like FieldObservation.event_date.
+    event_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 
     injuries_occurred: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     injuries_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -129,7 +131,7 @@ class SitrepIncident(Base):
     action_taken: Mapped[str | None] = mapped_column(Text, nullable=True)
     follow_up_flags: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
 
-    ingested_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    ingested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     @property
     def record_ref(self) -> str:

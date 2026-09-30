@@ -1,7 +1,7 @@
 import csv
 import hashlib
 import logging
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.contracts import IngestResult
+from app.core.localtime import as_utc, local_date, local_wall_clock_to_utc
 from app.modules.survey123.models import FieldObservation
 from app.modules.survey123.normalize import (
     normalize_corporation,
@@ -36,6 +37,46 @@ DUPLICATE_MARKER = "duplicate entry"
 
 REQUIRED_COLUMNS = ("ObjectID", "GlobalID")
 
+# Columns the parser reads. One missing is not fatal — Survey123 forms drift —
+# but every value in it would be silently dropped, so it is reported back.
+EXPECTED_COLUMNS = (
+    "CreationDate",
+    "EditDate",
+    "Date of Event",
+    "Assessment Date",
+    "Municipal Boundary",
+    "Community",
+    "Incident Type",
+    "Did any injuries occur?",
+    "Injuries",
+    "Did any deaths occur?",
+    "Deaths",
+    "Identification Card Number",
+    "Validated/NotValidated",
+)
+
+BOOL_COLUMNS = ("Did any injuries occur?", "Did any deaths occur?")
+
+TRUE_VALUES = frozenset({"true", "yes", "y", "1"})
+FALSE_VALUES = frozenset({"false", "no", "n", "0"})
+
+# ArcGIS "Export Data" writes every date field as a UTC timestamp in the
+# exporting account's US locale: 4/21/2021 3:36:49 PM. Date-only questions are
+# stored at noon on the device, so "Date of Event" reads 4:00:00 PM for noon in
+# Trinidad.
+ARCGIS_DATETIME_FORMATS = (
+    "%m/%d/%Y %I:%M:%S %p",
+    "%m/%d/%Y %I:%M %p",
+    "%m/%d/%Y %H:%M:%S",
+    "%m/%d/%Y %H:%M",
+)
+ARCGIS_DATE_FORMAT = "%m/%d/%Y"
+
+DATE_FORMAT_HELP = (
+    "must be an ArcGIS export date (4/21/2021 3:36:49 PM) or ISO-8601 "
+    "(2021-04-21T15:36:49)"
+)
+
 
 class IngestFormatError(Exception):
     """A Survey123 CSV the officer can fix. The API maps this to HTTP 400."""
@@ -53,13 +94,31 @@ def require_survey123_headers(fieldnames: list[str] | None) -> None:
     joined = ", ".join(missing)
     raise IngestFormatError(
         f"Survey123 CSV is missing required column(s): {joined}. "
-        "ObjectID and GlobalID are required, and dates must be ISO-8601 "
-        "(2024-06-01T09:00:00)."
+        "Upload the CSV exactly as ArcGIS exported it."
     )
 
 
+def normalize_headers(fieldnames: list[str]) -> list[str]:
+    """ArcGIS labels columns with the question text, trailing spaces and all
+    ("Community ", "Injuries "), and repeats a label when two questions share
+    it. Strip each one, and number repeats Name, Name_2, Name_3 so that no
+    column silently overwrites an earlier one of the same name."""
+    seen: dict[str, int] = {}
+    normalized = []
+    for raw in fieldnames:
+        name = raw.strip()
+        seen[name] = seen.get(name, 0) + 1
+        normalized.append(name if seen[name] == 1 else f"{name}_{seen[name]}")
+    return normalized
+
+
 def parse_bool(raw: str | None) -> bool:
-    return (raw or "").strip().lower() == "true"
+    return (raw or "").strip().lower() in TRUE_VALUES
+
+
+def is_unrecognised_bool(raw: str | None) -> bool:
+    cleaned = (raw or "").strip().lower()
+    return bool(cleaned) and cleaned not in TRUE_VALUES and cleaned not in FALSE_VALUES
 
 
 def parse_int(raw: str | None) -> int | None:
@@ -110,17 +169,57 @@ def _require_object_id(row: dict[str, str], row_number: int) -> int:
         ) from None
 
 
-def _parse_datetime_cell(row: dict[str, str], column: str, row_number: int) -> datetime | None:
-    raw = _cell(row, column)
-    if not raw:
-        return None
+def _read_date_value(raw: str) -> tuple[datetime, bool, bool]:
+    """(value, is_arcgis_utc, has_time). ISO values without an offset are
+    Trinidad wall-clock readings; ArcGIS export values are UTC."""
     try:
-        return datetime.fromisoformat(raw)
+        return datetime.fromisoformat(raw), False, len(raw) > 10
     except ValueError:
-        raise IngestFormatError(
-            f"Row {row_number}: {column} must be an ISO-8601 datetime "
-            "(2024-06-01T09:00:00)"
-        ) from None
+        pass
+    for fmt in ARCGIS_DATETIME_FORMATS:
+        try:
+            return datetime.strptime(raw, fmt), True, True
+        except ValueError:
+            continue
+    return datetime.strptime(raw, ARCGIS_DATE_FORMAT), True, False
+
+
+def parse_timestamp(raw: str | None) -> datetime | None:
+    """A moment in time, as aware UTC. Raises ValueError on an unknown format."""
+    cleaned = (raw or "").strip()
+    if not cleaned:
+        return None
+    value, is_utc, _has_time = _read_date_value(cleaned)
+    if value.tzinfo is not None or is_utc:
+        return as_utc(value)
+    return local_wall_clock_to_utc(value)
+
+
+def parse_calendar_date(raw: str | None) -> date | None:
+    """The Trinidad calendar day. Raises ValueError on an unknown format."""
+    cleaned = (raw or "").strip()
+    if not cleaned:
+        return None
+    value, is_utc, has_time = _read_date_value(cleaned)
+    if not has_time:
+        return value.date()
+    if value.tzinfo is not None or is_utc:
+        return local_date(value)
+    return value.date()
+
+
+def _parse_timestamp_cell(row: dict[str, str], column: str, row_number: int) -> datetime | None:
+    try:
+        return parse_timestamp(row.get(column))
+    except ValueError:
+        raise IngestFormatError(f"Row {row_number}: {column} {DATE_FORMAT_HELP}") from None
+
+
+def _parse_date_cell(row: dict[str, str], column: str, row_number: int) -> date | None:
+    try:
+        return parse_calendar_date(row.get(column))
+    except ValueError:
+        raise IngestFormatError(f"Row {row_number}: {column} {DATE_FORMAT_HELP}") from None
 
 
 def compute_dedup_hash(id_number_raw: str | None, salt: str) -> str | None:
@@ -147,17 +246,19 @@ def parse_row(row: dict[str, str], salt: str, *, row_number: int = 2) -> dict:
         "object_id": _require_object_id(row, row_number),
         "corporation": corporation,
         "raw_corporation": raw_corporation,
-        "community": (row.get("Community") or "").strip() or None,
+        # The form gained a second Community question in 2023: older records
+        # fill the first, newer ones the second, almost never both.
+        "community": _cell(row, "Community") or _cell(row, "Community_2") or None,
         "street": street or None,
         "incident_type": incident_type,
         "raw_incident_type": raw_incident_type,
         "incident_type_other": (row.get("Other - Incident Type") or "").strip() or None,
         "incident_summary": (row.get("Incident Summary") or "").strip() or None,
-        "event_date": _parse_datetime_cell(row, "Date of Event", row_number),
+        "event_date": _parse_date_cell(row, "Date of Event", row_number),
         "event_time": (row.get("Time of Event") or "").strip() or None,
-        "assessment_date": _parse_datetime_cell(row, "Assessment Date", row_number),
-        "creation_date": _parse_datetime_cell(row, "CreationDate", row_number),
-        "edit_date": _parse_datetime_cell(row, "EditDate", row_number),
+        "assessment_date": _parse_date_cell(row, "Assessment Date", row_number),
+        "creation_date": _parse_timestamp_cell(row, "CreationDate", row_number),
+        "edit_date": _parse_timestamp_cell(row, "EditDate", row_number),
         "occupants_count": parse_occupants(
             row.get("Household Occupants"), row.get("If more than 6 persons - Household Occupants")
         ),
@@ -187,10 +288,19 @@ def parse_row(row: dict[str, str], salt: str, *, row_number: int = 2) -> dict:
 
 
 def ingest_csv(file_path: Path, session: Session, salt: str) -> IngestResult:
-    with open(file_path, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        require_survey123_headers(list(reader.fieldnames or []))
-        raw_rows = list(reader)
+    # utf-8-sig: ArcGIS starts the file with a byte-order mark, which would
+    # otherwise be glued to the first header and read as "\ufeffObjectID".
+    with open(file_path, newline="", encoding="utf-8-sig") as f:
+        reader = csv.reader(f)
+        header = normalize_headers(next(reader, []))
+        require_survey123_headers(header)
+        raw_rows = [dict(zip(header, values)) for values in reader if any(values)]
+
+    warnings = [
+        f"Column {name!r} is not in this CSV, so it was left blank on every row."
+        for name in EXPECTED_COLUMNS
+        if name not in header
+    ]
 
     # Spreadsheet row: the header is row 1, so the first data row is row 2.
     parsed = [
@@ -198,7 +308,7 @@ def ingest_csv(file_path: Path, session: Session, salt: str) -> IngestResult:
         for index, raw in enumerate(raw_rows)
     ]
 
-    batch_groups: dict[tuple[str, datetime], list[int]] = {}
+    batch_groups: dict[tuple[str, date], list[int]] = {}
     for idx, (_raw, fields) in enumerate(parsed):
         if fields["dedup_hash"] is not None and fields["event_date"] is not None:
             key = (fields["dedup_hash"], fields["event_date"])
@@ -214,9 +324,14 @@ def ingest_csv(file_path: Path, session: Session, salt: str) -> IngestResult:
     rows_updated = 0
     duplicates_flagged = 0
     unmapped_values: dict[str, list[str]] = {}
+    unrecognised_bools: dict[str, set[str]] = {}
 
     for idx, (raw, fields) in enumerate(parsed):
         rows_read += 1
+
+        for column in BOOL_COLUMNS:
+            if is_unrecognised_bool(raw.get(column)):
+                unrecognised_bools.setdefault(column, set()).add(raw[column].strip())
 
         if fields["raw_corporation"]:
             values = unmapped_values.setdefault("Municipal Boundary", [])
@@ -273,8 +388,9 @@ def ingest_csv(file_path: Path, session: Session, salt: str) -> IngestResult:
             rows_inserted += 1
         else:
             incoming_edit_date = fields["edit_date"]
+            # as_utc: SQLite hands the stored value back without its offset.
             if incoming_edit_date is not None and (
-                existing.edit_date is None or incoming_edit_date > existing.edit_date
+                existing.edit_date is None or incoming_edit_date > as_utc(existing.edit_date)
             ):
                 for key, value in fields.items():
                     setattr(existing, key, value)
@@ -286,6 +402,10 @@ def ingest_csv(file_path: Path, session: Session, salt: str) -> IngestResult:
 
     session.commit()
 
+    for column, values in unrecognised_bools.items():
+        listed = ", ".join(repr(v) for v in sorted(values))
+        warnings.append(f"{column}: {listed} is not a yes/no answer, so it was read as no.")
+
     return IngestResult(
         rows_read=rows_read,
         rows_inserted=rows_inserted,
@@ -293,4 +413,5 @@ def ingest_csv(file_path: Path, session: Session, salt: str) -> IngestResult:
         duplicates_flagged=duplicates_flagged,
         unmapped_values=unmapped_values,
         pii_columns_dropped=list(PII_COLUMNS),
+        warnings=warnings,
     )

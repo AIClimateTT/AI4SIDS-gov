@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class Citation(BaseModel):
@@ -52,6 +52,9 @@ class IngestResult(BaseModel):
     duplicates_flagged: int
     unmapped_values: dict[str, list[str]]
     pii_columns_dropped: list[str]
+    # Things the officer should know about but that did not stop the upload,
+    # such as a column the parser expected and could not find.
+    warnings: list[str] = Field(default_factory=list)
 
 
 class TemplateParam(BaseModel):

@@ -269,6 +269,8 @@ export type IngestResult = {
   duplicates_flagged: number
   unmapped_values: Record<string, string[]>
   pii_columns_dropped: string[]
+  /** Did not stop the upload, e.g. an expected column was missing. */
+  warnings?: string[]
 }
 
 export type IncidentSource = 'survey123' | 'sitreps'
