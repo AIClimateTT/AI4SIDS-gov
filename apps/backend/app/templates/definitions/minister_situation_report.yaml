@@ -1,55 +1,31 @@
 name: minister_situation_report
-version: 100
+version: 101
 title: Ministerial Situation Report
-description: National situation report for the Minister, built from corporations' SITREP data with validated Survey123 field observation as corroboration.
+description: National situation report for the Minister, in the Full Sitrep 2023 format, built from each corporation's latest filing. Unverified during the event.
 params:
   - name: date_from
     required: true
   - name: date_to
     required: true
+  - name: as_at
+  - name: hazard
+  - name: present_activity
+  - name: alert_level
+  - name: situation_overview
+    multiline: true
+  - name: ministry_response
+    multiline: true
 data_requirements:
   - module: sitreps
-    metric: incidents_by_corporation
-    params: { date_from: "{date_from}", date_to: "{date_to}" }
-  - module: sitreps
-    metric: homes_affected_count
-    params: { date_from: "{date_from}", date_to: "{date_to}" }
-  - module: sitreps
-    metric: casualty_summary
-    params: { date_from: "{date_from}", date_to: "{date_to}" }
-  - module: sitreps
-    metric: relief_actions_summary
-    params: { date_from: "{date_from}", date_to: "{date_to}" }
-  - module: sitreps
-    metric: estimated_damage_total
-    params: { date_from: "{date_from}", date_to: "{date_to}" }
-  - module: survey123
-    metric: incidents_by_corporation
-    params: { date_from: "{date_from}", date_to: "{date_to}" }
-  - module: survey123
-    metric: data_coverage
+    metric: corporation_status
     params: { date_from: "{date_from}", date_to: "{date_to}" }
 narration:
   identity: |
-    You draft the national situation report for the Minister of Rural
-    Development and Local Government of Trinidad and Tobago.
-    Sitrep facts are the corporations’ own verified figures and are
-    authoritative. Survey123 facts are corroboration only. Never merge the two.
+    Rendered from the corporations' filed data, with no generated prose.
   skills:
-    compose: |
-      Lead with infrastructure and operational impact. State casualties once,
-      factually, without embellishment. Keep the whole briefing to one page.
-      Never present a Survey123 figure as a corporation’s own reported number,
-      and never state a combined total across the two sources. Where the
-      sources differ, say so plainly. Cite every figure.
-  output_sections:
-    - situation_overview
-    - present_activity
-    - regional_comparison
-    - relief_and_response
-    - field_data_corroboration
-    - data_gaps
+    compose: Not narrated; rendered from data.
+  output_sections: []
 render:
   format: markdown
-  include_citation_appendix: true
-  layout: narrative
+  include_citation_appendix: false
+  layout: ministerial

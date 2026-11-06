@@ -60,14 +60,14 @@ def test_get_templates_includes_full_template_fields():
 
     body = response.json()
     minister = next(t for t in body if t["name"] == "minister_situation_report")
-    param_names = {p["name"] for p in minister["params"]}
-    assert param_names == {"date_from", "date_to"}
-    assert all(p["required"] for p in minister["params"])
+    required = {p["name"] for p in minister["params"] if p["required"]}
+    assert required == {"date_from", "date_to"}
     assert len(minister["data_requirements"]) > 0
-    assert minister["narration"]["identity"]
-    assert minister["narration"]["skills"]["compose"]
-    assert not minister["narration"]["skills"]["capture"]
-    assert minister["narration"]["output_sections"]
+    summary = next(t for t in body if t["name"] == "survey123_summary")
+    assert summary["narration"]["identity"]
+    assert summary["narration"]["skills"]["compose"]
+    assert not summary["narration"]["skills"]["capture"]
+    assert summary["narration"]["output_sections"]
     corp = next(t for t in body if t["name"] == "corp_situation_report")
     assert {p["name"] for p in corp["params"]} == {"corporation", "submission_id"}
     assert corp["narration"]["skills"]["capture"]

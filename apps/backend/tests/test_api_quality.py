@@ -51,7 +51,7 @@ def _generate(client: TestClient):
     return client.post(
         "/reports",
         json={
-            "template": "minister_situation_report",
+            "template": "survey123_summary",
             "params": {"date_from": "2024-06-01", "date_to": "2024-06-30"},
         },
     )

@@ -39,7 +39,7 @@ def test_list_templates_shows_every_shipped_template():
         _reset_state()
 
 
-def test_generate_minister_situation_report_produces_markdown_report(monkeypatch):
+def test_generate_survey123_summary_produces_markdown_report(monkeypatch):
     # Force the fake, network-free provider regardless of Settings.llm_provider's
     # real-world default ("ollama") — this test must stay testable without a
     # network connection or a running Ollama server, per PLAN.md's "everything
@@ -60,7 +60,7 @@ def test_generate_minister_situation_report_produces_markdown_report(monkeypatch
             app,
             [
                 "generate",
-                "minister_situation_report",
+                "survey123_summary",
                 "--date-from",
                 "2024-06-01",
                 "--date-to",

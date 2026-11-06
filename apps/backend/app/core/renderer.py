@@ -1,11 +1,16 @@
 import re
+from datetime import datetime
 
 from app.core.contracts import FactTable, Template
+from app.core.localtime import local_wall_clock_to_utc, to_local
 from app.modules.survey123.normalize import CORPORATION_LABELS
 
 # Matches the [C001] markers the composer is told to emit, plus any space
 # ahead of them, so stripping "injured [C005]." leaves "injured." not
 # "injured ." — the final variant is prose a reader sees, not a QC view.
+MINISTRY_NAME = "Ministry of Rural Development and Local Government"
+MINISTRY_LOCATION = f"{MINISTRY_NAME}, Kent House"
+
 _CITATION_MARKER = re.compile(r"[ \t]*\[C\d{3}\]")
 
 
@@ -287,6 +292,81 @@ def render_filing(
     return "\n".join(parts)
 
 
+def format_as_at(value: datetime) -> str:
+    """The baselines' form: 4:00 pm on 30/06/2023, in Trinidad time."""
+    local = to_local(value)
+    hour = local.strftime("%I").lstrip("0")
+    return f"{hour}:{local:%M} {local:%p}".replace("AM", "am").replace("PM", "pm") + (
+        f" on {local:%d/%m/%Y}"
+    )
+
+
+def _param(fact_table: FactTable, name: str) -> str:
+    return str(fact_table.params.get(name) or "").strip()
+
+
+def _ministerial_as_at(fact_table: FactTable) -> datetime:
+    raw = _param(fact_table, "as_at")
+    if not raw:
+        return fact_table.generated_at
+    # The form's value is a Trinidad wall-clock reading, not UTC.
+    value = datetime.fromisoformat(raw)
+    return value if value.tzinfo is not None else local_wall_clock_to_utc(value)
+
+
+def _incident_line(fact) -> str:
+    counts = sorted(fact.breakdown.items(), key=lambda item: (-item[1], item[0]))
+    parts = [f"{_humanize(str(name))} {_format_number(count)}" for name, count in counts]
+    return "Incidents reported: " + ", ".join(parts)
+
+
+def render_ministerial(
+    template: Template,
+    fact_table: FactTable,
+    *,
+    include_citations: bool = True,
+) -> str:
+    hazard = _param(fact_table, "hazard").upper()
+    title = f"{hazard} SITUATION REPORT" if hazard else "SITUATION REPORT"
+    parts = [
+        f"# {title}",
+        "",
+        f"**As at:** {format_as_at(_ministerial_as_at(fact_table))}",
+        "",
+        f"**Location:** {MINISTRY_LOCATION}",
+        "",
+    ]
+    for label, name in (("Present Activity", "present_activity"), ("Alert Level", "alert_level")):
+        value = _param(fact_table, name)
+        if value:
+            parts.extend([f"**{label}:** {value}", ""])
+
+    overview = _param(fact_table, "situation_overview")
+    if overview:
+        parts.extend(["## Situation Overview", "", overview, ""])
+
+    facts = [fact for fact in fact_table.facts if fact.metric == "corporation_status"]
+    for corporation, label in CORPORATION_LABELS.items():
+        parts.extend([f"## {label}", ""])
+        own = [fact for fact in facts if fact.scope.get("corporation") == corporation]
+        logs = [fact for fact in own if fact.scope.get("kind") == "log"]
+        incidents = [fact for fact in own if fact.scope.get("kind") == "incidents"]
+        for fact in logs + incidents:
+            text = _incident_line(fact) if fact in incidents else str(fact.value)
+            marker = f" [{fact.citation.cid}]" if include_citations else ""
+            parts.append(f"- {text}{marker}")
+        if not own:
+            parts.append("- No reports at this time.")
+        parts.append("")
+
+    response = _param(fact_table, "ministry_response")
+    if response:
+        parts.extend([f"## Response from the {MINISTRY_NAME}", "", response, ""])
+
+    parts.append("END OF REPORT")
+    return "\n".join(parts) + "\n"
+
+
 def render_report(
     template: Template,
     fact_table: FactTable,
@@ -298,6 +378,8 @@ def render_report(
         return render_filing(
             template, fact_table, narrative, include_citations=include_citations
         )
+    if template.render.layout == "ministerial":
+        return render_ministerial(template, fact_table, include_citations=include_citations)
 
     title = _document_title(template, fact_table)
     prose = narrative.strip()
