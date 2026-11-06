@@ -352,34 +352,6 @@ export type FileSubmissionInput = {
   logsFile?: File
 }
 
-export type ProposedIncident = {
-  corporation: string | null
-  community: string | null
-  street: string | null
-  incident_type: string | null
-  incident_summary: string
-  event_date: string | null
-  injuries_count: number | null
-  deaths_count: number | null
-  source_index: number
-  source_quote: string
-}
-
-export type ProposedLog = {
-  corporation: string | null
-  category: string
-  statement: string
-  item: string | null
-  quantity: number | null
-  unit: string | null
-  status: string | null
-  source_index: number
-  source_quote: string
-}
-
-export type DraftIncident = ProposedIncident & { included: boolean; row_id: string }
-export type DraftLog = ProposedLog & { included: boolean; row_id: string }
-
 export type CaptureIncident = {
   row_id: string
   community: string | null

@@ -6,7 +6,7 @@ from typing import Literal
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.core.citation_check import CitationViolation, check_citations
+from app.core.citation_check import CitationCheckResult, CitationViolation, check_citations
 from app.core.contracts import DataRequirement, Fact, FactTable, Template
 from app.core.llm import LLMClient
 from app.core.registry import get_module
@@ -176,15 +176,20 @@ def narrate_fact_table(
     llm_client: LLMClient,
     data_requirements: list[DataRequirement] | None = None,
 ) -> GeneratedReport:
-    system_prompt = compose_system_prompt(template)
-    user_content = _fact_table_for_llm(fact_table).model_dump_json()
-    narrative = llm_client.generate(system_prompt, user_content)
-    result = check_citations(narrative, fact_table)
-
-    if not result.passed:
-        retry_content = build_retry_content(user_content, result.violations)
-        narrative = llm_client.generate(system_prompt, retry_content)
+    if template.narration.output_sections:
+        system_prompt = compose_system_prompt(template)
+        user_content = _fact_table_for_llm(fact_table).model_dump_json()
+        narrative = llm_client.generate(system_prompt, user_content)
         result = check_citations(narrative, fact_table)
+
+        if not result.passed:
+            retry_content = build_retry_content(user_content, result.violations)
+            narrative = llm_client.generate(system_prompt, retry_content)
+            result = check_citations(narrative, fact_table)
+    else:
+        # The report is rendered from data alone, so there is no prose to check.
+        narrative = ""
+        result = CitationCheckResult(passed=True, violations=[])
 
     status: Literal["ok", "needs_review"] = "ok" if result.passed else "needs_review"
     markdown = render_report(template, fact_table, narrative)
