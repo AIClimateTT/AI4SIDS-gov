@@ -300,7 +300,7 @@ def test_get_reports_list_filters_by_q_and_status(monkeypatch):
     by_template = client.get("/reports", params={"q": "survey123"})
     assert by_template.status_code == 200
     assert by_template.json()["total"] >= 1
-    assert all("minister" in item["template"] for item in by_template.json()["items"])
+    assert all("survey123" in item["template"] for item in by_template.json()["items"])
 
     by_status = client.get("/reports", params={"status": "ok"})
     assert by_status.status_code == 200
