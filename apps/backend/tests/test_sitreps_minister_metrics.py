@@ -160,3 +160,19 @@ def test_window_reads_as_at_as_the_officers_wall_clock(db):
     assert [f.value for f in corporation_status({"date_from": "2026-08-21"}, db)] == [
         "CERT on standby"
     ]
+
+
+def test_a_quantity_missing_from_the_statement_is_not_lost(db):
+    row = _submission(db, datetime(2026, 8, 21, 14))
+    db.add(
+        SituationLog(
+            submission_id=row.id,
+            category="relief_distributed",
+            statement="Tarpaulins issued",
+            quantity=18,
+            unit="units",
+        )
+    )
+    db.flush()
+
+    assert corporation_status(WINDOW, db)[0].value == "Tarpaulins issued (18 units)"

@@ -1,3 +1,4 @@
+import re
 from collections import Counter
 from datetime import date, datetime
 
@@ -41,6 +42,18 @@ def _latest_per_corporation(params: dict, session: Session) -> list[Submission]:
     return [latest[corporation] for corporation in sorted(latest)]
 
 
+def _log_text(log: SituationLog) -> str:
+    """The officer's statement. A quantity held only in its own column is added,
+    so "Tarpaulins issued" with 18 stored does not reach the Minister with no figure."""
+    if log.quantity is None:
+        return log.statement
+    quantity = float(log.quantity)
+    shown = str(int(quantity)) if quantity.is_integer() else str(quantity)
+    if re.search(rf"\b{re.escape(shown)}\b", log.statement):
+        return log.statement
+    return f"{log.statement} ({shown} {log.unit})" if log.unit else f"{log.statement} ({shown})"
+
+
 def corporation_status(params: dict, session: Session) -> list[Fact]:
     window = build_window_label(params.get("date_from"), params.get("date_to"))
     facts: list[Fact] = []
@@ -64,7 +77,7 @@ def corporation_status(params: dict, session: Session) -> list[Fact]:
             facts.append(
                 Fact(
                     metric="corporation_status",
-                    value=log.statement,
+                    value=_log_text(log),
                     unit=None,
                     scope=scope(submission, "log"),
                     breakdown=None,
