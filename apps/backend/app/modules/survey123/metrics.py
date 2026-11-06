@@ -331,6 +331,14 @@ def incidents_by_corporation(params: dict, session: Session | None, model=FieldO
                 [getattr(r, "validation_status", "validated") for r in rows]
             ),
             citation=citation,
+            # An empty window must not read as "nothing happened": the usual
+            # cause is that no data was loaded for it.
+            gaps=[]
+            if rows
+            else [
+                f"No {source_label_of(model)} records found for this period. "
+                "Confirm data for it has been uploaded."
+            ],
         )
     ]
 

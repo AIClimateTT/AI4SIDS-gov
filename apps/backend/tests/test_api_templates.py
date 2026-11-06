@@ -48,6 +48,7 @@ def test_get_templates_returns_every_shipped_template():
         "corp_situation_report",
         "minister_situation_report",
         "field_data_region_review",
+        "survey123_summary",
     }
     assert all(t["version"] >= 100 for t in body)
 

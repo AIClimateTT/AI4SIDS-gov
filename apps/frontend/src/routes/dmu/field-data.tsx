@@ -6,6 +6,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { z } from 'zod'
 
 import { DataTable } from '@/components/data-table'
+import { Survey123ReportCard } from '@/components/dmu/survey123-report-card'
 import {
   EmptyState,
   LoadingBlock,
@@ -162,8 +163,8 @@ function IngestPage() {
         }
       >
         <p className="text-sm text-muted-foreground">
-          This file must be a Survey123 export. ObjectID and GlobalID are
-          required. Dates must be ISO-8601, for example 2024-06-01T09:00:00.
+          This file must be a Survey123 export with ObjectID and GlobalID. Every
+          row must be marked Validated, or the whole file is rejected.
         </p>
         <form
           className="space-y-4"
@@ -190,6 +191,8 @@ function IngestPage() {
           <p className="mt-4 text-sm text-destructive">{ingest.error.message}</p>
         ) : null}
       </ContentCard>
+
+      <Survey123ReportCard />
 
       <StoredIncidents />
     </div>
