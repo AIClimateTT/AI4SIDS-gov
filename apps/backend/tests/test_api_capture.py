@@ -1074,3 +1074,33 @@ def test_csv_import_is_rejected_once_filed(monkeypatch):
         files={"file": ("incidents.csv", INCIDENTS_CSV.read_bytes(), "text/csv")},
     )
     assert response.status_code == 409
+
+
+def test_alert_detail_is_saved_and_reaches_the_filed_submission(tmp_path, monkeypatch):
+    from app.db import SessionLocal
+    from app.modules.sitreps.models import Submission
+
+    client = make_client(monkeypatch)
+    created = client.post(
+        "/capture/sessions", json={"corporation": "arima_borough_corporation"}
+    ).json()
+    wording = "Flood Alert #2 - Yellow Level - extended until Mon 6pm"
+
+    saved = client.put(
+        f"/capture/sessions/{created['id']}",
+        json={
+            "alert_detail": wording,
+            "incidents": [],
+            "logs": [{"row_id": "1", "category": "activity", "statement": "CERT on standby"}],
+        },
+    )
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["alert_detail"] == wording
+
+    filed = client.post(f"/capture/sessions/{created['id']}/file")
+    assert filed.status_code == 201, filed.text
+
+    db = SessionLocal()
+    submission = db.get(Submission, filed.json()["ingest"]["submission_id"])
+    assert submission.alert_detail == wording
+    db.close()

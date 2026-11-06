@@ -26,7 +26,14 @@ export type EventChipProps = {
   disabled?: boolean
 }
 
-const HAZARD_TYPES = ['flood', 'landslide', 'wind', 'fire', 'other'] as const
+const HAZARD_TYPES = [
+  'adverse_weather',
+  'flood',
+  'landslide',
+  'wind',
+  'fire',
+  'other',
+] as const
 
 function todayIsoDate(): string {
   return new Date().toISOString().slice(0, 10)

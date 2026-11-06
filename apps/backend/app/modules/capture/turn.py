@@ -135,6 +135,7 @@ def coerce_working_set(raw: dict, previous: CaptureWorkingSet) -> CaptureWorking
     payload = {
         "as_at": as_at,
         "alert_level": capture_raw.get("alert_level", previous.alert_level),
+        "alert_detail": capture_raw.get("alert_detail", previous.alert_detail),
         "present_activity": capture_raw.get(
             "present_activity", previous.present_activity
         ),

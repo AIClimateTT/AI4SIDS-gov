@@ -414,6 +414,7 @@ export type CaptureSession = {
   status: 'draft' | 'filed' | string
   as_at: string
   alert_level: string
+  alert_detail?: string | null
   present_activity: string | null
   situation_overview: string | null
   incidents: CaptureIncident[]
@@ -431,6 +432,7 @@ export type CaptureSession = {
 export type CaptureSessionUpdate = {
   as_at?: string
   alert_level?: string
+  alert_detail?: string | null
   present_activity?: string | null
   situation_overview?: string | null
   incidents: CaptureIncident[]

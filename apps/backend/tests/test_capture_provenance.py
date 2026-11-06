@@ -18,6 +18,7 @@ def test_session_fields_cover_the_editable_header():
     assert SESSION_FIELDS == (
         "as_at",
         "alert_level",
+        "alert_detail",
         "present_activity",
         "situation_overview",
     )
@@ -238,3 +239,12 @@ def test_alert_level_set_by_hand_is_not_reported_missing():
     working = CaptureWorkingSet(alert_level="none", manual_fields=["alert_level"])
     paths = {item.path for item in missing_fields(working)}
     assert "alert_level" not in paths
+
+
+def test_alert_detail_is_a_pinned_session_field():
+    previous = CaptureWorkingSet(
+        alert_detail="Flood Alert #2 - Yellow Level", manual_fields=["alert_detail"]
+    )
+    model_said = CaptureWorkingSet(alert_detail="Yellow alert")
+
+    assert pin_manual_fields(model_said, previous).alert_detail == "Flood Alert #2 - Yellow Level"

@@ -3,6 +3,7 @@
 export const SESSION_FIELDS = [
   'as_at',
   'alert_level',
+  'alert_detail',
   'present_activity',
   'situation_overview',
 ] as const

@@ -80,6 +80,7 @@ class CaptureSessionResponse(BaseModel):
     status: str
     as_at: datetime
     alert_level: str
+    alert_detail: str | None
     present_activity: str | None
     situation_overview: str | None
     incidents: list[CaptureIncident]
@@ -111,6 +112,7 @@ class StreamTurnRequest(BaseModel):
 class UpdateSessionRequest(BaseModel):
     as_at: datetime | None = None
     alert_level: str | None = None
+    alert_detail: str | None = None
     present_activity: str | None = None
     situation_overview: str | None = None
     incidents: list[CaptureIncident]
@@ -169,6 +171,7 @@ def _to_response(row: CaptureSession) -> CaptureSessionResponse:
         status=row.status,
         as_at=row.as_at,
         alert_level=row.alert_level,
+        alert_detail=row.alert_detail,
         present_activity=row.present_activity,
         situation_overview=row.situation_overview,
         incidents=working.incidents,
@@ -458,6 +461,9 @@ def put_session(
     working = CaptureWorkingSet(
         as_at=request.as_at or row.as_at,
         alert_level=request.alert_level or row.alert_level,
+        alert_detail=(
+            request.alert_detail if request.alert_detail is not None else row.alert_detail
+        ),
         present_activity=(
             request.present_activity
             if request.present_activity is not None
@@ -571,6 +577,7 @@ def ingest_working_set(
         as_at=working.as_at or row.as_at,
         event_id=row.event_id,
         alert_level=working.alert_level,
+        alert_detail=working.alert_detail,
         present_activity=working.present_activity,
         situation_overview=working.situation_overview,
         source_name="conversation",

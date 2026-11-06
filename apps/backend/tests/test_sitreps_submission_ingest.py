@@ -351,3 +351,17 @@ def test_row_errors_are_persisted_on_the_submission(tmp_path):
     assert stored.row_errors == [
         {"file": "incidents", "row_number": 3, "reason": "Row ID is required"}
     ]
+
+
+def test_ingest_submission_stores_alert_detail(tmp_path):
+    session = make_session(tmp_path)
+
+    result = ingest_submission(
+        session,
+        corporation=CORP,
+        as_at=datetime(2023, 5, 5, 15, 0),
+        alert_detail="Flood Alert #2 - Yellow Level",
+        logs_path=LOGS,
+    )
+
+    assert session.get(Submission, result.submission_id).alert_detail == "Flood Alert #2 - Yellow Level"
