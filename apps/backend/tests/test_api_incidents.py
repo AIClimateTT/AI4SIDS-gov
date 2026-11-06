@@ -11,6 +11,7 @@ from app.modules.sitreps.models import SitrepIncident
 from app.modules.sitreps.store import create_event, create_submission
 
 FIXTURE_PATH = Path(__file__).parent.parent / "fixtures" / "sample_small.csv"
+VALIDATED_FIXTURE_PATH = Path(__file__).parent.parent / "fixtures" / "sample_small_validated.csv"
 DEV_DB_PATH = Path(__file__).parent.parent / "dev.db"
 CORP = "diego_martin_regional_corporati"
 
@@ -76,7 +77,7 @@ def _seed_sitrep() -> None:
 
 def test_get_incidents_lists_survey123_and_sitrep_rows():
     client = make_client()
-    with open(FIXTURE_PATH, "rb") as handle:
+    with open(VALIDATED_FIXTURE_PATH, "rb") as handle:
         ingested = client.post(
             "/ingest/survey123",
             files={"file": ("sample_small.csv", handle, "text/csv")},
@@ -88,7 +89,7 @@ def test_get_incidents_lists_survey123_and_sitrep_rows():
 
     assert response.status_code == 200, response.text
     body = response.json()
-    assert body["total"] == 31
+    assert body["total"] == 22
     sources = {item["source"] for item in body["items"]}
     assert sources == {"survey123", "sitreps"}
     sitrep = next(item for item in body["items"] if item["source"] == "sitreps")
@@ -99,7 +100,7 @@ def test_get_incidents_lists_survey123_and_sitrep_rows():
 
 def test_get_incidents_filters_by_source_and_search():
     client = make_client()
-    with open(FIXTURE_PATH, "rb") as handle:
+    with open(VALIDATED_FIXTURE_PATH, "rb") as handle:
         client.post(
             "/ingest/survey123",
             files={"file": ("sample_small.csv", handle, "text/csv")},
@@ -111,7 +112,7 @@ def test_get_incidents_filters_by_source_and_search():
     assert sitreps.json()["total"] == 1
 
     field = client.get("/incidents", params={"source": "survey123", "page_size": 100})
-    assert field.json()["total"] == 30
+    assert field.json()["total"] == 21
     assert all(item["source"] == "survey123" for item in field.json()["items"])
 
     found = client.get("/incidents", params={"q": "river over"})

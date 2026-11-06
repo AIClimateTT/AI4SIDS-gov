@@ -7,7 +7,7 @@ from app.config import settings
 from app.core.contracts import Fact, IngestResult, MetricSpec
 from app.core.mcp_module import McpDataModule
 from app.core.registry import DataModule
-from app.modules.survey123.ingest import ingest_csv
+from app.modules.survey123.ingest import ingest_survey123_export
 from app.modules.survey123.metrics import METRIC_FUNCTIONS, METRIC_SPECS
 from app.modules.survey123.models import FieldObservation
 
@@ -20,7 +20,7 @@ class Survey123Module:
 
         session = SessionLocal()
         try:
-            return ingest_csv(file_path, session, settings.dedup_salt)
+            return ingest_survey123_export(file_path, session, settings.dedup_salt)
         finally:
             session.close()
 

@@ -9,6 +9,7 @@ from cli import app
 runner = CliRunner()
 
 FIXTURE_PATH = Path(__file__).parent.parent / "fixtures" / "sample_small.csv"
+VALIDATED_FIXTURE_PATH = Path(__file__).parent.parent / "fixtures" / "sample_small_validated.csv"
 DEV_DB_PATH = Path(__file__).parent.parent / "dev.db"
 
 
@@ -19,12 +20,12 @@ def test_ingest_survey123_command_reports_summary():
     Base.metadata.create_all(db_engine)
 
     try:
-        result = runner.invoke(app, ["ingest", "survey123", str(FIXTURE_PATH)])
+        result = runner.invoke(app, ["ingest", "survey123", str(VALIDATED_FIXTURE_PATH)])
 
         assert result.exit_code == 0, result.stdout
-        assert "rows_read=30" in result.stdout
-        assert "rows_inserted=30" in result.stdout
-        assert "duplicates_flagged=4" in result.stdout
+        assert "rows_read=21" in result.stdout
+        assert "rows_inserted=21" in result.stdout
+        assert "duplicates_flagged=2" in result.stdout
     finally:
         reset_registry()
         if DEV_DB_PATH.exists():

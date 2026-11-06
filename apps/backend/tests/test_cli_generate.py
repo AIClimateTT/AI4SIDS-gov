@@ -10,6 +10,7 @@ from cli import app
 runner = CliRunner()
 
 FIXTURE_PATH = Path(__file__).parent.parent / "fixtures" / "sample_small.csv"
+VALIDATED_FIXTURE_PATH = Path(__file__).parent.parent / "fixtures" / "sample_small_validated.csv"
 DEV_DB_PATH = Path(__file__).parent.parent / "dev.db"
 
 
@@ -51,7 +52,7 @@ def test_generate_minister_situation_report_produces_markdown_report(monkeypatch
     try:
         runner.invoke(app, ["templates", "import-all", str(Path(__file__).parent.parent / "app" / "templates" / "definitions")])
 
-        ingest_result = runner.invoke(app, ["ingest", "survey123", str(FIXTURE_PATH)])
+        ingest_result = runner.invoke(app, ["ingest", "survey123", str(VALIDATED_FIXTURE_PATH)])
         assert ingest_result.exit_code == 0, ingest_result.stdout
 
         result = runner.invoke(
@@ -175,7 +176,7 @@ def test_generate_accepts_a_canonical_corporation(monkeypatch):
 
     try:
         runner.invoke(app, ["templates", "import-all", str(Path(__file__).parent.parent / "app" / "templates" / "definitions")])
-        runner.invoke(app, ["ingest", "survey123", str(FIXTURE_PATH)])
+        runner.invoke(app, ["ingest", "survey123", str(VALIDATED_FIXTURE_PATH)])
 
         result = runner.invoke(
             app,
