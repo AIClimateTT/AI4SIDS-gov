@@ -28,7 +28,6 @@ import { Route as DmuReportsReportIdRouteImport } from './routes/dmu/reports/$re
 import { Route as DmuCorporationsCorporationRouteImport } from './routes/dmu/corporations/$corporation'
 import { Route as DmuAdminUsersRouteImport } from './routes/dmu/admin/users'
 import { Route as DmuAdminQualityRouteImport } from './routes/dmu/admin/quality'
-import { Route as DmuAdminModulesRouteImport } from './routes/dmu/admin/modules'
 import { Route as CorpPrintSessionIdRouteImport } from './routes/corp/print.$sessionId'
 import { Route as CorpFilingsSubmissionIdRouteImport } from './routes/corp/filings/$submissionId'
 import { Route as CorpCSessionIdRouteImport } from './routes/corp/c/$sessionId'
@@ -129,11 +128,6 @@ const DmuAdminQualityRoute = DmuAdminQualityRouteImport.update({
   path: '/quality',
   getParentRoute: () => DmuAdminRoute,
 } as any)
-const DmuAdminModulesRoute = DmuAdminModulesRouteImport.update({
-  id: '/modules',
-  path: '/modules',
-  getParentRoute: () => DmuAdminRoute,
-} as any)
 const CorpPrintSessionIdRoute = CorpPrintSessionIdRouteImport.update({
   id: '/print/$sessionId',
   path: '/print/$sessionId',
@@ -171,7 +165,6 @@ export interface FileRoutesByFullPath {
   '/corp/c/$sessionId': typeof CorpCSessionIdRoute
   '/corp/filings/$submissionId': typeof CorpFilingsSubmissionIdRoute
   '/corp/print/$sessionId': typeof CorpPrintSessionIdRoute
-  '/dmu/admin/modules': typeof DmuAdminModulesRoute
   '/dmu/admin/quality': typeof DmuAdminQualityRoute
   '/dmu/admin/users': typeof DmuAdminUsersRoute
   '/dmu/corporations/$corporation': typeof DmuCorporationsCorporationRoute
@@ -194,7 +187,6 @@ export interface FileRoutesByTo {
   '/corp/c/$sessionId': typeof CorpCSessionIdRoute
   '/corp/filings/$submissionId': typeof CorpFilingsSubmissionIdRoute
   '/corp/print/$sessionId': typeof CorpPrintSessionIdRoute
-  '/dmu/admin/modules': typeof DmuAdminModulesRoute
   '/dmu/admin/quality': typeof DmuAdminQualityRoute
   '/dmu/admin/users': typeof DmuAdminUsersRoute
   '/dmu/corporations/$corporation': typeof DmuCorporationsCorporationRoute
@@ -221,7 +213,6 @@ export interface FileRoutesById {
   '/corp/c/$sessionId': typeof CorpCSessionIdRoute
   '/corp/filings/$submissionId': typeof CorpFilingsSubmissionIdRoute
   '/corp/print/$sessionId': typeof CorpPrintSessionIdRoute
-  '/dmu/admin/modules': typeof DmuAdminModulesRoute
   '/dmu/admin/quality': typeof DmuAdminQualityRoute
   '/dmu/admin/users': typeof DmuAdminUsersRoute
   '/dmu/corporations/$corporation': typeof DmuCorporationsCorporationRoute
@@ -248,7 +239,6 @@ export interface FileRouteTypes {
     | '/corp/c/$sessionId'
     | '/corp/filings/$submissionId'
     | '/corp/print/$sessionId'
-    | '/dmu/admin/modules'
     | '/dmu/admin/quality'
     | '/dmu/admin/users'
     | '/dmu/corporations/$corporation'
@@ -271,7 +261,6 @@ export interface FileRouteTypes {
     | '/corp/c/$sessionId'
     | '/corp/filings/$submissionId'
     | '/corp/print/$sessionId'
-    | '/dmu/admin/modules'
     | '/dmu/admin/quality'
     | '/dmu/admin/users'
     | '/dmu/corporations/$corporation'
@@ -297,7 +286,6 @@ export interface FileRouteTypes {
     | '/corp/c/$sessionId'
     | '/corp/filings/$submissionId'
     | '/corp/print/$sessionId'
-    | '/dmu/admin/modules'
     | '/dmu/admin/quality'
     | '/dmu/admin/users'
     | '/dmu/corporations/$corporation'
@@ -451,13 +439,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DmuAdminQualityRouteImport
       parentRoute: typeof DmuAdminRoute
     }
-    '/dmu/admin/modules': {
-      id: '/dmu/admin/modules'
-      path: '/modules'
-      fullPath: '/dmu/admin/modules'
-      preLoaderRoute: typeof DmuAdminModulesRouteImport
-      parentRoute: typeof DmuAdminRoute
-    }
     '/corp/print/$sessionId': {
       id: '/corp/print/$sessionId'
       path: '/print/$sessionId'
@@ -520,13 +501,11 @@ const CorpRouteChildren: CorpRouteChildren = {
 const CorpRouteWithChildren = CorpRoute._addFileChildren(CorpRouteChildren)
 
 interface DmuAdminRouteChildren {
-  DmuAdminModulesRoute: typeof DmuAdminModulesRoute
   DmuAdminQualityRoute: typeof DmuAdminQualityRoute
   DmuAdminUsersRoute: typeof DmuAdminUsersRoute
 }
 
 const DmuAdminRouteChildren: DmuAdminRouteChildren = {
-  DmuAdminModulesRoute: DmuAdminModulesRoute,
   DmuAdminQualityRoute: DmuAdminQualityRoute,
   DmuAdminUsersRoute: DmuAdminUsersRoute,
 }

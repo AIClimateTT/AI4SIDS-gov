@@ -31,7 +31,6 @@ from sqlalchemy import delete  # noqa: E402
 from app.config import settings  # noqa: E402
 from app.core.engine import generate_report  # noqa: E402
 from app.core.llm import get_default_llm_client  # noqa: E402
-from app.core.registry import ensure_default_modules_registered  # noqa: E402
 from app.core.report_models import Report  # noqa: E402
 from app.core.report_store import save_report  # noqa: E402
 from app.core.template_catalog import get_template  # noqa: E402
@@ -270,7 +269,6 @@ def main() -> None:
     # Reports, saved. The CLI's generate command prints to stdout and never
     # persists — only POST /reports calls save_report — so a demo seeded
     # without this step leaves the reports list empty.
-    ensure_default_modules_registered()
     llm = get_default_llm_client()
     window = {"date_from": "2023-06-01", "date_to": "2023-06-30"}
     wanted = [

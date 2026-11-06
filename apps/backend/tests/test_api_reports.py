@@ -3,7 +3,6 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.core.registry import reset_registry
 from app.db import Base, engine as db_engine
 from app import create_app
 from app.modules.survey123.ingest import ingest_csv
@@ -15,12 +14,10 @@ DEV_DB_PATH = Path(__file__).parent.parent / "dev.db"
 
 @pytest.fixture(autouse=True)
 def _clean_registry():
-    reset_registry()
     db_engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()
     yield
-    reset_registry()
     db_engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()
@@ -183,32 +180,6 @@ def test_post_reports_unknown_corporation_returns_400(monkeypatch):
 
     assert response.status_code == 400
     assert "unknown corporation" in response.json()["detail"]
-
-
-def test_post_reports_rejects_an_unknown_corporation_in_a_requirement_override(
-    monkeypatch,
-):
-    # data_requirements is caller-controlled, so a literal corporation can
-    # reach a query without ever appearing in params.
-    client = make_client(monkeypatch)
-    _ingest_fixture()
-
-    response = client.post(
-        "/reports",
-        json={
-            "template": "survey123_summary",
-            "params": {"date_from": "2024-06-01", "date_to": "2024-06-30"},
-            "data_requirements": [
-                {
-                    "module": "survey123",
-                    "metric": "incident_count",
-                    "params": {"corporation": "Sangre Grande"},
-                }
-            ],
-        },
-    )
-
-    assert response.status_code == 400
 
 
 def test_post_reports_still_accepts_a_placeholder_corporation_in_a_requirement(

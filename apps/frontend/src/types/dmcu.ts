@@ -33,22 +33,6 @@ export type TemplateInfo = {
   narration: NarrationInfo
 }
 
-export type MetricSpec = {
-  name: string
-  description: string
-  params_schema: {
-    type?: string
-    properties?: Record<string, unknown>
-    [key: string]: unknown
-  }
-  module: string
-}
-
-export type ModuleInfo = {
-  name: string
-  metrics: MetricSpec[]
-}
-
 export type CitationViolation = {
   kind: string
   detail: string
@@ -238,8 +222,6 @@ export type OverviewSummary = {
   needs_review_count: number
   recent_reports: ReportListItem[]
 }
-
-export type IngestModuleName = 'survey123' | 'sitreps'
 
 export type IngestResult = {
   rows_read: number

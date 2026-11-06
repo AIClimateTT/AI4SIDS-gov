@@ -1,11 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
-import { ingestModule } from '@/lib/api/ingest'
+import { uploadFieldData } from '@/lib/api/ingest'
 import { incidentKeys } from '@/lib/queries/incidents'
 import { mutationOptions } from '@/lib/queries/tanstack-helpers'
 import { overviewKeys } from '@/lib/queries/overview'
-import type { IngestModuleName } from '@/types/dmcu'
 
 // ---------------------------------------------------------------------------
 // Key Factory
@@ -22,15 +21,7 @@ export const ingestKeys = {
 export const ingestMutations = {
   upload: () =>
     mutationOptions({
-      mutationFn: ({
-        moduleName,
-        file,
-        corporation,
-      }: {
-        moduleName: IngestModuleName
-        file: File
-        corporation?: string
-      }) => ingestModule(moduleName, file, corporation),
+      mutationFn: ({ file }: { file: File }) => uploadFieldData(file),
     }),
 }
 

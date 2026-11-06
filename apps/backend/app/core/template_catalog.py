@@ -9,7 +9,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from app.core.contracts import Template
-from app.core.registry import ensure_default_modules_registered, get_module
+from app.core.metrics import SOURCES, metric_names
 from app.templates.loader import load_template
 
 DEFINITIONS_DIR = Path(__file__).parent.parent / "templates" / "definitions"
@@ -17,15 +17,12 @@ PLACEHOLDER_RE = re.compile(r"^\{(\w+)\}$")
 
 
 def validate_template(template: Template) -> None:
-    ensure_default_modules_registered()
     param_names = {p.name for p in template.params}
 
     for requirement in template.data_requirements:
-        module = get_module(requirement.module)
-        if module is None:
-            raise ValueError(f"unknown data module: {requirement.module}")
-        metric_names = {spec.name for spec in module.list_metrics()}
-        if requirement.metric not in metric_names:
+        if requirement.module not in SOURCES:
+            raise ValueError(f"unknown data source: {requirement.module}")
+        if requirement.metric not in metric_names(requirement.module):
             raise ValueError(
                 f"unknown metric {requirement.metric!r} for module {requirement.module!r}"
             )

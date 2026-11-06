@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.citation_check import CitationCheckResult, CitationViolation, check_citations
 from app.core.contracts import DataRequirement, Fact, FactTable, Template
 from app.core.llm import LLMClient
-from app.core.registry import get_module
+from app.core.metrics import run_metric
 from app.core.renderer import render_report
 from app.quality.contracts import QualityEval
 from app.quality.score import score_quality
@@ -72,11 +72,8 @@ def assemble_fact_table(
     gaps: list[str] = []
 
     for requirement in requirements:
-        module = get_module(requirement.module)
-        if module is None:
-            raise ValueError(f"unknown data module: {requirement.module}")
         resolved = resolve_params(requirement.params, params)
-        facts = module.run_metric(requirement.metric, resolved, session)
+        facts = run_metric(requirement.module, requirement.metric, resolved, session)
         if not facts:
             gaps.append(f"No data returned for {requirement.module}.{requirement.metric} with params {resolved}")
         # A metric knows things about its own rows that the caller cannot see

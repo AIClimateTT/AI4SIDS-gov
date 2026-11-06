@@ -3,9 +3,9 @@ from pathlib import Path
 import pytest
 from sqlalchemy.orm import sessionmaker
 
+from app.core.metrics import metric_names, run_metric
 from app.db import Base, make_engine
 from app.modules.survey123.ingest import ingest_csv
-from app.modules.survey123.module import survey123_module
 
 FIXTURE_PATH = Path(__file__).parent.parent / "fixtures" / "sample_small.csv"
 
@@ -33,19 +33,13 @@ def make_session(tmp_path):
 
 
 def test_list_metrics_returns_all_nine_with_correct_names():
-    specs = survey123_module.list_metrics()
-
-    assert {spec.name for spec in specs} == EXPECTED_METRIC_NAMES
-    assert len(specs) == 10
-    for spec in specs:
-        assert spec.module == "survey123"
-        assert spec.params_schema["type"] == "object"
+    assert metric_names("survey123") == EXPECTED_METRIC_NAMES
 
 
 def test_run_metric_dispatches_to_incident_count(tmp_path):
     session = make_session(tmp_path)
 
-    facts = survey123_module.run_metric("incident_count", {}, session)
+    facts = run_metric("survey123", "incident_count", {}, session)
 
     assert len(facts) == 1
     assert facts[0].value == 19
@@ -54,7 +48,7 @@ def test_run_metric_dispatches_to_incident_count(tmp_path):
 def test_run_metric_tags_citation_module_as_survey123(tmp_path):
     session = make_session(tmp_path)
 
-    facts = survey123_module.run_metric("incident_count", {}, session)
+    facts = run_metric("survey123", "incident_count", {}, session)
 
     assert facts[0].citation.module == "survey123"
     assert facts[0].citation.cid == "survey123-incident_count-0"
@@ -63,7 +57,7 @@ def test_run_metric_tags_citation_module_as_survey123(tmp_path):
 def test_run_metric_dispatches_to_data_coverage_multi_fact(tmp_path):
     session = make_session(tmp_path)
 
-    facts = survey123_module.run_metric("data_coverage", {}, session)
+    facts = run_metric("survey123", "data_coverage", {}, session)
 
     assert len(facts) == 4
 
@@ -72,4 +66,4 @@ def test_run_metric_still_raises_for_unknown_metric(tmp_path):
     session = make_session(tmp_path)
 
     with pytest.raises(ValueError, match="not_a_real_metric"):
-        survey123_module.run_metric("not_a_real_metric", {}, session)
+        run_metric("survey123", "not_a_real_metric", {}, session)

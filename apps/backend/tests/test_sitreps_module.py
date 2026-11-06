@@ -3,9 +3,8 @@ from pathlib import Path
 import pytest
 from sqlalchemy.orm import sessionmaker
 
+from app.core.metrics import run_metric
 from app.db import Base, make_engine
-from app.modules.sitreps.module import sitrep_module
-from app.modules.survey123.module import survey123_module
 
 SITREP_FIXTURE = Path(__file__).parent.parent / "fixtures" / "sample_sitrep_small.csv"
 
@@ -17,43 +16,11 @@ def make_session(tmp_path):
     return Session()
 
 
-def test_sitrep_module_has_correct_name():
-    assert sitrep_module.name == "sitreps"
-
-
-def test_sitrep_module_ingest_raises_not_implemented():
-    with pytest.raises(NotImplementedError, match="sitreps"):
-        sitrep_module.ingest(SITREP_FIXTURE)
-
-
-def test_sitrep_module_list_metrics_reports_module_as_sitreps():
-    specs = sitrep_module.list_metrics()
-
-    assert all(spec.module == "sitreps" for spec in specs)
-    assert {spec.name for spec in specs} == (
-        {spec.name for spec in survey123_module.list_metrics()} - {"data_coverage"}
-    ) | {"relief_stock_summary", "activity_log", "corporation_status"}
-
-
 def test_sitrep_module_run_metric_raises_for_unknown_metric(tmp_path):
     session = make_session(tmp_path)
 
     with pytest.raises(ValueError, match="not_a_real_metric"):
-        sitrep_module.run_metric("not_a_real_metric", {}, session)
-
-
-def test_sitreps_does_not_advertise_a_metric_that_returns_nothing():
-    # data_coverage measures validation status, which corp SITREP rows do not
-    # have. Advertising it lets a template request a metric that can only ever
-    # yield zero facts -- and a report with zero facts is marked "ok".
-    from app.core.registry import ensure_default_modules_registered, get_module, reset_registry
-
-    reset_registry()
-    ensure_default_modules_registered()
-
-    names = {spec.name for spec in get_module("sitreps").list_metrics()}
-
-    assert "data_coverage" not in names
+        run_metric("sitreps", "not_a_real_metric", {}, session)
 
 
 def make_sitrep_rows(session, count: int, *, incident_type: str, raw: str | None):
@@ -105,8 +72,8 @@ def test_unmapped_incident_type_rows_raise_a_gap_the_report_can_state(tmp_path):
     session = make_session(tmp_path)
     make_sitrep_rows(session, 20, incident_type="unmapped", raw="Volcanic Eruption")
 
-    counted = sitrep_module.run_metric("incident_count", {}, session)[0]
-    homes = sitrep_module.run_metric("homes_affected_count", {}, session)[0]
+    counted = run_metric("sitreps", "incident_count", {}, session)[0]
+    homes = run_metric("sitreps", "homes_affected_count", {}, session)[0]
 
     assert counted.value == 20
     assert any("20 rows" in gap for gap in counted.gaps)
@@ -119,7 +86,7 @@ def test_a_breakdown_never_shows_a_minister_the_word_unmapped(tmp_path):
     session = make_session(tmp_path)
     make_sitrep_rows(session, 3, incident_type="unmapped", raw="Volcanic Eruption")
 
-    fact = sitrep_module.run_metric("incident_count", {}, session)[0]
+    fact = run_metric("sitreps", "incident_count", {}, session)[0]
 
     assert fact.breakdown == {"Volcanic Eruption": 3}
     assert "unmapped" not in fact.breakdown
@@ -129,7 +96,7 @@ def test_an_unmapped_row_with_no_raw_value_gets_a_readable_label(tmp_path):
     session = make_session(tmp_path)
     make_sitrep_rows(session, 2, incident_type="unmapped", raw=None)
 
-    fact = sitrep_module.run_metric("incident_count", {}, session)[0]
+    fact = run_metric("sitreps", "incident_count", {}, session)[0]
 
     assert fact.breakdown == {"(unrecognised incident type)": 2}
 
@@ -138,8 +105,8 @@ def test_recognised_incident_types_raise_no_gap(tmp_path):
     session = make_session(tmp_path)
     make_sitrep_rows(session, 4, incident_type="flooding_", raw=None)
 
-    counted = sitrep_module.run_metric("incident_count", {}, session)[0]
-    homes = sitrep_module.run_metric("homes_affected_count", {}, session)[0]
+    counted = run_metric("sitreps", "incident_count", {}, session)[0]
+    homes = run_metric("sitreps", "homes_affected_count", {}, session)[0]
 
     assert counted.gaps == []
     assert homes.gaps == []
@@ -151,10 +118,7 @@ def test_a_metric_gap_reaches_the_fact_tables_data_gaps(tmp_path):
     # points the model at FactTable.gaps and the renderer prints them.
     from app.core.contracts import DataRequirement, NarrationConfig, RenderConfig, Template
     from app.core.engine import assemble_fact_table
-    from app.core.registry import ensure_default_modules_registered, reset_registry
 
-    reset_registry()
-    ensure_default_modules_registered()
 
     session = make_session(tmp_path)
     make_sitrep_rows(session, 20, incident_type="unmapped", raw="Volcanic Eruption")
@@ -190,6 +154,6 @@ def test_sitrep_module_run_metric_still_serves_data_coverage(tmp_path):
     # naming it must not crash -- run_metric still serves it, returning [].
     session = make_session(tmp_path)
 
-    facts = sitrep_module.run_metric("data_coverage", {}, session)
+    facts = run_metric("sitreps", "data_coverage", {}, session)
 
     assert facts == []

@@ -2,7 +2,6 @@ from pathlib import Path
 
 import pytest
 
-from app.core.registry import reset_registry
 from app.db import engine as db_engine
 from app.auth.passwords import hash_password
 from tests.auth_helpers import FakeEmailSender, create_user, make_auth_client
@@ -16,12 +15,10 @@ DEV_DB_PATH = Path(__file__).parent.parent / "dev.db"
 
 @pytest.fixture(autouse=True)
 def _clean_state():
-    reset_registry()
     db_engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()
     yield
-    reset_registry()
     db_engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()

@@ -6,10 +6,10 @@ from sqlalchemy.orm import Session
 
 from app.core.engine import generate_report
 from app.core.llm import get_default_llm_client
-from app.core.registry import ensure_default_modules_registered
 from app.core.template_catalog import get_template, list_templates
 from app.db import SessionLocal
-from app.modules.survey123.module import survey123_module
+from app.config import settings
+from app.modules.survey123.ingest import IngestFormatError, ingest_survey123_export
 from app.modules.survey123.normalize import CANONICAL_CORPORATIONS
 from app.templates.loader import load_template
 
@@ -20,7 +20,14 @@ app.add_typer(ingest_app, name="ingest")
 
 @ingest_app.command("survey123")
 def ingest_survey123(file_path: Path) -> None:
-    result = survey123_module.ingest(file_path)
+    session = SessionLocal()
+    try:
+        result = ingest_survey123_export(file_path, session, settings.dedup_salt)
+    except IngestFormatError as exc:
+        typer.echo(exc.detail, err=True)
+        raise typer.Exit(code=1) from exc
+    finally:
+        session.close()
 
     typer.echo(f"rows_read={result.rows_read}")
     typer.echo(f"rows_inserted={result.rows_inserted}")
@@ -93,11 +100,6 @@ def generate(
     corporation: str = typer.Option(None, "--corporation"),
     community: str = typer.Option(None, "--community"),
 ) -> None:
-    # Every registered module, not just survey123: a template naming a sitreps
-    # metric raised "unknown data module: sitreps" from the CLI while the same
-    # template generated fine through the API.
-    ensure_default_modules_registered()
-
     # A corporation that is not one of the fourteen matches no row, and every
     # metric reports a confident zero for it. Rejected before any query runs,
     # exactly as POST /reports does.

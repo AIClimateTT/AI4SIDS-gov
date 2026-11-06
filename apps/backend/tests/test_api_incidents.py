@@ -4,7 +4,6 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.core.registry import reset_registry
 from app.db import Base, SessionLocal, engine as db_engine
 from app import create_app
 from app.modules.sitreps.models import SitrepIncident
@@ -18,12 +17,10 @@ CORP = "diego_martin_regional_corporati"
 
 @pytest.fixture(autouse=True)
 def _clean_registry():
-    reset_registry()
     db_engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()
     yield
-    reset_registry()
     db_engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()
@@ -79,7 +76,7 @@ def test_get_incidents_lists_survey123_and_sitrep_rows():
     client = make_client()
     with open(VALIDATED_FIXTURE_PATH, "rb") as handle:
         ingested = client.post(
-            "/ingest/survey123",
+            "/field-data/upload",
             files={"file": ("sample_small.csv", handle, "text/csv")},
         )
     assert ingested.status_code == 200, ingested.text
@@ -102,7 +99,7 @@ def test_get_incidents_filters_by_source_and_search():
     client = make_client()
     with open(VALIDATED_FIXTURE_PATH, "rb") as handle:
         client.post(
-            "/ingest/survey123",
+            "/field-data/upload",
             files={"file": ("sample_small.csv", handle, "text/csv")},
         )
     _seed_sitrep()

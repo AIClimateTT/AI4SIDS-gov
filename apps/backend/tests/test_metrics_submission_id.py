@@ -2,9 +2,9 @@ from datetime import datetime
 
 from sqlalchemy.orm import sessionmaker
 
+from app.core.metrics import run_metric
 from app.db import Base, make_engine
 from app.modules.sitreps.ingest import ingest_submission
-from app.modules.sitreps.module import sitrep_module
 from app.modules.sitreps.store import create_event
 from app.modules.survey123.metrics import apply_common_filters
 from app.modules.survey123.models import FieldObservation
@@ -55,11 +55,9 @@ def test_incident_count_can_scope_to_one_submission(tmp_path):
     first = _ingest(db, as_at=datetime(2026, 8, 18, 10), row_id="1", summary="A", event_id=event.id)
     second = _ingest(db, as_at=datetime(2026, 8, 18, 16), row_id="2", summary="B", event_id=event.id)
 
-    all_facts = sitrep_module.run_metric(
-        "incident_count", {"corporation": CORP, "date_from": "2026-08-01", "date_to": "2026-08-31"}, db
+    all_facts = run_metric("sitreps", "incident_count", {"corporation": CORP, "date_from": "2026-08-01", "date_to": "2026-08-31"}, db
     )
-    one = sitrep_module.run_metric(
-        "incident_count",
+    one = run_metric("sitreps", "incident_count",
         {"corporation": CORP, "submission_id": second.submission_id},
         db,
     )

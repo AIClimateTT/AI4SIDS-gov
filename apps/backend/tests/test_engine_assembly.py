@@ -6,10 +6,8 @@ from sqlalchemy.orm import sessionmaker
 
 from app.core.contracts import DataRequirement, NarrationConfig, RenderConfig, Template, TemplateParam
 from app.core.engine import assemble_fact_table, resolve_params, validate_params
-from app.core.registry import register_module, reset_registry
 from app.db import Base, make_engine
 from app.modules.survey123.ingest import ingest_csv
-from app.modules.survey123.module import survey123_module
 
 FIXTURE_PATH = Path(__file__).parent.parent / "fixtures" / "sample_small.csv"
 
@@ -25,10 +23,7 @@ def make_session(tmp_path):
 
 @pytest.fixture(autouse=True)
 def _clean_registry():
-    reset_registry()
-    register_module(survey123_module)
     yield
-    reset_registry()
 
 
 def make_minister_template() -> Template:

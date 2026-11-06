@@ -4,7 +4,6 @@ import type { LinkProps } from '@tanstack/react-router'
 import type { LucideIcon } from 'lucide-react'
 import {
   ChartColumn as ChartColumnIcon,
-  DatabaseIcon,
   FileTextIcon,
   LayoutDashboardIcon,
   UploadIcon,
@@ -70,7 +69,6 @@ const DMU_NAV: NavGroup[] = [
     label: 'Administration',
     recessed: true,
     items: [
-      { title: 'Modules', to: '/dmu/admin/modules', icon: DatabaseIcon },
       { title: 'Quality', to: '/dmu/admin/quality', icon: ChartColumnIcon },
       { title: 'Users', to: '/dmu/admin/users', icon: UsersIcon },
     ],

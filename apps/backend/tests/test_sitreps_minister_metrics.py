@@ -3,10 +3,10 @@ from datetime import date, datetime
 import pytest
 from sqlalchemy.orm import sessionmaker
 
+from app.core.metrics import run_metric
 from app.db import Base, make_engine
 from app.modules.sitreps.minister_metrics import corporation_status
 from app.modules.sitreps.models import Event, SitrepIncident, SituationLog, Submission
-from app.modules.sitreps.module import sitrep_module
 
 ARIMA = "arima_borough_corporation"
 SIPARIA = "siparia_regional_corporation"
@@ -145,11 +145,10 @@ def test_facts_are_marked_unverified_and_cite_their_rows(db):
     assert fact.citation.record_ids
 
 
-def test_the_sitreps_module_offers_it(db):
+def test_the_sitreps_source_serves_it(db):
     _log(db, _submission(db, datetime(2026, 8, 21, 14)), "CERT on standby")
 
-    assert "corporation_status" in {spec.name for spec in sitrep_module.list_metrics()}
-    assert sitrep_module.run_metric("corporation_status", WINDOW, db)[0].value == "CERT on standby"
+    assert run_metric("sitreps", "corporation_status", WINDOW, db)[0].value == "CERT on standby"
 
 
 def test_window_reads_as_at_as_the_officers_wall_clock(db):

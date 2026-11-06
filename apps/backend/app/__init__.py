@@ -15,7 +15,6 @@ from app.api.quality import router as quality_router
 from app.api.situation_logs import router as situation_logs_router
 from app.config import settings, validate_runtime_settings
 from app.auth.dependencies import require_dmu_workspace
-from app.core.registry import ensure_default_modules_registered
 from app.core.template_catalog import list_templates
 
 
@@ -53,7 +52,6 @@ def create_app() -> FastAPI:
     app.include_router(auth_router)
     app.include_router(users_router)
     app.include_router(quality_router, dependencies=dmu_only)
-    ensure_default_modules_registered()
     # A broken template fails the deploy, not the first report that needs it.
     list_templates()
     return app

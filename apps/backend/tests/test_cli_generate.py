@@ -3,7 +3,6 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 import app.core.llm as llm_module
-from app.core.registry import reset_registry
 from app.db import Base, engine as db_engine
 from cli import app
 
@@ -18,7 +17,6 @@ DEV_DB_PATH = Path(__file__).parent.parent / "dev.db"
 
 
 def _reset_state():
-    reset_registry()
     db_engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()
@@ -116,7 +114,6 @@ def test_generate_can_run_a_sitreps_template(monkeypatch, tmp_path):
     # invocation is a fresh process in reality, and the import above happens to
     # register every module as a side effect of template validation. Without
     # the reset this test would exercise leaked state, not the command.
-    from app.core.registry import reset_registry as clear_modules
 
     monkeypatch.setattr(llm_module.settings, "llm_provider", "fake")
 
@@ -130,7 +127,6 @@ def test_generate_can_run_a_sitreps_template(monkeypatch, tmp_path):
             template_catalog._catalog(), "corp_sitrep_only", load_template(template_path)
         )
 
-        clear_modules()
 
         result = runner.invoke(app, ["generate", "corp_sitrep_only"])
 

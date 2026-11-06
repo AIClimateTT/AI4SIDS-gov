@@ -12,7 +12,7 @@ from app.auth.dependencies import (
 )
 
 from app.core.contracts import DataRequirement
-from app.core.engine import PLACEHOLDER_RE, resolve_effective_requirements, validate_params
+from app.core.engine import validate_params
 from app.core.jobs import enqueue
 from app.core.report_store import get_report, list_reports, save_placeholder_report
 from app.core.template_catalog import get_template
@@ -23,16 +23,9 @@ from app.quality.store import record_event, save_rating
 router = APIRouter()
 
 
-class DataRequirementInput(BaseModel):
-    module: str
-    metric: str
-    params: dict = {}
-
-
 class GenerateReportRequest(BaseModel):
     template: str
     params: dict
-    data_requirements: list[DataRequirementInput] | None = None
 
 
 class GenerateReportResponse(BaseModel):
@@ -47,18 +40,10 @@ def validate_corporations(request: GenerateReportRequest) -> None:
 
     A typo matches no row, so every metric returns a confident zero and the
     report reads as an authoritative "nothing happened" for a region that may
-    have filed plenty. Checked on the template params and on any literal value
-    in a data_requirements override, which is caller-controlled — a placeholder
-    like "{corporation}" resolves from the params already checked.
+    have filed plenty.
     """
-    values = [request.params.get("corporation")]
-    for requirement in request.data_requirements or []:
-        values.append(requirement.params.get("corporation"))
-
-    for value in values:
+    for value in [request.params.get("corporation")]:
         if value is None or value == "":
-            continue
-        if isinstance(value, str) and PLACEHOLDER_RE.match(value):
             continue
         if value not in CANONICAL_CORPORATIONS:
             raise HTTPException(
@@ -85,15 +70,7 @@ def create_report(
     if template is None:
         raise HTTPException(status_code=404, detail=f"unknown template: {request.template}")
 
-    override = None
-    if request.data_requirements is not None:
-        override = [
-            DataRequirement(module=d.module, metric=d.metric, params=d.params)
-            for d in request.data_requirements
-        ]
-
     try:
-        resolve_effective_requirements(template, override)
         validate_params(template, request.params)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -104,7 +81,7 @@ def create_report(
         report_id=report_id,
         template=template,
         params=request.params,
-        data_requirements=override,
+        data_requirements=None,
     )
     record_event(
         session,

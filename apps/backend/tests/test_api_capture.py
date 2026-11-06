@@ -4,11 +4,10 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from app.core.metrics import run_metric
 from app import create_app
 from app.core.llm import FakeLLMClient
-from app.core.registry import reset_registry
 from app.db import Base, engine as db_engine
-from app.modules.sitreps.module import sitrep_module
 
 CORP = "diego_martin_regional_corporati"
 OTHER_CORP = "san_fernando_city_corporation"
@@ -102,12 +101,10 @@ INVENTED_JSON = json.dumps(
 
 @pytest.fixture(autouse=True)
 def _clean_registry():
-    reset_registry()
     db_engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()
     yield
-    reset_registry()
     db_engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()
@@ -312,8 +309,7 @@ def test_file_creates_submission_rows_metrics_can_see(monkeypatch):
 
     Session = sessionmaker(bind=db_engine)
     db = Session()
-    facts = sitrep_module.run_metric(
-        "incident_count",
+    facts = run_metric("sitreps", "incident_count",
         {
             "corporation": CORP,
             "date_from": "2026-08-01",
@@ -921,8 +917,7 @@ def test_issue_incident_count_matches_ingested_metric(monkeypatch):
         )
         if fact.metric == "incident_count"
     )
-    ingested = sitrep_module.run_metric(
-        "incident_count",
+    ingested = run_metric("sitreps", "incident_count",
         {"corporation": CORP, "submission_id": submission_id},
         db,
     )

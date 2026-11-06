@@ -6,11 +6,9 @@ from sqlalchemy.orm import sessionmaker
 
 from app.core.contracts import DataRequirement, NarrationConfig, RenderConfig, Template, TemplateParam
 from app.core.engine import CITATION_RULES, compose_system_prompt, generate_report, resolve_effective_requirements
-from app.core.registry import reset_registry
 from app.db import Base, engine as db_engine
 from app import create_app
 from app.modules.survey123.ingest import ingest_csv
-from app.modules.survey123.module import survey123_module
 
 FIXTURE_PATH = Path(__file__).parent.parent / "fixtures" / "sample_small.csv"
 TEMPLATES_DIR = Path(__file__).parent.parent / "app" / "templates" / "definitions"
@@ -29,22 +27,18 @@ class CapturingLLMClient:
 
 @pytest.fixture(autouse=True)
 def _clean_state():
-    reset_registry()
     db_engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()
     yield
-    reset_registry()
     db_engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()
 
 
 def make_client(monkeypatch) -> TestClient:
-    from app.core.registry import register_module
 
     monkeypatch.setattr("app.core.llm.settings.llm_provider", "fake")
-    register_module(survey123_module)
     Base.metadata.create_all(db_engine)
     Session = sessionmaker(bind=db_engine)
     session = Session()
@@ -85,53 +79,8 @@ def test_resolve_effective_requirements_rejects_empty():
         resolve_effective_requirements(template, None)
 
 
-def test_generate_with_metric_override_stores_effective_requirements(monkeypatch):
-    client = make_client(monkeypatch)
-
-    create = client.post(
-        "/reports",
-        json={
-            "template": "minister_situation_report",
-            "params": {"date_from": "2024-06-01", "date_to": "2024-06-30"},
-            "data_requirements": [
-                {
-                    "module": "survey123",
-                    "metric": "incident_count",
-                    "params": {"date_from": "{date_from}", "date_to": "{date_to}"},
-                }
-            ],
-        },
-    )
-    assert create.status_code == 202, create.text
-    report_id = create.json()["id"]
-
-    detail = client.get(f"/reports/{report_id}")
-    assert detail.status_code == 200
-    body = detail.json()
-    assert len(body["data_requirements"]) == 1
-    assert body["data_requirements"][0]["metric"] == "incident_count"
-
-
-def test_generate_with_empty_requirements_returns_400(monkeypatch):
-    client = make_client(monkeypatch)
-
-    response = client.post(
-        "/reports",
-        json={
-            "template": "minister_situation_report",
-            "params": {"date_from": "2024-06-01", "date_to": "2024-06-30"},
-            "data_requirements": [],
-        },
-    )
-
-    assert response.status_code == 400
-
-
 def test_generate_includes_citation_rules_in_llm_prompt(tmp_path, monkeypatch):
-    from app.core.registry import register_module
 
-    reset_registry()
-    register_module(survey123_module)
     engine = __import__("app.db", fromlist=["make_engine"]).make_engine(f"sqlite:///{tmp_path}/test.db")
     Base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)

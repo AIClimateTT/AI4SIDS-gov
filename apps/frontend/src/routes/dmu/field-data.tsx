@@ -108,7 +108,7 @@ function IngestPage() {
     },
     onSubmit: async ({ value }) => {
       if (!value.file) return
-      await ingest.mutateAsync({ moduleName: 'survey123', file: value.file })
+      await ingest.mutateAsync({ file: value.file })
     },
   })
 
