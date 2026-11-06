@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.localtime import as_utc
 from app.core.report_identity import CURRENT_FORMAT_VERSION, identity_fields
 from app.core.report_models import Report
 from app.db import get_session
@@ -80,7 +81,7 @@ def get_overview(
                 template_version=item.template_version,
                 params=item.params,
                 status=item.status,
-                created_at=item.created_at,
+                created_at=as_utc(item.created_at),
                 **identity_fields(item),
             )
             for item in recent

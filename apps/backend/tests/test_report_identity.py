@@ -216,3 +216,15 @@ def test_report_final_markdown_migration_round_trips(tmp_path):
     assert "final_markdown" in columns()
     assert run_alembic("downgrade", "e7d2b5c04a91", database_url=url).returncode == 0
     assert "final_markdown" not in columns()
+
+
+def test_created_at_says_it_is_utc_so_browsers_convert_it():
+    report_id = _row(created_at=datetime(2026, 11, 6, 4, 23))
+    client = TestClient(create_app())
+
+    for value in (
+        client.get(f"/reports/{report_id}").json()["created_at"],
+        client.get("/reports").json()["items"][0]["created_at"],
+        client.get("/overview").json()["recent_reports"][0]["created_at"],
+    ):
+        assert value.endswith(("Z", "+00:00"))

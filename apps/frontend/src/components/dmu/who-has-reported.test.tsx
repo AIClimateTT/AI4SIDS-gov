@@ -52,6 +52,22 @@ describe('WhoHasReported', () => {
     expect(screen.getByText('Last filed 2 days ago')).toBeTruthy()
   })
 
+  it('dates a filing from long ago', () => {
+    const old = { ...FILING, as_at: '2023-06-30T16:00:00' }
+    const { rows, reportedCount } = deriveWhoReported([old], NOW, 24)
+    render(
+      <WhoHasReported
+        rows={rows}
+        reportedCount={reportedCount}
+        windowHours={24}
+        onWindowChange={vi.fn()}
+        now={NOW}
+      />,
+    )
+
+    expect(screen.getByText('Last filed on 30 Jun 2023')).toBeTruthy()
+  })
+
   it('says never filed, not zero', () => {
     renderPanel()
 

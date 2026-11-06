@@ -15,6 +15,7 @@ from app.core.contracts import DataRequirement
 from app.core.engine import validate_params
 from app.core.jobs import enqueue
 from app.core.report_store import get_report, list_reports, save_placeholder_report
+from app.core.localtime import as_utc
 from app.core.report_identity import clean_markdown, identity_fields
 from app.core.template_catalog import get_template
 from app.db import get_session
@@ -153,7 +154,7 @@ def get_reports(
                 template_version=item.template_version,
                 params=item.params,
                 status=item.status,
-                created_at=item.created_at,
+                created_at=as_utc(item.created_at),
                 **identity_fields(item),
             )
             for item in items
@@ -207,7 +208,7 @@ def read_report(
         violations=db_report.violations,
         quality_eval=db_report.quality_eval,
         error=db_report.error,
-        created_at=db_report.created_at,
+        created_at=as_utc(db_report.created_at),
         **identity_fields(db_report),
     )
 

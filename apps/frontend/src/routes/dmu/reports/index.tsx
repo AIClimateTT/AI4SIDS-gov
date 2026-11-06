@@ -48,7 +48,7 @@ function toKind(value: unknown): ReportKind | 'all' {
 }
 
 const STATUS_OPTIONS = [
-  { value: 'all' as const, label: 'All' },
+  { value: 'all' as const, label: 'Any status' },
   { value: 'needs_review' as const, label: 'Needs review' },
   { value: 'ok' as const, label: 'Ready' },
 ]
@@ -196,7 +196,7 @@ function ReportsPage() {
                 options: KIND_OPTIONS,
               },
               {
-                type: 'toggle',
+                type: 'select',
                 key: 'status',
                 label: 'Status',
                 options: STATUS_OPTIONS,

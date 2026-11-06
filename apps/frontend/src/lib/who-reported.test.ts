@@ -122,3 +122,9 @@ describe('lastFiledLabel', () => {
     expect(lastFiledLabel(hoursAgo(-2), NOW)).toBe('Just now')
   })
 })
+
+describe('lastFiledLabel for old filings', () => {
+  it('gives the date rather than a huge count of days', () => {
+    expect(lastFiledLabel(hoursAgo(24 * 40), NOW)).toBe('on 27 Sep 2026')
+  })
+})

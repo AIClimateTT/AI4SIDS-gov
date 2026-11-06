@@ -27,6 +27,14 @@ function isoDay(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
+// The minister report is about the current event; a Survey123 summary looks back further.
+function defaultDateFrom(kind: NewReportKind, today: Date): string {
+  if (kind === 'survey123') return `${today.getFullYear()}-01-01`
+  const start = new Date(today)
+  start.setDate(start.getDate() - 7)
+  return isoDay(start)
+}
+
 function localDateTime(date: Date): string {
   return `${isoDay(date)}T${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
@@ -53,7 +61,7 @@ export function NewReportDialog({
 
   const form = useAppForm({
     defaultValues: {
-      date_from: `${today.getFullYear()}-01-01`,
+      date_from: defaultDateFrom(initialKind, today),
       date_to: isoDay(today),
       corporation: '',
       as_at: localDateTime(today),
@@ -147,7 +155,12 @@ export function NewReportDialog({
                     type="button"
                     size="sm"
                     variant={kind === value ? 'default' : 'outline'}
-                    onClick={() => setKind(value)}
+                    onClick={() => {
+                      if (form.state.values.date_from === defaultDateFrom(kind, today)) {
+                        form.setFieldValue('date_from', defaultDateFrom(value, today))
+                      }
+                      setKind(value)
+                    }}
                   >
                     {label}
                   </Button>

@@ -1,5 +1,6 @@
 import { alertSeverity } from '@/components/shared/alert-level-badge'
 import { CANONICAL_CORPORATIONS, CORPORATION_LABELS } from '@/lib/corporations'
+import { formatDay } from '@/lib/format-when'
 import type { CanonicalCorporation } from '@/lib/corporations'
 import type { SubmissionSummary } from '@/types/dmcu'
 
@@ -80,5 +81,6 @@ export function lastFiledLabel(asAt: string | null, now: Date): string {
   if (hours < 1) return 'Just now'
   if (hours < 24) return hours === 1 ? '1 hour ago' : `${hours} hours ago`
   const days = Math.floor(hours / 24)
+  if (days > 30) return `on ${formatDay(asAt)}`
   return days === 1 ? '1 day ago' : `${days} days ago`
 }

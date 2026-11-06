@@ -102,7 +102,7 @@ describe('AppSidebar corporations', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /corporations/i }))
 
-    expect(await screen.findByRole('link', { name: /Arima Borough/ })).toBeTruthy()
+    expect(await screen.findByRole('link', { name: /Arima/ })).toBeTruthy()
     const group = Array.from(
       document.querySelectorAll<HTMLElement>('[data-slot="sidebar-group"]'),
     ).find((el) => el.textContent?.includes('Corporations'))
@@ -112,7 +112,7 @@ describe('AppSidebar corporations', () => {
   it('opens by itself on a corporation page', async () => {
     await renderSidebar('/dmu/corporations/arima_borough_corporation', { role: 'dmu' })
 
-    expect(await screen.findByRole('link', { name: /Arima Borough/ })).toBeTruthy()
+    expect(await screen.findByRole('link', { name: /Arima/ })).toBeTruthy()
   })
 })
 

@@ -15,12 +15,12 @@ import {
 import { ContentCard } from '@/components/shared/content-card'
 import { Button } from '@/components/ui/button'
 import {
-  CORPORATION_LABELS,
   CORPORATION_OPTIONS,
+  corporationShortLabel,
   isCanonicalCorporation,
 } from '@/lib/corporations'
 import { formatConstant } from '@/lib/format-constant'
-import { formatDay, formatWhen } from '@/lib/format-when'
+import { formatDay } from '@/lib/format-when'
 import { incidentQueries } from '@/lib/queries/incidents'
 import { overviewQueries } from '@/lib/queries/overview'
 import type { IncidentListItem } from '@/types/dmcu'
@@ -78,11 +78,6 @@ const columns: ColumnDef<IncidentListItem>[] = [
     id: 'status',
     header: 'Status',
     cell: ({ row }) => fieldStatus(row.original),
-  },
-  {
-    accessorKey: 'ingested_at',
-    header: 'Uploaded',
-    cell: ({ row }) => formatWhen(row.original.ingested_at),
   },
 ]
 
@@ -230,7 +225,7 @@ function StoredIncidents() {
 
 function corporationLabel(value: string | null): string {
   if (!value) return '—'
-  if (isCanonicalCorporation(value)) return CORPORATION_LABELS[value]
+  if (isCanonicalCorporation(value)) return corporationShortLabel(value)
   return formatConstant(value)
 }
 

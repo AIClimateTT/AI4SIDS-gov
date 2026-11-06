@@ -54,11 +54,11 @@ function parse(value: string | null | undefined): Date | null {
 /** Day and time, e.g. "4 Nov 2026, 18:25". */
 export function formatWhen(value: string | null | undefined): string {
   const date = parse(value)
-  return date ? date.toLocaleString(LOCALE, WHEN) : UNKNOWN
+  return date ? date.toLocaleString(LOCALE, WHEN).replace('Sept', 'Sep') : UNKNOWN
 }
 
 /** Day only, e.g. "4 Nov 2026". */
 export function formatDay(value: string | null | undefined): string {
   const date = parse(value)
-  return date ? date.toLocaleDateString(LOCALE, DAY) : UNKNOWN
+  return date ? date.toLocaleDateString(LOCALE, DAY).replace('Sept', 'Sep') : UNKNOWN
 }

@@ -69,6 +69,23 @@ describe('NewReportDialog', () => {
     )
   })
 
+  it('defaults the minister report to the last 7 days', () => {
+    renderDialog('minister')
+
+    expect(screen.getByLabelText<HTMLInputElement>(/date from/i).value).toBe('2026-10-30')
+  })
+
+  it('changes the default when switching report, unless the date was chosen', () => {
+    renderDialog('minister')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Survey123 summary' }))
+    expect(screen.getByLabelText<HTMLInputElement>(/date from/i).value).toBe('2026-01-01')
+
+    setDate(/date from/i, '2026-03-01')
+    fireEvent.click(screen.getByRole('button', { name: 'Minister report' }))
+    expect(screen.getByLabelText<HTMLInputElement>(/date from/i).value).toBe('2026-03-01')
+  })
+
   it('starts on the minister report by default, without the Ministry sections showing yet', () => {
     renderDialog()
 

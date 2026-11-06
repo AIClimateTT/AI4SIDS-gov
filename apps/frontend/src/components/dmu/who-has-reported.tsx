@@ -75,9 +75,7 @@ export function WhoHasReported({
               </Link>
               <p className="text-xs text-muted-foreground">
                 {row.latest && !row.inWindow ? 'Last filed ' : ''}
-                {row.latest
-                  ? lastFiledLabel(row.latest.as_at, now).toLowerCase()
-                  : 'Never filed'}
+                {row.latest ? lastFiledLabel(row.latest.as_at, now) : 'Never filed'}
               </p>
             </div>
             {row.inWindow && row.latest ? (

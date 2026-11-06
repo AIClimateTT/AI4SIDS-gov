@@ -18,7 +18,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from '@/components/ui/sidebar'
-import { CORPORATION_OPTIONS } from '@/lib/corporations'
+import { CORPORATION_OPTIONS, corporationShortLabel } from '@/lib/corporations'
 import { submissionQueries } from '@/lib/queries/submissions'
 import { cn } from '@/lib/utils'
 import { deriveWhoReported } from '@/lib/who-reported'
@@ -85,7 +85,7 @@ export function CorporationsNav() {
                             (level && DOT_CLASSES[level]) || 'bg-muted-foreground/40',
                           )}
                         />
-                        <span className="truncate">{option.label}</span>
+                        <span className="truncate">{corporationShortLabel(option.value)}</span>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>
                   )
