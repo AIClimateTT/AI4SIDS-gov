@@ -192,8 +192,8 @@ def test_dmu_user_can_verdict_a_pending_claim(monkeypatch):
     assert updated["human_verdict"] == "supported"
 
 
-@pytest.mark.real_auth
 def test_corp_user_cannot_verdict_a_claim(monkeypatch):
+    from app.auth.dependencies import get_current_user
     from app.auth.tokens import create_access_token
     from tests.auth_helpers import create_user
 
@@ -205,6 +205,7 @@ def test_corp_user_cannot_verdict_a_claim(monkeypatch):
     claims = (detail.get("quality_eval") or {}).get("claims", {}).get("claims", [])
     assert claims
     claim_id = claims[0]["claim_id"]
+    client.app.dependency_overrides.pop(get_current_user)
     user = create_user(role="corp", corporation="arima")
     token = create_access_token(
         user_id=user.user_id,
