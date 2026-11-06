@@ -7,7 +7,6 @@ import {
   DatabaseIcon,
   FileTextIcon,
   LayoutDashboardIcon,
-  MessageSquareIcon,
   UploadIcon,
   UsersIcon,
 } from 'lucide-react'
@@ -63,7 +62,6 @@ const DMU_NAV: NavGroup[] = [
       },
       { title: 'Reports', to: '/dmu/reports', icon: FileTextIcon },
       { title: 'Field data', to: '/dmu/field-data', icon: UploadIcon },
-      { title: 'WhatsApp', to: '/dmu/whatsapp', icon: MessageSquareIcon },
     ],
   },
   {

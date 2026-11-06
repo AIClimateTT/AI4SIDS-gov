@@ -380,64 +380,6 @@ export type ProposedLog = {
 export type DraftIncident = ProposedIncident & { included: boolean; row_id: string }
 export type DraftLog = ProposedLog & { included: boolean; row_id: string }
 
-export type WhatsAppDraft = {
-  id: number
-  draft_id: number
-  filename: string
-  source_kind: 'export' | 'paste'
-  as_at: string
-  message_count: number
-  pii_redacted: boolean
-  incidents: DraftIncident[]
-  logs: DraftLog[]
-  messages: CaptureMessage[]
-  manual_fields: string[]
-  missing: CaptureMissingField[]
-  status?: string
-  error?: string | null
-  briefing_report_id?: string | null
-  briefing_stale?: boolean
-  created_at: string
-  updated_at: string
-}
-
-export type WhatsAppDraftSummary = {
-  id: number
-  filename: string
-  source_kind: 'export' | 'paste'
-  as_at: string
-  updated_at: string
-  incident_count: number
-  log_count: number
-}
-
-export type WhatsAppDraftUpdate = {
-  as_at?: string
-  incidents: DraftIncident[]
-  logs: DraftLog[]
-  manual_fields?: string[]
-}
-
-export type WhatsAppExtractResult = WhatsAppDraft
-
-export type WhatsAppConfirmInput = {
-  as_at: string
-  filename: string
-  incidents: ProposedIncident[]
-  logs: ProposedLog[]
-}
-
-export type WhatsAppConfirmResult = {
-  submissions: SubmissionIngestResult[]
-}
-
-export type WhatsAppBriefingResult = {
-  id: string
-  status: ReportStatus
-  markdown: string
-  error?: string | null
-}
-
 export type CaptureIncident = {
   row_id: string
   community: string | null

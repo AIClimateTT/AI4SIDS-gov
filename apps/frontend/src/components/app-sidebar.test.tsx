@@ -26,7 +26,6 @@ const DMU_PATHS = [
   '/dmu/reports',
   '/dmu/reports/new',
   '/dmu/field-data',
-  '/dmu/whatsapp',
   '/dmu/admin/modules',
   '/dmu/admin/quality',
   '/dmu/admin/users',
@@ -95,7 +94,7 @@ describe('AppSidebar', () => {
     expect(navGroups()).toEqual([
       {
         label: 'Operations',
-        links: ['Dashboard', 'Reports', 'Field data', 'WhatsApp'],
+        links: ['Dashboard', 'Reports', 'Field data'],
       },
     ])
   })
@@ -106,7 +105,7 @@ describe('AppSidebar', () => {
     expect(navGroups()).toEqual([
       {
         label: 'Operations',
-        links: ['Dashboard', 'Reports', 'Field data', 'WhatsApp'],
+        links: ['Dashboard', 'Reports', 'Field data'],
       },
       {
         label: 'Administration',

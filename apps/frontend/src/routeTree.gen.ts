@@ -17,7 +17,6 @@ import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DmuIndexRouteImport } from './routes/dmu/index'
 import { Route as CorpIndexRouteImport } from './routes/corp/index'
-import { Route as DmuWhatsappRouteImport } from './routes/dmu/whatsapp'
 import { Route as DmuFieldDataRouteImport } from './routes/dmu/field-data'
 import { Route as DmuAdminRouteImport } from './routes/dmu/admin'
 import { Route as AuthVerifyRouteImport } from './routes/_auth/verify'
@@ -72,11 +71,6 @@ const CorpIndexRoute = CorpIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => CorpRoute,
-} as any)
-const DmuWhatsappRoute = DmuWhatsappRouteImport.update({
-  id: '/whatsapp',
-  path: '/whatsapp',
-  getParentRoute: () => DmuRoute,
 } as any)
 const DmuFieldDataRoute = DmuFieldDataRouteImport.update({
   id: '/field-data',
@@ -165,7 +159,6 @@ export interface FileRoutesByFullPath {
   '/verify': typeof AuthVerifyRoute
   '/dmu/admin': typeof DmuAdminRouteWithChildren
   '/dmu/field-data': typeof DmuFieldDataRoute
-  '/dmu/whatsapp': typeof DmuWhatsappRoute
   '/corp/': typeof CorpIndexRoute
   '/dmu/': typeof DmuIndexRoute
   '/corp/c/$sessionId': typeof CorpCSessionIdRoute
@@ -188,7 +181,6 @@ export interface FileRoutesByTo {
   '/verify': typeof AuthVerifyRoute
   '/dmu/admin': typeof DmuAdminRouteWithChildren
   '/dmu/field-data': typeof DmuFieldDataRoute
-  '/dmu/whatsapp': typeof DmuWhatsappRoute
   '/corp': typeof CorpIndexRoute
   '/dmu': typeof DmuIndexRoute
   '/corp/c/$sessionId': typeof CorpCSessionIdRoute
@@ -215,7 +207,6 @@ export interface FileRoutesById {
   '/_auth/verify': typeof AuthVerifyRoute
   '/dmu/admin': typeof DmuAdminRouteWithChildren
   '/dmu/field-data': typeof DmuFieldDataRoute
-  '/dmu/whatsapp': typeof DmuWhatsappRoute
   '/corp/': typeof CorpIndexRoute
   '/dmu/': typeof DmuIndexRoute
   '/corp/c/$sessionId': typeof CorpCSessionIdRoute
@@ -242,7 +233,6 @@ export interface FileRouteTypes {
     | '/verify'
     | '/dmu/admin'
     | '/dmu/field-data'
-    | '/dmu/whatsapp'
     | '/corp/'
     | '/dmu/'
     | '/corp/c/$sessionId'
@@ -265,7 +255,6 @@ export interface FileRouteTypes {
     | '/verify'
     | '/dmu/admin'
     | '/dmu/field-data'
-    | '/dmu/whatsapp'
     | '/corp'
     | '/dmu'
     | '/corp/c/$sessionId'
@@ -291,7 +280,6 @@ export interface FileRouteTypes {
     | '/_auth/verify'
     | '/dmu/admin'
     | '/dmu/field-data'
-    | '/dmu/whatsapp'
     | '/corp/'
     | '/dmu/'
     | '/corp/c/$sessionId'
@@ -373,13 +361,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/corp/'
       preLoaderRoute: typeof CorpIndexRouteImport
       parentRoute: typeof CorpRoute
-    }
-    '/dmu/whatsapp': {
-      id: '/dmu/whatsapp'
-      path: '/whatsapp'
-      fullPath: '/dmu/whatsapp'
-      preLoaderRoute: typeof DmuWhatsappRouteImport
-      parentRoute: typeof DmuRoute
     }
     '/dmu/field-data': {
       id: '/dmu/field-data'
@@ -538,7 +519,6 @@ const DmuAdminRouteWithChildren = DmuAdminRoute._addFileChildren(
 interface DmuRouteChildren {
   DmuAdminRoute: typeof DmuAdminRouteWithChildren
   DmuFieldDataRoute: typeof DmuFieldDataRoute
-  DmuWhatsappRoute: typeof DmuWhatsappRoute
   DmuIndexRoute: typeof DmuIndexRoute
   DmuCorporationsCorporationRoute: typeof DmuCorporationsCorporationRoute
   DmuReportsReportIdRoute: typeof DmuReportsReportIdRoute
@@ -549,7 +529,6 @@ interface DmuRouteChildren {
 const DmuRouteChildren: DmuRouteChildren = {
   DmuAdminRoute: DmuAdminRouteWithChildren,
   DmuFieldDataRoute: DmuFieldDataRoute,
-  DmuWhatsappRoute: DmuWhatsappRoute,
   DmuIndexRoute: DmuIndexRoute,
   DmuCorporationsCorporationRoute: DmuCorporationsCorporationRoute,
   DmuReportsReportIdRoute: DmuReportsReportIdRoute,
