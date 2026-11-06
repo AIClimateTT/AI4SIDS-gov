@@ -134,7 +134,7 @@ function ReportDetailPage() {
           {data.status === 'queued' || data.status === 'running' ? (
             <ContentCard title="Generating">
               <p className="text-sm text-muted-foreground">
-                This briefing is still running. This page refreshes until it
+                This report is still generating. This page refreshes until it
                 finishes.
               </p>
             </ContentCard>

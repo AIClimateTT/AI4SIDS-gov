@@ -43,8 +43,8 @@ function OverviewPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Overview"
-        description="Status of ingested incident data and recent cited briefings."
+        title="Dashboard"
+        description="Who has reported, and the latest reports."
         actions={
           <>
             <ButtonLink variant="outline" to="/dmu/field-data">
@@ -81,9 +81,9 @@ function OverviewPage() {
               hint="Loaded field assessments"
             />
             <StatCard
-              label="SITREP incidents"
+              label="Corporation incidents"
               value={data.incident_count_sitreps}
-              hint="Corporation situation reports"
+              hint="Filed by corporations"
             />
             {/* The needs-review count deliberately does not appear here. It is
                 the one number on this screen that asks for action, and a
@@ -92,7 +92,7 @@ function OverviewPage() {
             <StatCard
               label="Reports"
               value={data.report_count}
-              hint="Generated briefings"
+              hint="All reports"
             />
             <StatCard
               label="API"
@@ -103,7 +103,7 @@ function OverviewPage() {
 
           <ContentCard
             title="Recent reports"
-            description="Latest generated briefings"
+            description="The latest reports"
             action={
               <ButtonLink variant="outline" size="sm" to="/dmu/reports">
                 View all
@@ -113,7 +113,7 @@ function OverviewPage() {
             {data.recent_reports.length === 0 ? (
               <EmptyState
                 title="No reports yet"
-                description="Generate a briefing from a template to see it here."
+                description="Generate a report to see it here."
               />
             ) : (
               <Table>
@@ -217,7 +217,7 @@ function WhoHasReportedCard() {
 
       {isError ? (
         <EmptyState
-          title="Could not load submissions"
+          title="Could not load filings"
           description={error.message}
         />
       ) : null}

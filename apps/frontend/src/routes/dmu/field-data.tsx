@@ -91,7 +91,7 @@ const columns: ColumnDef<IncidentListItem>[] = [
   },
   {
     accessorKey: 'ingested_at',
-    header: 'Ingested',
+    header: 'Uploaded',
     cell: ({ row }) => formatWhen(row.original.ingested_at),
   },
 ]
@@ -115,13 +115,13 @@ function IngestPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Ingest"
-        description="Upload Survey123 CSV exports into the incident store. To file a situation report, go to /corp instead."
+        title="Field data"
+        description="Survey123 records verified by field staff."
       />
 
       <ContentCard
         title="Upload file"
-        description="Attach a Survey123 CSV export and review the ingest result."
+        description="Attach a Survey123 CSV export."
         contentClassName="space-y-4"
         action={
           <Button

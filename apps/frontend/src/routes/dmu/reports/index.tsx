@@ -33,7 +33,7 @@ type ReportsSearch = { status?: ReportStatus | 'all' }
 const STATUS_OPTIONS = [
   { value: 'all' as const, label: 'All' },
   { value: 'needs_review' as const, label: 'Needs review' },
-  { value: 'ok' as const, label: 'OK' },
+  { value: 'ok' as const, label: 'Ready' },
 ]
 
 function toStatus(value: unknown): ReportStatus | 'all' {
@@ -109,7 +109,7 @@ function ReportsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Reports"
-        description="Browse generated briefings and open citation-checked markdown."
+        description="Every report, in one place."
         actions={
           <ButtonLink to="/dmu/reports/new">
             <PlusIcon />

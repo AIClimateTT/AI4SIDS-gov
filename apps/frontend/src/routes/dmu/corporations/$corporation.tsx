@@ -131,7 +131,7 @@ function CorporationPage() {
 
       {submissions.isError ? (
         <EmptyState
-          title="Could not load submissions"
+          title="Could not load filings"
           description={submissions.error.message}
         />
       ) : null}
@@ -153,9 +153,9 @@ function CorporationPage() {
                 hint={`As at ${formatWhen(rows[0].as_at)}`}
               />
               <StatCard
-                label="Submissions"
+                label="Filings"
                 value={rows.length}
-                hint="Filings in this window"
+                hint="In this window"
               />
               <StatCard
                 label="Incidents"

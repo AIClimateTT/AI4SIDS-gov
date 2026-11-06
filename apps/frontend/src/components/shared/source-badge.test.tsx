@@ -31,16 +31,16 @@ describe('sourceOf', () => {
 
 describe('sourceLabel', () => {
   it('labels the two sources distinctly', () => {
-    expect(sourceLabel('sitreps')).toBe('SITREP')
-    expect(sourceLabel('survey123')).toBe('Field')
+    expect(sourceLabel('sitreps')).toBe('Corporation')
+    expect(sourceLabel('survey123')).toBe('Survey123')
     expect(sourceLabel('sitreps')).not.toBe(sourceLabel('survey123'))
   })
 })
 
 describe('moduleDisplayName', () => {
   it('keeps the short labels for known sources', () => {
-    expect(moduleDisplayName('sitreps')).toBe('SITREP')
-    expect(moduleDisplayName('survey123')).toBe('Field')
+    expect(moduleDisplayName('sitreps')).toBe('Corporation')
+    expect(moduleDisplayName('survey123')).toBe('Survey123')
   })
 
   it('title-cases an unknown module instead of showing underscores', () => {
@@ -59,9 +59,17 @@ describe('sourceEdgeClass', () => {
 })
 
 describe('SourceBadge', () => {
+  it('calls corporation data what it is, and says it is unverified', () => {
+    const { container } = render(<SourceBadge module="sitreps" />)
+    expect(screen.getByText('Corporation')).toBeTruthy()
+    expect(container.querySelector('[title]')?.getAttribute('title')).toContain(
+      'unverified',
+    )
+  })
+
   it('renders the source as a word, not colour alone', () => {
     render(<SourceBadge module="survey123" />)
-    expect(screen.getByText('Field')).toBeTruthy()
+    expect(screen.getByText('Survey123')).toBeTruthy()
   })
 
   it('carries the authority of the source in its title', () => {
@@ -69,14 +77,7 @@ describe('SourceBadge', () => {
     // The distinction the whole architecture rests on has to be stated
     // somewhere a reader can reach without opening the docs.
     expect(container.querySelector('[title]')?.getAttribute('title')).toContain(
-      'unverified',
-    )
-  })
-
-  it('marks authoritative SITREP facts as such', () => {
-    const { container } = render(<SourceBadge module="sitreps" />)
-    expect(container.querySelector('[title]')?.getAttribute('title')).toContain(
-      'authoritative',
+      'Verified by field staff',
     )
   })
 

@@ -17,8 +17,10 @@
  * date. `new Date("2024-06-01")` would read it as UTC midnight, which is the
  * evening of 31 May in Trinidad.
  */
+const LOCALE = 'en-GB'
+
 const WHEN: Intl.DateTimeFormatOptions = {
-  day: '2-digit',
+  day: 'numeric',
   month: 'short',
   year: 'numeric',
   hour: '2-digit',
@@ -27,7 +29,7 @@ const WHEN: Intl.DateTimeFormatOptions = {
 }
 
 const DAY: Intl.DateTimeFormatOptions = {
-  day: '2-digit',
+  day: 'numeric',
   month: 'short',
   year: 'numeric',
 }
@@ -49,14 +51,14 @@ function parse(value: string | null | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
-/** Day and time, e.g. "30 Jun 2023, 16:00". */
+/** Day and time, e.g. "4 Nov 2026, 18:25". */
 export function formatWhen(value: string | null | undefined): string {
   const date = parse(value)
-  return date ? date.toLocaleString(undefined, WHEN) : UNKNOWN
+  return date ? date.toLocaleString(LOCALE, WHEN) : UNKNOWN
 }
 
-/** Day only, e.g. "30 Jun 2023". */
+/** Day only, e.g. "4 Nov 2026". */
 export function formatDay(value: string | null | undefined): string {
   const date = parse(value)
-  return date ? date.toLocaleDateString(undefined, DAY) : UNKNOWN
+  return date ? date.toLocaleDateString(LOCALE, DAY) : UNKNOWN
 }

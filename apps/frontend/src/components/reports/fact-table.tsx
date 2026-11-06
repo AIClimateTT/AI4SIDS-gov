@@ -50,11 +50,11 @@ export function ReportFactTable({
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <SourceBadge module="sitreps" />
-            corporations&rsquo; signed-off figures
+            filed by corporations, unverified
           </span>
           <span className="flex items-center gap-1.5">
             <SourceBadge module="survey123" />
-            unverified field observation
+            verified by field staff
           </span>
         </div>
       ) : null}
