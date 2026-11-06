@@ -1,10 +1,11 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.contracts import DataRequirement, Template
 from app.core.engine import GeneratedReport
+from app.core.report_identity import CURRENT_FORMAT_VERSION, KIND_TEMPLATES
 from app.core.report_models import Report
 
 
@@ -18,6 +19,7 @@ def add_report(report: GeneratedReport, session: Session) -> Report:
         fact_table=report.fact_table.model_dump(mode="json"),
         narrative=report.narrative,
         markdown=report.markdown,
+        final_markdown=report.final_markdown,
         status=report.status,
         error=None,
         violations=[v.model_dump() for v in report.violations],
@@ -95,6 +97,7 @@ def apply_generated_report(row: Report, report: GeneratedReport, session: Sessio
     row.fact_table = report.fact_table.model_dump(mode="json")
     row.narrative = report.narrative
     row.markdown = report.markdown
+    row.final_markdown = report.final_markdown
     row.status = report.status
     row.error = None
     row.violations = [v.model_dump() for v in report.violations]
@@ -117,6 +120,8 @@ def list_reports(
     page_size: int = 10,
     q: str | None = None,
     status: str | None = None,
+    kind: str | None = None,
+    include_older: bool = False,
     sort_by: str = "created_at",
     sort_order: str = "desc",
 ) -> tuple[list[Report], int]:
@@ -125,9 +130,24 @@ def list_reports(
     if status and status != "all":
         filters.append(Report.status == status)
 
+    if kind in KIND_TEMPLATES:
+        filters.append(Report.template.in_(KIND_TEMPLATES[kind]))
+    elif kind == "other":
+        filters.append(Report.template.not_in(sum(KIND_TEMPLATES.values(), ())))
+
+    if not include_older:
+        filters.append(Report.template_version >= CURRENT_FORMAT_VERSION)
+
     if q:
         pattern = f"%{q.strip()}%"
-        filters.append(or_(Report.id.ilike(pattern), Report.template.ilike(pattern)))
+        filters.append(
+            or_(
+                Report.id.ilike(pattern),
+                Report.template.ilike(pattern),
+                # Officers search by corporation, which lives in the params.
+                cast(Report.params, String).ilike(pattern),
+            )
+        )
 
     count_stmt = select(func.count()).select_from(Report)
     if filters:

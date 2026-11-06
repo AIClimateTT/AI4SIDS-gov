@@ -72,6 +72,8 @@ export type FactTable = {
   gaps?: string[]
 }
 
+export type ReportKind = 'corporation' | 'minister' | 'survey123' | 'other'
+
 export type ReportListItem = {
   id: string
   template: string
@@ -79,6 +81,11 @@ export type ReportListItem = {
   params: Record<string, string>
   status: ReportStatus
   created_at: string
+  kind: ReportKind
+  title: string
+  period: string | null
+  verified: boolean
+  older_format: boolean
 }
 
 export type ClaimVerdict = 'supported' | 'unsupported' | 'pending_semantic'
@@ -180,8 +187,14 @@ export type ReportDetail = {
   fact_table: FactTable
   narrative: string
   markdown: string
+  final_markdown: string
   status: ReportStatus
   violations: CitationViolation[]
+  kind: ReportKind
+  title: string
+  period: string | null
+  verified: boolean
+  older_format: boolean
   quality_eval?: QualityEval | null
   error?: string | null
   created_at: string
@@ -206,6 +219,8 @@ export type ReportListParams = {
   pageSize?: number
   q?: string
   status?: ReportStatus | 'all'
+  kind?: ReportKind | 'all'
+  includeOlder?: boolean
   sortBy?: string
   sortOrder?: 'asc' | 'desc'
 }

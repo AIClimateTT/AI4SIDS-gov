@@ -20,6 +20,8 @@ export async function getReports(
         page_size: params.pageSize ?? 10,
         q: params.q,
         status: params.status === 'all' ? undefined : params.status,
+        kind: params.kind === 'all' ? undefined : params.kind,
+        include_older: params.includeOlder || undefined,
         sort_by: params.sortBy ?? 'created_at',
         sort_order: params.sortOrder ?? 'desc',
       },

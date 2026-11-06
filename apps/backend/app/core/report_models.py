@@ -17,6 +17,9 @@ class Report(Base):
     fact_table: Mapped[dict] = mapped_column(JSON, nullable=False)
     narrative: Mapped[str] = mapped_column(Text, nullable=False)
     markdown: Mapped[str] = mapped_column(Text, nullable=False)
+    # What a reader gets: no citation markers and no gaps section. Null on reports
+    # made before this column; see report_identity.clean_markdown.
+    final_markdown: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String, nullable=False)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     violations: Mapped[list] = mapped_column(JSON, nullable=False)

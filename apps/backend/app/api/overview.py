@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.report_identity import CURRENT_FORMAT_VERSION, identity_fields
 from app.core.report_models import Report
 from app.db import get_session
 from app.modules.sitreps.models import SitrepIncident
@@ -20,6 +21,11 @@ class ReportListItem(BaseModel):
     params: dict
     status: str
     created_at: datetime
+    kind: str
+    title: str
+    period: str | None
+    verified: bool
+    older_format: bool
 
 
 class OverviewSummary(BaseModel):
@@ -42,13 +48,21 @@ def get_overview(
     report_count = session.scalar(select(func.count()).select_from(Report)) or 0
     needs_review_count = (
         session.scalar(
-            select(func.count()).select_from(Report).where(Report.status == "needs_review")
+            select(func.count())
+            .select_from(Report)
+            .where(
+                Report.status == "needs_review",
+                Report.template_version >= CURRENT_FORMAT_VERSION,
+            )
         )
         or 0
     )
     recent = list(
         session.scalars(
-            select(Report).order_by(Report.created_at.desc()).limit(recent_limit)
+            select(Report)
+            .where(Report.template_version >= CURRENT_FORMAT_VERSION)
+            .order_by(Report.created_at.desc())
+            .limit(recent_limit)
         ).all()
     )
 
@@ -65,6 +79,7 @@ def get_overview(
                 params=item.params,
                 status=item.status,
                 created_at=item.created_at,
+                **identity_fields(item),
             )
             for item in recent
         ],

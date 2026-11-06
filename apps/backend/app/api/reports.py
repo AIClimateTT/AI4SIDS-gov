@@ -15,6 +15,7 @@ from app.core.contracts import DataRequirement
 from app.core.engine import validate_params
 from app.core.jobs import enqueue
 from app.core.report_store import get_report, list_reports, save_placeholder_report
+from app.core.report_identity import clean_markdown, identity_fields
 from app.core.template_catalog import get_template
 from app.db import get_session
 from app.modules.survey123.normalize import CANONICAL_CORPORATIONS
@@ -105,6 +106,11 @@ class ReportListItem(BaseModel):
     params: dict
     status: str
     created_at: datetime
+    kind: str
+    title: str
+    period: str | None
+    verified: bool
+    older_format: bool
 
 
 class ReportListResponse(BaseModel):
@@ -122,6 +128,8 @@ def get_reports(
     page_size: int = Query(10, ge=1, le=100),
     q: str | None = None,
     status: str | None = None,
+    kind: str | None = None,
+    include_older: bool = False,
     sort_by: str = Query("created_at"),
     sort_order: str = Query("desc"),
     session: Session = Depends(get_session),
@@ -132,6 +140,8 @@ def get_reports(
         page_size=page_size,
         q=q,
         status=status,
+        kind=kind,
+        include_older=include_older,
         sort_by=sort_by,
         sort_order=sort_order,
     )
@@ -144,6 +154,7 @@ def get_reports(
                 params=item.params,
                 status=item.status,
                 created_at=item.created_at,
+                **identity_fields(item),
             )
             for item in items
         ],
@@ -160,8 +171,14 @@ class ReportDetail(BaseModel):
     fact_table: dict
     narrative: str
     markdown: str
+    final_markdown: str
     status: str
     violations: list
+    kind: str
+    title: str
+    period: str | None
+    verified: bool
+    older_format: bool
     quality_eval: dict | None = None
     error: str | None = None
     created_at: datetime
@@ -185,11 +202,13 @@ def read_report(
         fact_table=db_report.fact_table,
         narrative=db_report.narrative,
         markdown=db_report.markdown,
+        final_markdown=clean_markdown(db_report),
         status=db_report.status,
         violations=db_report.violations,
         quality_eval=db_report.quality_eval,
         error=db_report.error,
         created_at=db_report.created_at,
+        **identity_fields(db_report),
     )
 
 
