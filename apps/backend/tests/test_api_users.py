@@ -11,6 +11,10 @@ from app.auth.tokens import create_access_token
 from app.db import Base, SessionLocal, engine as db_engine
 from app.api.users import router as users_router
 
+import pytest
+
+pytestmark = pytest.mark.real_auth
+
 DEV_DB_PATH = Path(__file__).parent.parent / "dev.db"
 
 

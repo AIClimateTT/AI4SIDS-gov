@@ -7,6 +7,10 @@ from app.db import engine as db_engine
 from app.auth.passwords import hash_password
 from tests.auth_helpers import FakeEmailSender, create_user, make_auth_client
 
+import pytest
+
+pytestmark = pytest.mark.real_auth
+
 DEV_DB_PATH = Path(__file__).parent.parent / "dev.db"
 
 

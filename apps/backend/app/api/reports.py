@@ -5,7 +5,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
-from app.auth.dependencies import CurrentUser
+from app.auth.dependencies import (
+    CurrentUser,
+    require_corporation_access,
+    require_dmu_workspace,
+)
 
 from app.core.contracts import DataRequirement
 from app.core.engine import PLACEHOLDER_RE, resolve_effective_requirements, validate_params
@@ -67,7 +71,12 @@ def validate_corporations(request: GenerateReportRequest) -> None:
             )
 
 
-@router.post("/reports", response_model=GenerateReportResponse, status_code=202)
+@router.post(
+    "/reports",
+    response_model=GenerateReportResponse,
+    status_code=202,
+    dependencies=[Depends(require_dmu_workspace)],
+)
 def create_report(
     request: GenerateReportRequest, session: Session = Depends(get_session)
 ) -> GenerateReportResponse:
@@ -132,7 +141,11 @@ class ReportListResponse(BaseModel):
     total: int
 
 
-@router.get("/reports", response_model=ReportListResponse)
+@router.get(
+    "/reports",
+    response_model=ReportListResponse,
+    dependencies=[Depends(require_dmu_workspace)],
+)
 def get_reports(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
@@ -184,10 +197,13 @@ class ReportDetail(BaseModel):
 
 
 @router.get("/reports/{report_id}", response_model=ReportDetail)
-def read_report(report_id: str, session: Session = Depends(get_session)) -> ReportDetail:
+def read_report(
+    report_id: str, user: CurrentUser, session: Session = Depends(get_session)
+) -> ReportDetail:
     db_report = get_report(report_id, session)
     if db_report is None:
         raise HTTPException(status_code=404, detail=f"report not found: {report_id}")
+    require_corporation_access(user, (db_report.params or {}).get("corporation"))
 
     return ReportDetail(
         id=db_report.id,
@@ -234,6 +250,7 @@ def post_report_rating(
     db_report = get_report(report_id, session)
     if db_report is None:
         raise HTTPException(status_code=404, detail=f"report not found: {report_id}")
+    require_corporation_access(current_user, (db_report.params or {}).get("corporation"))
     saved = save_rating(
         session,
         report_id=report_id,

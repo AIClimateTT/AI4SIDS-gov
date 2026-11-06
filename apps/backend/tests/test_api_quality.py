@@ -123,6 +123,7 @@ def test_patch_assisted_excludes_event_from_unaided_success(monkeypatch):
     assert summary["task_succeeded_unaided"] == 0
 
 
+@pytest.mark.real_auth
 def test_rating_requires_auth(monkeypatch):
     client = make_client(monkeypatch)
     response = client.post("/reports/nope/rating", json={"rating": 5})
@@ -191,6 +192,7 @@ def test_dmu_user_can_verdict_a_pending_claim(monkeypatch):
     assert updated["human_verdict"] == "supported"
 
 
+@pytest.mark.real_auth
 def test_corp_user_cannot_verdict_a_claim(monkeypatch):
     from app.auth.tokens import create_access_token
     from tests.auth_helpers import create_user
