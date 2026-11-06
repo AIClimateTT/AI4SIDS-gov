@@ -191,7 +191,7 @@ function AdminGeneratePage() {
                     required
                     options={generateTemplates.map((template) => ({
                       value: template.name,
-                      label: `${template.title} (v${template.version})`,
+                      label: template.title,
                     }))}
                   />
                 )}

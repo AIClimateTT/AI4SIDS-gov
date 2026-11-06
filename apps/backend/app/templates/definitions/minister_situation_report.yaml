@@ -1,4 +1,5 @@
 name: minister_situation_report
+version: 100
 title: Ministerial Situation Report
 description: National situation report for the Minister, built from corporations' SITREP data with validated Survey123 field observation as corroboration.
 params:

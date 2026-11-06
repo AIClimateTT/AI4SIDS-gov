@@ -32,11 +32,7 @@ import { Route as DmuAdminModulesRouteImport } from './routes/dmu/admin/modules'
 import { Route as CorpPrintSessionIdRouteImport } from './routes/corp/print.$sessionId'
 import { Route as CorpFilingsSubmissionIdRouteImport } from './routes/corp/filings/$submissionId'
 import { Route as CorpCSessionIdRouteImport } from './routes/corp/c/$sessionId'
-import { Route as DmuAdminTemplatesIndexRouteImport } from './routes/dmu/admin/templates/index'
 import { Route as CorpEventsEventIdIndexRouteImport } from './routes/corp/events/$eventId/index'
-import { Route as DmuAdminTemplatesNameIndexRouteImport } from './routes/dmu/admin/templates/$name/index'
-import { Route as DmuAdminTemplatesNameNewRouteImport } from './routes/dmu/admin/templates/$name/new'
-import { Route as DmuAdminTemplatesNameVersionsVersionRouteImport } from './routes/dmu/admin/templates/$name/versions/$version'
 
 const WhoAreYouRoute = WhoAreYouRouteImport.update({
   id: '/who-are-you',
@@ -153,34 +149,11 @@ const CorpCSessionIdRoute = CorpCSessionIdRouteImport.update({
   path: '/c/$sessionId',
   getParentRoute: () => CorpRoute,
 } as any)
-const DmuAdminTemplatesIndexRoute = DmuAdminTemplatesIndexRouteImport.update({
-  id: '/templates/',
-  path: '/templates/',
-  getParentRoute: () => DmuAdminRoute,
-} as any)
 const CorpEventsEventIdIndexRoute = CorpEventsEventIdIndexRouteImport.update({
   id: '/events/$eventId/',
   path: '/events/$eventId/',
   getParentRoute: () => CorpRoute,
 } as any)
-const DmuAdminTemplatesNameIndexRoute =
-  DmuAdminTemplatesNameIndexRouteImport.update({
-    id: '/templates/$name/',
-    path: '/templates/$name/',
-    getParentRoute: () => DmuAdminRoute,
-  } as any)
-const DmuAdminTemplatesNameNewRoute =
-  DmuAdminTemplatesNameNewRouteImport.update({
-    id: '/templates/$name/new',
-    path: '/templates/$name/new',
-    getParentRoute: () => DmuAdminRoute,
-  } as any)
-const DmuAdminTemplatesNameVersionsVersionRoute =
-  DmuAdminTemplatesNameVersionsVersionRouteImport.update({
-    id: '/templates/$name/versions/$version',
-    path: '/templates/$name/versions/$version',
-    getParentRoute: () => DmuAdminRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -206,10 +179,6 @@ export interface FileRoutesByFullPath {
   '/dmu/reports/new': typeof DmuReportsNewRoute
   '/dmu/reports/': typeof DmuReportsIndexRoute
   '/corp/events/$eventId/': typeof CorpEventsEventIdIndexRoute
-  '/dmu/admin/templates/': typeof DmuAdminTemplatesIndexRoute
-  '/dmu/admin/templates/$name/new': typeof DmuAdminTemplatesNameNewRoute
-  '/dmu/admin/templates/$name/': typeof DmuAdminTemplatesNameIndexRoute
-  '/dmu/admin/templates/$name/versions/$version': typeof DmuAdminTemplatesNameVersionsVersionRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -233,10 +202,6 @@ export interface FileRoutesByTo {
   '/dmu/reports/new': typeof DmuReportsNewRoute
   '/dmu/reports': typeof DmuReportsIndexRoute
   '/corp/events/$eventId': typeof CorpEventsEventIdIndexRoute
-  '/dmu/admin/templates': typeof DmuAdminTemplatesIndexRoute
-  '/dmu/admin/templates/$name/new': typeof DmuAdminTemplatesNameNewRoute
-  '/dmu/admin/templates/$name': typeof DmuAdminTemplatesNameIndexRoute
-  '/dmu/admin/templates/$name/versions/$version': typeof DmuAdminTemplatesNameVersionsVersionRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -264,10 +229,6 @@ export interface FileRoutesById {
   '/dmu/reports/new': typeof DmuReportsNewRoute
   '/dmu/reports/': typeof DmuReportsIndexRoute
   '/corp/events/$eventId/': typeof CorpEventsEventIdIndexRoute
-  '/dmu/admin/templates/': typeof DmuAdminTemplatesIndexRoute
-  '/dmu/admin/templates/$name/new': typeof DmuAdminTemplatesNameNewRoute
-  '/dmu/admin/templates/$name/': typeof DmuAdminTemplatesNameIndexRoute
-  '/dmu/admin/templates/$name/versions/$version': typeof DmuAdminTemplatesNameVersionsVersionRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -295,10 +256,6 @@ export interface FileRouteTypes {
     | '/dmu/reports/new'
     | '/dmu/reports/'
     | '/corp/events/$eventId/'
-    | '/dmu/admin/templates/'
-    | '/dmu/admin/templates/$name/new'
-    | '/dmu/admin/templates/$name/'
-    | '/dmu/admin/templates/$name/versions/$version'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -322,10 +279,6 @@ export interface FileRouteTypes {
     | '/dmu/reports/new'
     | '/dmu/reports'
     | '/corp/events/$eventId'
-    | '/dmu/admin/templates'
-    | '/dmu/admin/templates/$name/new'
-    | '/dmu/admin/templates/$name'
-    | '/dmu/admin/templates/$name/versions/$version'
   id:
     | '__root__'
     | '/'
@@ -352,10 +305,6 @@ export interface FileRouteTypes {
     | '/dmu/reports/new'
     | '/dmu/reports/'
     | '/corp/events/$eventId/'
-    | '/dmu/admin/templates/'
-    | '/dmu/admin/templates/$name/new'
-    | '/dmu/admin/templates/$name/'
-    | '/dmu/admin/templates/$name/versions/$version'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -530,40 +479,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CorpCSessionIdRouteImport
       parentRoute: typeof CorpRoute
     }
-    '/dmu/admin/templates/': {
-      id: '/dmu/admin/templates/'
-      path: '/templates'
-      fullPath: '/dmu/admin/templates/'
-      preLoaderRoute: typeof DmuAdminTemplatesIndexRouteImport
-      parentRoute: typeof DmuAdminRoute
-    }
     '/corp/events/$eventId/': {
       id: '/corp/events/$eventId/'
       path: '/events/$eventId'
       fullPath: '/corp/events/$eventId/'
       preLoaderRoute: typeof CorpEventsEventIdIndexRouteImport
       parentRoute: typeof CorpRoute
-    }
-    '/dmu/admin/templates/$name/': {
-      id: '/dmu/admin/templates/$name/'
-      path: '/templates/$name'
-      fullPath: '/dmu/admin/templates/$name/'
-      preLoaderRoute: typeof DmuAdminTemplatesNameIndexRouteImport
-      parentRoute: typeof DmuAdminRoute
-    }
-    '/dmu/admin/templates/$name/new': {
-      id: '/dmu/admin/templates/$name/new'
-      path: '/templates/$name/new'
-      fullPath: '/dmu/admin/templates/$name/new'
-      preLoaderRoute: typeof DmuAdminTemplatesNameNewRouteImport
-      parentRoute: typeof DmuAdminRoute
-    }
-    '/dmu/admin/templates/$name/versions/$version': {
-      id: '/dmu/admin/templates/$name/versions/$version'
-      path: '/templates/$name/versions/$version'
-      fullPath: '/dmu/admin/templates/$name/versions/$version'
-      preLoaderRoute: typeof DmuAdminTemplatesNameVersionsVersionRouteImport
-      parentRoute: typeof DmuAdminRoute
     }
   }
 }
@@ -602,21 +523,12 @@ interface DmuAdminRouteChildren {
   DmuAdminModulesRoute: typeof DmuAdminModulesRoute
   DmuAdminQualityRoute: typeof DmuAdminQualityRoute
   DmuAdminUsersRoute: typeof DmuAdminUsersRoute
-  DmuAdminTemplatesIndexRoute: typeof DmuAdminTemplatesIndexRoute
-  DmuAdminTemplatesNameNewRoute: typeof DmuAdminTemplatesNameNewRoute
-  DmuAdminTemplatesNameIndexRoute: typeof DmuAdminTemplatesNameIndexRoute
-  DmuAdminTemplatesNameVersionsVersionRoute: typeof DmuAdminTemplatesNameVersionsVersionRoute
 }
 
 const DmuAdminRouteChildren: DmuAdminRouteChildren = {
   DmuAdminModulesRoute: DmuAdminModulesRoute,
   DmuAdminQualityRoute: DmuAdminQualityRoute,
   DmuAdminUsersRoute: DmuAdminUsersRoute,
-  DmuAdminTemplatesIndexRoute: DmuAdminTemplatesIndexRoute,
-  DmuAdminTemplatesNameNewRoute: DmuAdminTemplatesNameNewRoute,
-  DmuAdminTemplatesNameIndexRoute: DmuAdminTemplatesNameIndexRoute,
-  DmuAdminTemplatesNameVersionsVersionRoute:
-    DmuAdminTemplatesNameVersionsVersionRoute,
 }
 
 const DmuAdminRouteWithChildren = DmuAdminRoute._addFileChildren(

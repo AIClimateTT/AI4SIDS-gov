@@ -29,13 +29,11 @@ def _clean_registry():
 def make_client(monkeypatch) -> TestClient:
     from sqlalchemy.orm import sessionmaker
 
-    from app.core.template_store import import_template_directory
 
     monkeypatch.setattr("app.core.llm.settings.llm_provider", "fake")
     Base.metadata.create_all(db_engine)
     Session = sessionmaker(bind=db_engine)
     session = Session()
-    import_template_directory(TEMPLATES_DIR, session)
     session.close()
     return TestClient(create_app())
 

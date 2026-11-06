@@ -2,7 +2,7 @@ from app.core.contracts import DataRequirement
 from app.core.engine import generate_report
 from app.core.report_store import apply_generated_report, get_report, mark_report_failed, mark_report_running
 from app.quality.store import record_event
-from app.core.template_store import get_template_version
+from app.core.template_catalog import get_template
 from app.db import SessionLocal
 
 
@@ -14,7 +14,7 @@ def run_generate_report(report_id: str) -> None:
         if row is None:
             return
         mark_report_running(row, session)
-        template = get_template_version(row.template, row.template_version, session)
+        template = get_template(row.template)
         if template is None:
             mark_report_failed(row, session, f"unknown template: {row.template}")
             return

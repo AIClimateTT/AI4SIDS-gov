@@ -16,6 +16,7 @@ from app.api.quality import router as quality_router
 from app.config import settings, validate_runtime_settings
 from app.auth.dependencies import require_dmu_workspace
 from app.core.registry import ensure_default_modules_registered
+from app.core.template_catalog import list_templates
 
 
 def _cors_origins() -> list[str]:
@@ -53,6 +54,8 @@ def create_app() -> FastAPI:
     app.include_router(users_router)
     app.include_router(quality_router, dependencies=dmu_only)
     ensure_default_modules_registered()
+    # A broken template fails the deploy, not the first report that needs it.
+    list_templates()
     return app
 
 

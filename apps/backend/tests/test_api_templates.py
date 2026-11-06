@@ -4,7 +4,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.core.registry import reset_registry
-from app.core.template_store import import_template_directory
 from app.db import Base, engine as db_engine
 from app import create_app
 
@@ -31,7 +30,6 @@ def make_client() -> TestClient:
     Base.metadata.create_all(db_engine)
     Session = sessionmaker(bind=db_engine)
     session = Session()
-    import_template_directory(TEMPLATES_DIR, session)
     session.close()
 
     app = create_app()
@@ -51,7 +49,7 @@ def test_get_templates_returns_every_shipped_template():
         "minister_situation_report",
         "field_data_region_review",
     }
-    assert all(t["version"] == 1 for t in body)
+    assert all(t["version"] >= 100 for t in body)
 
 
 def test_get_templates_includes_full_template_fields():
@@ -73,3 +71,9 @@ def test_get_templates_includes_full_template_fields():
     assert {p["name"] for p in corp["params"]} == {"corporation", "submission_id"}
     assert corp["narration"]["skills"]["capture"]
     assert corp["narration"]["skills"]["compose"]
+
+
+def test_post_templates_is_gone():
+    client = TestClient(create_app())
+
+    assert client.post("/templates", json={}).status_code == 405

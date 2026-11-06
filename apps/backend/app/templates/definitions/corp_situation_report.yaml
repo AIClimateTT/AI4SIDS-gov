@@ -1,4 +1,5 @@
 name: corp_situation_report
+version: 100
 title: Corporation Situation Report
 description: One sitrep filing — this conversation's incidents and logs, cited.
 params:

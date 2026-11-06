@@ -12,7 +12,7 @@ from app.core.contracts import RowErrorInfo, SubmissionIngestResult
 from app.core.llm import get_llm_client
 from app.core.renderer import strip_citation_markup
 from app.core.report_store import add_report
-from app.core.template_store import get_latest_template_version
+from app.core.template_catalog import get_template
 from app.auth.dependencies import CurrentUser, require_corporation_access
 from app.auth.models import User
 from app.db import get_session
@@ -528,7 +528,7 @@ def _require_event_if_incidents(row: CaptureSession) -> None:
 
 
 def _sitrep_template(db: Session):
-    template = get_latest_template_version("corp_situation_report", db)
+    template = get_template("corp_situation_report")
     if template is None:
         raise HTTPException(
             status_code=400,

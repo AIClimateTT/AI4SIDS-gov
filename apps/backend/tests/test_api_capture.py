@@ -131,7 +131,6 @@ class _SitrepAwareLLM(FakeLLMClient):
 
 def make_client(monkeypatch, llm_responses: list[str] | None = None) -> TestClient:
     import app.core.report_models  # noqa: F401
-    import app.core.template_models  # noqa: F401
     import app.modules.capture.models  # noqa: F401
     import app.modules.sitreps.models  # noqa: F401
     import app.modules.survey123.models  # noqa: F401
@@ -142,18 +141,7 @@ def make_client(monkeypatch, llm_responses: list[str] | None = None) -> TestClie
         lambda purpose="batch": _SitrepAwareLLM(responses=llm_responses or [EXTRACT_JSON]),
     )
     Base.metadata.create_all(db_engine)
-    install_templates()
     return TestClient(create_app())
-
-
-def install_templates() -> None:
-    from sqlalchemy.orm import sessionmaker
-
-    from app.core.template_store import import_template_directory
-
-    db = sessionmaker(bind=db_engine)()
-    import_template_directory(TEMPLATES_DIR, db)
-    db.close()
 
 
 def create_event(client: TestClient) -> int:

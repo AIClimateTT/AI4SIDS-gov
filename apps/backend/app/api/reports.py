@@ -15,7 +15,7 @@ from app.core.contracts import DataRequirement
 from app.core.engine import PLACEHOLDER_RE, resolve_effective_requirements, validate_params
 from app.core.jobs import enqueue
 from app.core.report_store import get_report, list_reports, save_placeholder_report
-from app.core.template_store import get_latest_template_version, get_template_version
+from app.core.template_catalog import get_template
 from app.db import get_session
 from app.modules.survey123.normalize import CANONICAL_CORPORATIONS
 from app.quality.store import record_event, save_rating
@@ -32,7 +32,6 @@ class DataRequirementInput(BaseModel):
 class GenerateReportRequest(BaseModel):
     template: str
     params: dict
-    version: int | None = None
     data_requirements: list[DataRequirementInput] | None = None
 
 
@@ -82,10 +81,7 @@ def create_report(
 ) -> GenerateReportResponse:
     validate_corporations(request)
 
-    if request.version is not None:
-        template = get_template_version(request.template, request.version, session)
-    else:
-        template = get_latest_template_version(request.template, session)
+    template = get_template(request.template)
     if template is None:
         raise HTTPException(status_code=404, detail=f"unknown template: {request.template}")
 

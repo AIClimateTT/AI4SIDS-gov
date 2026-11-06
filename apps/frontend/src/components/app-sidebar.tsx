@@ -7,7 +7,6 @@ import {
   DatabaseIcon,
   FileTextIcon,
   LayoutDashboardIcon,
-  LibraryIcon,
   MessageSquareIcon,
   UploadIcon,
   UsersIcon,
@@ -71,7 +70,6 @@ const DMU_NAV: NavGroup[] = [
     label: 'Administration',
     recessed: true,
     items: [
-      { title: 'Templates', to: '/dmu/admin/templates', icon: LibraryIcon },
       { title: 'Modules', to: '/dmu/admin/modules', icon: DatabaseIcon },
       { title: 'Quality', to: '/dmu/admin/quality', icon: ChartColumnIcon },
       { title: 'Users', to: '/dmu/admin/users', icon: UsersIcon },

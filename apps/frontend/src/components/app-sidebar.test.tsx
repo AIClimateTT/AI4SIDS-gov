@@ -27,7 +27,6 @@ const DMU_PATHS = [
   '/dmu/reports/new',
   '/dmu/field-data',
   '/dmu/whatsapp',
-  '/dmu/admin/templates',
   '/dmu/admin/modules',
   '/dmu/admin/quality',
   '/dmu/admin/users',
@@ -111,7 +110,7 @@ describe('AppSidebar', () => {
       },
       {
         label: 'Administration',
-        links: ['Templates', 'Modules', 'Quality', 'Users'],
+        links: ['Modules', 'Quality', 'Users'],
       },
     ])
   })
@@ -128,7 +127,7 @@ describe('AppSidebar', () => {
     expect(isHighlighted('Modules')).toBe(true)
     // The dashboard is a prefix of every DMU path; it must not light up here.
     expect(isHighlighted('Dashboard')).toBe(false)
-    expect(isHighlighted('Templates')).toBe(false)
+    expect(isHighlighted('Users')).toBe(false)
   })
 
   it('treats nested pages as part of their section', async () => {

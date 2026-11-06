@@ -1,4 +1,4 @@
-import type { DataRequirementInfo, MetricSpec, TemplateInfo } from '@/types/dmcu'
+import type { DataRequirementInfo, MetricSpec } from '@/types/dmcu'
 import { formatDisplayLabel } from '@/lib/format-display'
 
 export function metricKey(module: string, metric: string) {
@@ -62,29 +62,4 @@ export function selectedMetricKeys(requirements: DataRequirementInfo[]) {
 
 export function formatRequirementLabel(requirement: DataRequirementInfo) {
   return `${formatDisplayLabel(requirement.module)} · ${formatDisplayLabel(requirement.metric)}`
-}
-
-export function sectionsToText(sections: string[]) {
-  return sections.join('\n')
-}
-
-export function textToSections(value: string) {
-  return value
-    .split(/[\n,]+/)
-    .map((section) => section.trim())
-    .filter(Boolean)
-}
-
-export function templateToCreateInput(
-  template: TemplateInfo,
-  overrides: Partial<TemplateInfo> = {},
-): TemplateInfo {
-  return {
-    ...template,
-    ...overrides,
-    params: overrides.params ?? template.params,
-    data_requirements:
-      overrides.data_requirements ?? template.data_requirements,
-    narration: overrides.narration ?? template.narration,
-  }
 }

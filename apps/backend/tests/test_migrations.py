@@ -55,7 +55,6 @@ def test_every_table_exists_after_upgrade_head(tmp_path):
     assert {
         "field_observations",
         "reports",
-        "report_templates",
         "events",
         "submissions",
         "sitrep_incidents",

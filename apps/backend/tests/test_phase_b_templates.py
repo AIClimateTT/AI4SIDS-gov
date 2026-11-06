@@ -7,7 +7,6 @@ from sqlalchemy.orm import sessionmaker
 from app.core.contracts import DataRequirement, NarrationConfig, RenderConfig, Template, TemplateParam
 from app.core.engine import CITATION_RULES, compose_system_prompt, generate_report, resolve_effective_requirements
 from app.core.registry import reset_registry
-from app.core.template_store import import_template_directory
 from app.db import Base, engine as db_engine
 from app import create_app
 from app.modules.survey123.ingest import ingest_csv
@@ -49,7 +48,6 @@ def make_client(monkeypatch) -> TestClient:
     Base.metadata.create_all(db_engine)
     Session = sessionmaker(bind=db_engine)
     session = Session()
-    import_template_directory(TEMPLATES_DIR, session)
     ingest_csv(FIXTURE_PATH, session, salt="test-salt")
     session.close()
     return TestClient(create_app())
@@ -85,74 +83,6 @@ def test_resolve_effective_requirements_rejects_empty():
 
     with pytest.raises(ValueError, match="at least one data requirement"):
         resolve_effective_requirements(template, None)
-
-
-def test_post_templates_creates_new_version(monkeypatch):
-    client = make_client(monkeypatch)
-
-    response = client.post(
-        "/templates",
-        json={
-            "name": "minister_situation_report",
-            "title": "Minister Briefing v2",
-            "description": "Updated",
-            "params": [
-                {"name": "date_from", "required": True},
-                {"name": "date_to", "required": True},
-            ],
-            "data_requirements": [
-                {
-                    "module": "survey123",
-                    "metric": "incident_count",
-                    "params": {"date_from": "{date_from}", "date_to": "{date_to}"},
-                }
-            ],
-            "narration": {
-                "identity": "Minister writer",
-                "skills": {"compose": "Situation overview for the minister."},
-                "output_sections": ["situation_overview", "data_gaps"],
-            },
-        },
-    )
-
-    assert response.status_code == 201, response.text
-    body = response.json()
-    assert body["version"] == 2
-    assert body["title"] == "Minister Briefing v2"
-
-
-def test_get_template_versions_lists_all(monkeypatch):
-    client = make_client(monkeypatch)
-    client.post(
-        "/templates",
-        json={
-            "name": "minister_situation_report",
-            "title": "v2",
-            "description": "d",
-            "params": [
-                {"name": "date_from", "required": True},
-                {"name": "date_to", "required": True},
-            ],
-            "data_requirements": [
-                {
-                    "module": "survey123",
-                    "metric": "incident_count",
-                    "params": {"date_from": "{date_from}", "date_to": "{date_to}"},
-                }
-            ],
-            "narration": {
-                "identity": "Minister writer",
-                "skills": {"compose": "x"},
-                "output_sections": ["headline"],
-            },
-        },
-    )
-
-    response = client.get("/templates/minister_situation_report/versions")
-
-    assert response.status_code == 200
-    versions = [v["version"] for v in response.json()]
-    assert versions == [2, 1]
 
 
 def test_generate_with_metric_override_stores_effective_requirements(monkeypatch):

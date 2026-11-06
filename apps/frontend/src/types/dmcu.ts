@@ -32,28 +32,6 @@ export type TemplateInfo = {
   narration: NarrationInfo
 }
 
-export type TemplateVersionSummary = {
-  name: string
-  version: number
-  title: string
-  created_at: string
-}
-
-export type CreateTemplateVersionInput = {
-  name: string
-  title: string
-  description: string
-  params: TemplateParamInfo[]
-  data_requirements: DataRequirementInfo[]
-  narration: NarrationInfo
-}
-
-export const CITATION_RULES = `RULES (absolute — always apply):
-- Use ONLY numbers present in the fact table you are given as JSON. Never compute, sum, estimate, or round a number that is not already present.
-- Every sentence containing a figure must end with its citation marker, e.g. [C001]. Citation markers look like C001, C002, etc.
-- Distinguish validated vs pending figures exactly as labeled in the fact table's "verification" field.
-- If the fact table lists gaps, state them plainly in a Data Gaps section.`
-
 export type MetricSpec = {
   name: string
   description: string
