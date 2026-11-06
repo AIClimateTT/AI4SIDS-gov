@@ -1104,3 +1104,17 @@ def test_alert_detail_is_saved_and_reaches_the_filed_submission(tmp_path, monkey
     submission = db.get(Submission, filed.json()["ingest"]["submission_id"])
     assert submission.alert_detail == wording
     db.close()
+
+
+def test_a_new_session_defaults_as_at_to_trinidad_wall_clock(monkeypatch):
+    from datetime import datetime, timezone
+
+    from app.core.localtime import to_local
+
+    client = make_client(monkeypatch)
+    created = client.post(
+        "/capture/sessions", json={"corporation": "arima_borough_corporation"}
+    ).json()
+
+    expected = to_local(datetime.now(timezone.utc)).replace(tzinfo=None)
+    assert abs((datetime.fromisoformat(created["as_at"]) - expected).total_seconds()) < 60

@@ -45,7 +45,7 @@ from app.modules.capture.prompt import compose_capture_prompt
 from app.modules.capture.turn import apply_turn, stream_turn
 from app.modules.sitreps.ingest import ingest_submission
 from app.modules.sitreps.models import ALERT_LEVELS, HAZARD_TYPES
-from app.modules.sitreps.store import create_event, get_event
+from app.modules.sitreps.store import create_event, get_event, next_sequence_no
 from app.modules.survey123.normalize import CANONICAL_CORPORATIONS
 
 router = APIRouter()
@@ -543,11 +543,9 @@ def _sitrep_template(db: Session):
     return template
 
 
-def _event_title(db: Session, row: CaptureSession) -> str:
-    if row.event_id is None:
-        return "Untitled event"
-    event = get_event(db, row.event_id)
-    return event.title if event is not None else "Untitled event"
+def _hazard_type(db: Session, row: CaptureSession) -> str | None:
+    event = get_event(db, row.event_id) if row.event_id is not None else None
+    return event.hazard_type if event is not None else None
 
 
 def _generate_preview(db: Session, row: CaptureSession) -> CaptureSession:
@@ -557,7 +555,11 @@ def _generate_preview(db: Session, row: CaptureSession) -> CaptureSession:
         working,
         corporation=row.corporation,
         event_id=row.event_id,
-        event_title=_event_title(db, row),
+        hazard_type=_hazard_type(db, row),
+        # The number this filing will take; only an event has a sequence.
+        report_number=(
+            next_sequence_no(db, row.corporation, row.event_id) if row.event_id else None
+        ),
         template=template,
         llm_client=get_llm_client("chat"),
         request_id=str(uuid.uuid4()),
@@ -646,7 +648,8 @@ def issue_session(
         working_set_from_session(row),
         corporation=row.corporation,
         event_id=row.event_id,
-        event_title=_event_title(db, row),
+        hazard_type=_hazard_type(db, row),
+        report_number=ingest.sequence_no if row.event_id else None,
         template=template,
         llm_client=get_llm_client("chat"),
         request_id=str(uuid.uuid4()),

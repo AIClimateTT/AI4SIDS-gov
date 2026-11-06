@@ -150,3 +150,13 @@ def test_the_sitreps_module_offers_it(db):
 
     assert "corporation_status" in {spec.name for spec in sitrep_module.list_metrics()}
     assert sitrep_module.run_metric("corporation_status", WINDOW, db)[0].value == "CERT on standby"
+
+
+def test_window_reads_as_at_as_the_officers_wall_clock(db):
+    # as_at comes from a datetime-local input. Reading it as UTC would move this
+    # 1am filing to the evening before and drop it from the report.
+    _log(db, _submission(db, datetime(2026, 8, 21, 1)), "CERT on standby")
+
+    assert [f.value for f in corporation_status({"date_from": "2026-08-21"}, db)] == [
+        "CERT on standby"
+    ]

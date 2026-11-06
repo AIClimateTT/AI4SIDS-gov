@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from app.core.llm import FakeLLMClient
+from app.core.citation_check import CITATION_MARKER_RE
 from app.modules.capture.schemas import CaptureIncident, CaptureLog, CaptureWorkingSet
 from app.modules.capture.sitrep import generate_working_set_sitrep
 from app.templates.loader import load_template
@@ -15,6 +15,7 @@ def _arima_working() -> CaptureWorkingSet:
     return CaptureWorkingSet(
         as_at=datetime(2026, 8, 21, 20, 3),
         alert_level="yellow",
+        alert_detail="Flood Alert #1 - Yellow Level",
         present_activity="Officers dispatched to aid and transport an injured individual",
         situation_overview="The MET Office issued a yellow level warning for flooding on Tumpuna Road.",
         incidents=[
@@ -92,36 +93,104 @@ def _arima_working() -> CaptureWorkingSet:
     )
 
 
-def test_arima_filing_tables_match_the_working_set():
-    report = generate_working_set_sitrep(
-        _arima_working(),
+class _NoLLM:
+    def generate(self, system_prompt: str, user_content: str) -> str:
+        raise AssertionError("the corporation sitrep must not call the LLM")
+
+
+def _report(working=None):
+    return generate_working_set_sitrep(
+        working or _arima_working(),
         corporation="arima_borough_corporation",
         event_id=1,
-        event_title="Flooding in Arima",
+        hazard_type="adverse_weather",
+        report_number=2,
         template=TEMPLATE,
-        llm_client=FakeLLMClient(
-            responses=[
-                "Flooding continues on Tumpuna Road, with roofs blown off and a fallen tree. "
-                "Casualties: 2 injured and 3 dead [C005] [C006]."
-            ]
-        ),
+        llm_client=_NoLLM(),
         request_id="arima-golden",
     )
-    text = report.markdown
-    assert "Flooding in Arima" in text
-    assert "| 10 |" in text
-    assert "| 50 |" in text
-    assert "| 20 |" in text
-    assert "| 100 |" in text
-    assert "Special Needs Count" not in text
-    assert "Estimated Damage Total" not in text
-    assert "Fallen tree caused 2 deaths" in text
-    assert "Tumpuna Road" in text
-    assert "Officers dispatched to aid injured individual for medical transport" in text
-    lowered = text.lower()
-    assert "no relief" not in lowered
-    assert "unknown street" not in lowered
-    assert "every category shows zero" not in lowered
-    assert "## Data Gaps" in text
-    assert "not recorded" in text
-    assert "None." not in text.split("## Data Gaps", 1)[1].split("##", 1)[0]
+
+
+def _section(text: str, heading: str) -> str:
+    return text.split(f"## {heading}", 1)[1].split("\n## ", 1)[0]
+
+
+def test_header_follows_the_baseline():
+    text = _report().final_markdown
+
+    assert text.startswith("# ADVERSE WEATHER SITUATION REPORT #2\n")
+    assert "**As at:** 8:03 pm on 21/08/2026" in text
+    assert "**Location:** Arima Borough Corporation" in text
+    assert "**Present Activity:** Officers dispatched to aid and transport an injured individual" in text
+    assert "**Alert Level:** Flood Alert #1 - Yellow Level" in text
+    assert "## Situation Overview\n\nThe MET Office issued a yellow level warning" in text
+
+
+def test_sections_appear_in_baseline_order():
+    text = _report().final_markdown
+
+    headings = [line[3:] for line in text.splitlines() if line.startswith("## ")]
+    assert headings == [
+        "Situation Overview",
+        "Situation Summary",
+        "Disaster Relief Distribution Summary",
+        "Resources",
+        "Summary of Activities",
+        "Incidents",
+    ]
+
+
+def test_relief_distributed_is_separate_from_stock_on_hand():
+    text = _report().final_markdown
+
+    distributed = _section(text, "Disaster Relief Distribution Summary")
+    resources = _section(text, "Resources")
+    assert "| 10 |" in distributed and "| 50 |" in distributed
+    assert "| 20 |" not in distributed and "| 100 |" not in distributed
+    assert "| 20 |" in resources and "| 100 |" in resources
+    assert "In Stock" in resources
+
+
+def test_incidents_are_numbered_from_one():
+    rows = [
+        line
+        for line in _section(_report().final_markdown, "Incidents").splitlines()
+        if line.startswith("| ")
+    ]
+
+    assert rows[0].startswith("| No. | Date | Location | Type | Description |")
+    assert "Action Taken" not in rows[0]  # the working set records no action
+    assert rows[1].startswith("| 1 | 2026-08-21 | Tumpuna Road |")
+    assert rows[3].startswith("| 3 |")
+
+
+def test_issued_report_has_no_gaps_section_or_citations_but_the_draft_does():
+    report = _report()
+
+    assert "Data Gaps" not in report.final_markdown
+    assert "Information not yet available" not in report.final_markdown
+    assert not CITATION_MARKER_RE.search(report.final_markdown)
+    assert "## Data Gaps" in report.markdown
+    assert "not recorded" in report.markdown
+    assert "[C" in report.markdown
+
+
+def test_closing_line_marks_a_running_or_final_report():
+    assert _report().final_markdown.rstrip().endswith("END OF REPORT")
+
+    final = _arima_working().model_copy(update={"alert_level": "discontinued"})
+    assert _report(final).final_markdown.rstrip().endswith(
+        "No further reports to be submitted."
+    )
+
+
+def test_alert_level_is_used_when_the_officer_gave_no_wording():
+    working = _arima_working().model_copy(update={"alert_detail": None})
+
+    assert "**Alert Level:** Yellow" in _report(working).final_markdown
+
+
+def test_officer_text_with_a_backslash_survives():
+    working = _arima_working().model_copy(update={"situation_overview": r"Road C:\1 closed"})
+
+    assert r"Road C:\1 closed" in _report(working).final_markdown

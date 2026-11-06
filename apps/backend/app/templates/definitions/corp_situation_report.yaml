@@ -1,5 +1,5 @@
 name: corp_situation_report
-version: 100
+version: 101
 title: Corporation Situation Report
 description: One sitrep filing — this conversation's incidents and logs, cited.
 params:
@@ -43,17 +43,8 @@ narration:
       was just captured, then at most two missing-field probes. Incidents are
       discrete events; logs are operational or resource state. Preserve row_id.
       Manual fields are settled. Leave a count null when the officer gave no number.
-    compose: |
-      Pipeline in is the fact table for this filing. Pipeline out is short
-      connective prose only. Header, overview, present activity, count boxes,
-      incident table, and log tables are already rendered — do not repeat them
-      and do not rebuild counts. Prefer the officer’s incident_summary over the
-      type slug. Omit a zero or empty metric; do not announce it. Cite every
-      figure with [C001]. One or two paragraphs: what is happening now, then
-      casualties if present.
-  output_sections:
-    - connective_prose
-    - data_gaps
+    compose: Not narrated; rendered from data.
+  output_sections: []
 render:
   format: markdown
   include_citation_appendix: false

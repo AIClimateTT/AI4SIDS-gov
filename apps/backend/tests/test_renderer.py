@@ -190,7 +190,7 @@ def test_filing_layout_omits_zero_relief_and_unknown_street():
 
     markdown = render_report(template, fact_table, "Connective prose.")
 
-    assert "## Situation summary" in markdown
+    assert "## Situation Summary" in markdown
     assert "| Flooding | 1 |" in markdown
     assert "landslide" not in markdown.lower()
     assert "| 10 |" in markdown
@@ -252,18 +252,18 @@ def _filing_template() -> Template:
 def test_filing_places_narrative_before_the_tables():
     markdown = render_report(_filing_template(), _filing_fact_table(), "Connective prose.")
 
-    assert markdown.index("Connective prose.") < markdown.index("## Situation summary")
+    assert markdown.index("Connective prose.") < markdown.index("## Situation Summary")
     assert markdown.index("Connective prose.") < markdown.index("## Incidents")
 
 
-def test_filing_title_names_the_corporation():
+def test_filing_title_names_the_hazard_and_report_number():
     fact_table = _filing_fact_table().model_copy(
-        update={"params": {"corporation": "arima_borough_corporation"}}
+        update={"params": {"hazard_type": "adverse_weather", "report_number": 4}}
     )
     markdown = render_report(_filing_template(), fact_table, "Connective prose.")
 
-    assert markdown.startswith("# Arima Borough Corporation Situation Report")
-    assert markdown.index("Connective prose.") < markdown.index("## Situation summary")
+    assert markdown.startswith("# ADVERSE WEATHER SITUATION REPORT #4")
+    assert markdown.index("Connective prose.") < markdown.index("## Situation Summary")
 
 
 def test_filing_humanizes_incident_type_slugs():
@@ -299,14 +299,13 @@ def test_final_variant_omits_all_citation_markers():
     assert "Two people were injured and stock remains." in markdown
 
 
-def test_final_variant_relabels_data_gaps():
+def test_final_variant_leaves_out_data_gaps():
     markdown = render_report(
         _filing_template(), _filing_fact_table(), "prose", include_citations=False
     )
 
     assert "## Data Gaps" not in markdown
-    assert "## Information not yet available" in markdown
-    assert "Incident 1: community not recorded" in markdown
+    assert "Incident 1: community not recorded" not in markdown
 
 
 def test_draft_variant_keeps_citations_and_data_gaps_heading():

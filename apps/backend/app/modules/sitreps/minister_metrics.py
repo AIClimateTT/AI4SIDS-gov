@@ -5,7 +5,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.contracts import Fact, MetricSpec
-from app.core.localtime import to_local
 from app.modules.sitreps.models import SitrepIncident, SituationLog, Submission
 from app.modules.survey123.metrics import (
     METRIC_PARAMS_SCHEMA,
@@ -32,7 +31,8 @@ def _latest_per_corporation(params: dict, session: Session) -> list[Submission]:
     for row in session.scalars(
         select(Submission).order_by(Submission.as_at.desc(), Submission.id.desc())
     ):
-        day = to_local(row.as_at).date()
+        # as_at is the officer's Trinidad wall-clock reading, so no conversion.
+        day = row.as_at.date()
         if date_from is not None and day < date_from:
             continue
         if date_to is not None and day > date_to:

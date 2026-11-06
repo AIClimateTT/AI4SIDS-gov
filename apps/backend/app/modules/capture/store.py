@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.localtime import to_local
 from app.modules.capture.missing import missing_fields
 from app.modules.capture.models import CaptureSession
 from app.modules.capture.schemas import (
@@ -72,7 +73,8 @@ def create_session(
         corporation=corporation,
         event_id=event_id,
         status="draft",
-        as_at=now,
+        # A wall-clock reading like the officer's own entry, not UTC.
+        as_at=to_local(datetime.now(timezone.utc)).replace(tzinfo=None),
         alert_level="none",
         alert_detail=None,
         present_activity=None,

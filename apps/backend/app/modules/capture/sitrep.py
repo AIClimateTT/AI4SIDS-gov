@@ -6,35 +6,35 @@ from sqlalchemy.orm import Session
 from app.core.contracts import Fact, FactTable, Template
 from app.core.engine import GeneratedReport, narrate_fact_table
 from app.core.llm import LLMClient
+from app.core.localtime import to_local
+from app.core.renderer import format_as_at
 from app.modules.capture.facts import assemble_working_set_facts
 from app.modules.capture.missing import missing_fields
 from app.modules.capture.models import CaptureSession
 from app.modules.capture.schemas import CaptureWorkingSet
+from app.modules.survey123.normalize import CORPORATION_LABELS
 
 
 def sitrep_preamble(
     *,
-    event_title: str,
+    corporation_label: str,
     alert_level: str,
+    alert_detail: str | None,
     as_at: datetime,
     situation_overview: str | None,
     present_activity: str | None,
 ) -> str:
-    # Two trailing spaces are a markdown hard break. Without them these three
-    # fields collapse into one run-on paragraph instead of a filing header.
-    fields = [
-        f"**Event:** {event_title}",
-        f"**Alert:** {alert_level.replace('_', ' ').strip().title()}",
-        f"**As at:** {as_at.strftime('%Y-%m-%d %H:%M')}",
-    ]
-    # Separate paragraphs: a single newline collapses in markdown, which is
-    # what put Event / Alert / As at on one unreadable line.
-    parts = ["\n\n".join(fields)]
-    if situation_overview:
-        parts.extend(["", situation_overview])
+    # Separate paragraphs: a single newline collapses in markdown, which would
+    # put the header fields on one unreadable line.
+    alert = alert_detail or alert_level.replace("_", " ").strip().title()
+    fields = [f"**As at:** {format_as_at(as_at)}", f"**Location:** {corporation_label}"]
     if present_activity:
-        parts.extend(["", f"Present activity: {present_activity}"])
-    return "\n".join(parts)
+        fields.append(f"**Present Activity:** {present_activity}")
+    fields.append(f"**Alert Level:** {alert}")
+    text = "\n\n".join(fields)
+    if situation_overview:
+        text += f"\n\n## Situation Overview\n\n{situation_overview}"
+    return text
 
 
 def _location_gaps(working: CaptureWorkingSet) -> list[str]:
@@ -58,7 +58,8 @@ def generate_working_set_sitrep(
     *,
     corporation: str,
     event_id: int | None,
-    event_title: str,
+    hazard_type: str | None,
+    report_number: int | None,
     template: Template,
     llm_client: LLMClient,
     request_id: str,
@@ -78,7 +79,12 @@ def generate_working_set_sitrep(
     for index, fact in enumerate(facts, start=1):
         new_citation = fact.citation.model_copy(update={"cid": f"C{index:03d}"})
         renumbered.append(fact.model_copy(update={"citation": new_citation}))
-    params = {"corporation": corporation}
+    params = {
+        "corporation": corporation,
+        "hazard_type": hazard_type,
+        "report_number": report_number,
+        "alert_level": working.alert_level,
+    }
     fact_table = FactTable(
         request_id=request_id,
         template=template.name,
@@ -102,40 +108,33 @@ def generate_working_set_sitrep(
     generated = narrate_fact_table(
         template, fact_table, llm_client, template.data_requirements
     )
-    generated = attach_sitrep_preamble(
-        generated, working, event_title=event_title, template=template
-    )
-    return generated.model_copy(update={"params": params})
+    generated = attach_sitrep_preamble(generated, working, corporation=corporation)
+    return generated.model_copy(update={"params": {"corporation": corporation}})
 
 
 def attach_sitrep_preamble(
     generated: GeneratedReport,
     working: CaptureWorkingSet,
     *,
-    event_title: str,
-    template: Template,
+    corporation: str,
 ) -> GeneratedReport:
-    as_at = working.as_at or datetime.now(timezone.utc)
     preamble = sitrep_preamble(
-        event_title=event_title,
+        corporation_label=CORPORATION_LABELS.get(corporation, corporation),
         alert_level=working.alert_level,
-        as_at=as_at,
+        alert_detail=working.alert_detail,
+        as_at=working.as_at or to_local(datetime.now(timezone.utc)).replace(tzinfo=None),
         situation_overview=working.situation_overview,
         present_activity=working.present_activity,
     )
+
     def with_preamble(markdown: str) -> str:
-        updated, count = re.subn(
+        # A function, not a replacement string: officer text is verbatim and
+        # may hold a backslash, which re would read as an escape.
+        return re.sub(
             r"(^# [^\n]+\n\n)",
-            rf"\1{preamble}\n\n",
+            lambda match: f"{match.group(1)}{preamble}\n\n",
             markdown,
             count=1,
-        )
-        if count:
-            return updated
-        return markdown.replace(
-            f"# {template.title}\n\n",
-            f"# {template.title}\n\n{preamble}\n\n",
-            1,
         )
 
     return generated.model_copy(

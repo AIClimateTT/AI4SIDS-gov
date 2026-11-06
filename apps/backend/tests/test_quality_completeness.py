@@ -57,7 +57,7 @@ COMPLETE_MARKDOWN = """# Corporation Situation Report
 
 Three flooding incidents.
 
-## Situation summary
+## Situation Summary
 
 | Type | Count | Cite |
 |---|---|---|
