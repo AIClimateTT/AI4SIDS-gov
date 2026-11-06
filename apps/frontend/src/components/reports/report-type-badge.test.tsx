@@ -41,7 +41,7 @@ describe('ReportTypeBadge', () => {
   it('gives each kind its own look', () => {
     const classes = (['minister', 'corporation', 'survey123'] as const).map((kind) => {
       const { container } = render(<ReportTypeBadge kind={kind} verified={kind === 'survey123'} />)
-      return container.firstElementChild?.className
+      return container.firstElementChild?.firstElementChild?.className
     })
     expect(new Set(classes).size).toBe(3)
   })
