@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import type { ComponentProps } from 'react'
 import { Link, useRouterState } from '@tanstack/react-router'
 import type { LinkProps } from '@tanstack/react-router'
@@ -11,6 +12,7 @@ import {
   UsersIcon,
 } from 'lucide-react'
 
+import { CorporationsNav } from '@/components/dmu/corporations-nav'
 import { useIdentity } from '@/hooks/use-identity'
 import { isAdmin, isDmuWorkspace } from '@/lib/identity'
 
@@ -119,27 +121,30 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         {groups.map((group) => (
-          <SidebarGroup
-            key={group.label}
-            className={group.recessed ? 'mt-auto' : undefined}
-          >
-            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
-            <SidebarMenu>
-              {group.items.map((item) => (
-                <SidebarMenuItem key={item.to}>
-                  <SidebarMenuButton
-                    tooltip={item.title}
-                    isActive={isNavItemActive(pathname, item.to, item.exact)}
-                    render={<Link to={item.to} />}
-                  >
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroup>
+          <Fragment key={group.label}>
+            {group.recessed ? <CorporationsNav /> : null}
+            <SidebarGroup className={group.recessed ? 'mt-auto' : undefined}>
+              <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+              <SidebarMenu>
+                {group.items.map((item) => (
+                  <SidebarMenuItem key={item.to}>
+                    <SidebarMenuButton
+                      tooltip={item.title}
+                      isActive={isNavItemActive(pathname, item.to, item.exact)}
+                      render={<Link to={item.to} />}
+                    >
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroup>
+          </Fragment>
         ))}
+        {groups.length > 0 && !groups.some((group) => group.recessed) ? (
+          <CorporationsNav />
+        ) : null}
       </SidebarContent>
       <SidebarRail />
     </Sidebar>

@@ -49,7 +49,9 @@ const INCIDENT_COLUMNS: ColumnDef<IncidentListItem>[] = [
     accessorKey: 'incident_type',
     header: 'Type',
     cell: ({ row }) =>
-      row.original.incident_type ? formatConstant(row.original.incident_type) : '—',
+      row.original.incident_type
+        ? formatConstant(row.original.incident_type)
+        : '—',
   },
   {
     accessorKey: 'incident_summary',
@@ -103,11 +105,16 @@ const LOG_COLUMNS: ColumnDef<SituationLogItem>[] = [
 export function RecordsView({
   search,
   onSearchChange,
+  lockedCorporation,
 }: {
   search: RecordsSearch
   onSearchChange: (next: RecordsSearch) => void
+  /** Show only this corporation's records, on its own page. */
+  lockedCorporation?: string
 }) {
   const tab = search.tab ?? 'incidents'
+  const corporation = lockedCorporation ?? search.corporation
+  const locked = lockedCorporation !== undefined
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 })
   const [q, setQ] = useState<string | undefined>()
 
@@ -115,7 +122,7 @@ export function RecordsView({
     page: pagination.pageIndex + 1,
     pageSize: pagination.pageSize,
     q,
-    corporation: search.corporation,
+    corporation,
     submissionId: search.submission_id,
   }
   const incidents = useQuery({
@@ -127,8 +134,8 @@ export function RecordsView({
     enabled: tab === 'logs',
   })
   const filings = useQuery({
-    ...submissionQueries.list({ corporation: search.corporation }),
-    enabled: !!search.corporation,
+    ...submissionQueries.list({ corporation }),
+    enabled: !!corporation,
   })
 
   const active = tab === 'incidents' ? incidents : logs
@@ -159,7 +166,9 @@ export function RecordsView({
         onSearchChange({
           tab,
           corporation:
-            typeof updates.corporation === 'string' ? updates.corporation : undefined,
+            typeof updates.corporation === 'string'
+              ? updates.corporation
+              : undefined,
         })
       }
       if ('submission_id' in updates) {
@@ -174,13 +183,17 @@ export function RecordsView({
     },
     toolbar: { search: { key: 'q', placeholder: 'Search…' } },
     filters: [
-      {
-        type: 'select' as const,
-        key: 'corporation',
-        label: 'Corporation',
-        options: CORPORATION_OPTIONS,
-      },
-      ...(search.corporation
+      ...(locked
+        ? []
+        : [
+            {
+              type: 'select' as const,
+              key: 'corporation',
+              label: 'Corporation',
+              options: CORPORATION_OPTIONS,
+            },
+          ]),
+      ...(corporation
         ? [
             {
               type: 'select' as const,
@@ -193,8 +206,10 @@ export function RecordsView({
     ],
     filterValues: {
       q,
-      corporation: search.corporation,
-      submission_id: search.submission_id ? String(search.submission_id) : undefined,
+      corporation,
+      submission_id: search.submission_id
+        ? String(search.submission_id)
+        : undefined,
     },
     features: { enablePageSizeSelector: true, enableColumnVisibility: true },
   }
@@ -202,28 +217,34 @@ export function RecordsView({
   return (
     <ContentCard
       title={tab === 'incidents' ? 'Incidents' : 'Situation logs'}
-      description="Unverified records filed by corporations. Survey123 records are on the Field data page."
+      description={
+        locked
+          ? 'Unverified records filed by this corporation.'
+          : 'Unverified records filed by corporations. Survey123 records are on the Field data page.'
+      }
       contentClassName="space-y-4"
       action={
-        <div className="flex gap-2">
-          {(['incidents', 'logs'] as const).map((value) => (
-            <Button
-              key={value}
-              type="button"
-              size="sm"
-              variant={tab === value ? 'default' : 'outline'}
-              onClick={() => {
-                setPagination((prev) => ({ ...prev, pageIndex: 0 }))
-                onSearchChange({ ...search, tab: value })
-              }}
-            >
-              {value === 'incidents' ? 'Incidents' : 'Situation logs'}
-            </Button>
-          ))}
-        </div>
+        locked ? undefined : (
+          <div className="flex gap-2">
+            {(['incidents', 'logs'] as const).map((value) => (
+              <Button
+                key={value}
+                type="button"
+                size="sm"
+                variant={tab === value ? 'default' : 'outline'}
+                onClick={() => {
+                  setPagination((prev) => ({ ...prev, pageIndex: 0 }))
+                  onSearchChange({ ...search, tab: value })
+                }}
+              >
+                {value === 'incidents' ? 'Incidents' : 'Situation logs'}
+              </Button>
+            ))}
+          </div>
+        )
       }
     >
-      {search.corporation ? (
+      {corporation ? (
         <p className="text-sm text-muted-foreground">
           Incidents appear under the filing that last updated them.
         </p>
@@ -232,18 +253,29 @@ export function RecordsView({
       {active.isPending && !active.data ? <LoadingBlock rows={5} /> : null}
 
       {active.isError ? (
-        <EmptyState title="Could not load records" description={active.error.message} />
+        <EmptyState
+          title="Could not load records"
+          description={active.error.message}
+        />
       ) : null}
 
       {tab === 'incidents' && incidents.data ? (
         <DataTable
-          columns={INCIDENT_COLUMNS}
+          columns={
+            locked
+              ? INCIDENT_COLUMNS.filter((column) => column.header !== 'Corporation')
+              : INCIDENT_COLUMNS
+          }
           data={incidents.data.items}
           {...tableProps}
         />
       ) : null}
       {tab === 'logs' && logs.data ? (
-        <DataTable columns={LOG_COLUMNS} data={logs.data.items} {...tableProps} />
+        <DataTable
+          columns={LOG_COLUMNS}
+          data={logs.data.items}
+          {...tableProps}
+        />
       ) : null}
     </ContentCard>
   )
