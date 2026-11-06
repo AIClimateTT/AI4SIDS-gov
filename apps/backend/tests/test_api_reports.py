@@ -3,7 +3,6 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.core.registry import reset_registry
 from app.db import Base, engine as db_engine
 from app import create_app
 from app.modules.survey123.ingest import ingest_csv
@@ -15,12 +14,10 @@ DEV_DB_PATH = Path(__file__).parent.parent / "dev.db"
 
 @pytest.fixture(autouse=True)
 def _clean_registry():
-    reset_registry()
     db_engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()
     yield
-    reset_registry()
     db_engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()
@@ -29,13 +26,11 @@ def _clean_registry():
 def make_client(monkeypatch) -> TestClient:
     from sqlalchemy.orm import sessionmaker
 
-    from app.core.template_store import import_template_directory
 
     monkeypatch.setattr("app.core.llm.settings.llm_provider", "fake")
     Base.metadata.create_all(db_engine)
     Session = sessionmaker(bind=db_engine)
     session = Session()
-    import_template_directory(TEMPLATES_DIR, session)
     session.close()
     app = create_app()
     return TestClient(app)
@@ -58,7 +53,7 @@ def test_post_reports_returns_id_status_markdown(monkeypatch):
     response = client.post(
         "/reports",
         json={
-            "template": "minister_situation_report",
+            "template": "survey123_summary",
             "params": {"date_from": "2024-06-01", "date_to": "2024-06-30"},
         },
     )
@@ -84,7 +79,7 @@ def test_post_reports_missing_required_param_returns_400(monkeypatch):
     _ingest_fixture()
 
     response = client.post(
-        "/reports", json={"template": "minister_situation_report", "params": {"date_from": "2024-06-01"}}
+        "/reports", json={"template": "survey123_summary", "params": {"date_from": "2024-06-01"}}
     )
 
     assert response.status_code == 400
@@ -97,7 +92,7 @@ def test_get_reports_by_id_returns_full_detail(monkeypatch):
     create_response = client.post(
         "/reports",
         json={
-            "template": "minister_situation_report",
+            "template": "survey123_summary",
             "params": {"date_from": "2024-06-01", "date_to": "2024-06-30"},
         },
     )
@@ -108,8 +103,8 @@ def test_get_reports_by_id_returns_full_detail(monkeypatch):
     assert response.status_code == 200
     body = response.json()
     assert body["id"] == report_id
-    assert body["template"] == "minister_situation_report"
-    assert body["template_version"] == 1
+    assert body["template"] == "survey123_summary"
+    assert body["template_version"] == 100
     assert "facts" in body["fact_table"]
     assert isinstance(body["violations"], list)
     assert body["created_at"]
@@ -156,7 +151,7 @@ def test_post_reports_blank_date_param_does_not_400(monkeypatch):
     response = client.post(
         "/reports",
         json={
-            "template": "minister_situation_report",
+            "template": "survey123_summary",
             "params": {"date_from": "", "date_to": ""},
         },
     )
@@ -185,32 +180,6 @@ def test_post_reports_unknown_corporation_returns_400(monkeypatch):
 
     assert response.status_code == 400
     assert "unknown corporation" in response.json()["detail"]
-
-
-def test_post_reports_rejects_an_unknown_corporation_in_a_requirement_override(
-    monkeypatch,
-):
-    # data_requirements is caller-controlled, so a literal corporation can
-    # reach a query without ever appearing in params.
-    client = make_client(monkeypatch)
-    _ingest_fixture()
-
-    response = client.post(
-        "/reports",
-        json={
-            "template": "minister_situation_report",
-            "params": {"date_from": "2024-06-01", "date_to": "2024-06-30"},
-            "data_requirements": [
-                {
-                    "module": "survey123",
-                    "metric": "incident_count",
-                    "params": {"corporation": "Sangre Grande"},
-                }
-            ],
-        },
-    )
-
-    assert response.status_code == 400
 
 
 def test_post_reports_still_accepts_a_placeholder_corporation_in_a_requirement(
@@ -248,7 +217,7 @@ def test_get_reports_list_returns_paginated_items(monkeypatch):
     first = client.post(
         "/reports",
         json={
-            "template": "minister_situation_report",
+            "template": "survey123_summary",
             "params": {"date_from": "2024-06-01", "date_to": "2024-06-30"},
         },
     )
@@ -283,7 +252,7 @@ def test_get_reports_list_filters_by_q_and_status(monkeypatch):
     client.post(
         "/reports",
         json={
-            "template": "minister_situation_report",
+            "template": "survey123_summary",
             "params": {"date_from": "2024-06-01", "date_to": "2024-06-30"},
         },
     )
@@ -299,10 +268,10 @@ def test_get_reports_list_filters_by_q_and_status(monkeypatch):
         },
     )
 
-    by_template = client.get("/reports", params={"q": "minister"})
+    by_template = client.get("/reports", params={"q": "survey123"})
     assert by_template.status_code == 200
     assert by_template.json()["total"] >= 1
-    assert all("minister" in item["template"] for item in by_template.json()["items"])
+    assert all("survey123" in item["template"] for item in by_template.json()["items"])
 
     by_status = client.get("/reports", params={"status": "ok"})
     assert by_status.status_code == 200
@@ -325,7 +294,7 @@ def test_post_reports_stays_queued_when_the_runner_does_not_execute(monkeypatch)
     response = client.post(
         "/reports",
         json={
-            "template": "minister_situation_report",
+            "template": "survey123_summary",
             "params": {"date_from": "2024-06-01", "date_to": "2024-06-30"},
         },
     )
@@ -337,3 +306,30 @@ def test_post_reports_stays_queued_when_the_runner_does_not_execute(monkeypatch)
     detail = client.get(f"/reports/{response.json()['id']}")
     assert detail.status_code == 200
     assert detail.json()["status"] == "queued"
+
+
+def _generated_version(monkeypatch, client, version: int) -> int:
+    import app.core.template_catalog as catalog
+
+    current = catalog.get_template("survey123_summary")
+    monkeypatch.setitem(
+        catalog._catalog(),
+        "survey123_summary",
+        current.model_copy(update={"version": version}),
+    )
+    created = client.post(
+        "/reports",
+        json={
+            "template": "survey123_summary",
+            "params": {"date_from": "2024-06-01", "date_to": "2024-06-30"},
+        },
+    )
+    assert created.status_code == 202, created.text
+    return client.get(f"/reports/{created.json()['id']}").json()["template_version"]
+
+
+def test_each_report_records_the_template_version_that_created_it(monkeypatch):
+    client = make_client(monkeypatch)
+
+    assert _generated_version(monkeypatch, client, 100) == 100
+    assert _generated_version(monkeypatch, client, 101) == 101

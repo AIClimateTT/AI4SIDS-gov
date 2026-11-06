@@ -17,6 +17,7 @@ SCHEMA_AND_ENUMS = f"""Return ONLY JSON with this shape:
   "capture": {{
     "as_at": "<ISO datetime or null>",
     "alert_level": "<one of: {_ALERTS}>",
+    "alert_detail": "<officer's own wording of the alert, e.g. Localized Flooding Alert #2 - Yellow Level - extended until Mon 19th May 6pm, or null>",
     "present_activity": "<string or null>",
     "situation_overview": "<officer's own words or null>",
     "incidents": [
@@ -63,7 +64,7 @@ RULES:
 - You are capturing structured facts. The working set in the user JSON is the source of truth; apply this turn's new information and corrections to it and return the FULL working set.
 - assistant_message must briefly confirm what was just captured, then ask at most two missing-field probes from the "missing" list in the user JSON. Do not lecture.
 - Never invent a number that is not in this user message and not already on the working set. If there is no explicit number, leave the count/quantity/cost null.
-- situation_overview and present_activity must be the officer's own words, or null. Do not write meteorological context they did not say.
+- situation_overview, present_activity and alert_detail must be the officer's own words, or null. Do not write meteorological context they did not say.
 - Incidents are discrete events with a location or type (flooded houses, fallen tree). Logs are operational/preparedness state (sandbags remaining, staff on standby).
 - If the officer corrects an earlier figure, keep only the latest value.
 - Preserve row_id on existing incidents AND logs. Assign a new integer row_id as a string for new rows.

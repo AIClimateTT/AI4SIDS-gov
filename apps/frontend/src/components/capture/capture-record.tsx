@@ -58,6 +58,10 @@ function payloadOf(
   return {
     as_at: patch.as_at ?? session.as_at,
     alert_level: patch.alert_level ?? session.alert_level,
+    alert_detail:
+      patch.alert_detail !== undefined
+        ? patch.alert_detail
+        : session.alert_detail,
     present_activity:
       patch.present_activity !== undefined
         ? patch.present_activity
@@ -155,6 +159,23 @@ export function CaptureRecord({
                   manual_fields: withManual(
                     session.manual_fields,
                     'situation_overview',
+                  ),
+                }),
+              )
+            }
+          />
+          <SituationField
+            label="Alert wording"
+            value={session.alert_detail ?? null}
+            placeholder="Flood Alert #2 – Yellow Level – extended until…"
+            disabled={disabled}
+            onCommit={(value) =>
+              onSave(
+                payloadOf(session, {
+                  alert_detail: value,
+                  manual_fields: withManual(
+                    session.manual_fields,
+                    'alert_detail',
                   ),
                 }),
               )

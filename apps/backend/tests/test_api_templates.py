@@ -3,8 +3,6 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.core.registry import reset_registry
-from app.core.template_store import import_template_directory
 from app.db import Base, engine as db_engine
 from app import create_app
 
@@ -14,12 +12,10 @@ DEV_DB_PATH = Path(__file__).parent.parent / "dev.db"
 
 @pytest.fixture(autouse=True)
 def _clean_state():
-    reset_registry()
     db_engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()
     yield
-    reset_registry()
     db_engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()
@@ -31,7 +27,6 @@ def make_client() -> TestClient:
     Base.metadata.create_all(db_engine)
     Session = sessionmaker(bind=db_engine)
     session = Session()
-    import_template_directory(TEMPLATES_DIR, session)
     session.close()
 
     app = create_app()
@@ -50,8 +45,9 @@ def test_get_templates_returns_every_shipped_template():
         "corp_situation_report",
         "minister_situation_report",
         "field_data_region_review",
+        "survey123_summary",
     }
-    assert all(t["version"] == 1 for t in body)
+    assert all(t["version"] >= 100 for t in body)
 
 
 def test_get_templates_includes_full_template_fields():
@@ -61,15 +57,32 @@ def test_get_templates_includes_full_template_fields():
 
     body = response.json()
     minister = next(t for t in body if t["name"] == "minister_situation_report")
-    param_names = {p["name"] for p in minister["params"]}
-    assert param_names == {"date_from", "date_to"}
-    assert all(p["required"] for p in minister["params"])
+    required = {p["name"] for p in minister["params"] if p["required"]}
+    assert required == {"date_from", "date_to"}
     assert len(minister["data_requirements"]) > 0
-    assert minister["narration"]["identity"]
-    assert minister["narration"]["skills"]["compose"]
-    assert not minister["narration"]["skills"]["capture"]
-    assert minister["narration"]["output_sections"]
+    summary = next(t for t in body if t["name"] == "survey123_summary")
+    assert summary["narration"]["identity"]
+    assert summary["narration"]["skills"]["compose"]
+    assert not summary["narration"]["skills"]["capture"]
+    assert summary["narration"]["output_sections"]
     corp = next(t for t in body if t["name"] == "corp_situation_report")
     assert {p["name"] for p in corp["params"]} == {"corporation", "submission_id"}
     assert corp["narration"]["skills"]["capture"]
     assert corp["narration"]["skills"]["compose"]
+
+
+def test_post_templates_is_gone():
+    client = TestClient(create_app())
+
+    assert client.post("/templates", json={}).status_code == 405
+
+
+def test_templates_say_which_params_are_multiline():
+    client = make_client()
+
+    body = client.get("/templates").json()
+
+    minister = next(t for t in body if t["name"] == "minister_situation_report")
+    params = {p["name"]: p for p in minister["params"]}
+    assert params["situation_overview"]["multiline"] is True
+    assert params["date_from"]["multiline"] is False

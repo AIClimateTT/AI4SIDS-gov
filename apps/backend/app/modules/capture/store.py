@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.localtime import to_local
 from app.modules.capture.missing import missing_fields
 from app.modules.capture.models import CaptureSession
 from app.modules.capture.schemas import (
@@ -28,6 +29,7 @@ def working_set_from_session(row: CaptureSession) -> CaptureWorkingSet:
     return CaptureWorkingSet(
         as_at=row.as_at,
         alert_level=row.alert_level,
+        alert_detail=row.alert_detail,
         present_activity=row.present_activity,
         situation_overview=row.situation_overview,
         incidents=[CaptureIncident.model_validate(item) for item in (row.incidents or [])],
@@ -40,6 +42,7 @@ def apply_working_set(row: CaptureSession, working: CaptureWorkingSet) -> None:
     if working.as_at is not None:
         row.as_at = working.as_at
     row.alert_level = working.alert_level
+    row.alert_detail = working.alert_detail
     row.present_activity = working.present_activity
     row.situation_overview = working.situation_overview
     row.incidents = [item.model_dump(mode="json") for item in working.incidents]
@@ -70,8 +73,10 @@ def create_session(
         corporation=corporation,
         event_id=event_id,
         status="draft",
-        as_at=now,
+        # A wall-clock reading like the officer's own entry, not UTC.
+        as_at=to_local(datetime.now(timezone.utc)).replace(tzinfo=None),
         alert_level="none",
+        alert_detail=None,
         present_activity=None,
         situation_overview=None,
         incidents=[],

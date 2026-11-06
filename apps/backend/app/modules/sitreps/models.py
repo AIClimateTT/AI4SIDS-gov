@@ -18,7 +18,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db import Base
 
 ALERT_LEVELS = ("green", "yellow", "orange", "red", "discontinued", "none")
-HAZARD_TYPES = ("flood", "landslide", "wind", "fire", "other")
+HAZARD_TYPES = ("adverse_weather", "flood", "landslide", "wind", "fire", "other")
 LOG_CATEGORIES = (
     "resource",
     "personnel",
@@ -75,6 +75,9 @@ class Submission(Base):
     )
     as_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
     alert_level: Mapped[str] = mapped_column(String, nullable=False, default="none")
+    # The officer's own wording, e.g. "Flood Alert #2 - Yellow Level - extended
+    # until Mon 6pm". alert_level alone loses the number and validity.
+    alert_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
     present_activity: Mapped[str | None] = mapped_column(Text, nullable=True)
     situation_overview: Mapped[str | None] = mapped_column(Text, nullable=True)
     sequence_no: Mapped[int] = mapped_column(Integer, nullable=False, default=1)

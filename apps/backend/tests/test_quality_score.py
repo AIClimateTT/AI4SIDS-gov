@@ -52,7 +52,7 @@ def test_score_quality_composes_all_sections():
     markdown = (
         "# Corporation Situation Report\n\n"
         f"{narrative}\n\n"
-        "## Situation summary\n\n"
+        "## Situation Summary\n\n"
         "| Type | Count |\n|---|---|\n| Flooding | 19 |\n\n"
         "## Citation Appendix\n- [C001] count\n"
     )

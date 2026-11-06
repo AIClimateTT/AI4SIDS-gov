@@ -1,32 +1,22 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useStore } from '@tanstack/react-form'
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { z } from 'zod'
 
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   ButtonLink,
   EmptyState,
   LoadingBlock,
   PageHeader,
-  moduleDisplayName,
 } from '@/components/shared'
 import { ContentCard } from '@/components/shared/content-card'
-import { Label } from '@/components/ui/label'
 import { useAppForm } from '@/hooks/form'
 import { CORPORATION_OPTIONS } from '@/lib/corporations'
 import { formatDisplayLabel } from '@/lib/format-display'
-import { moduleQueries } from '@/lib/queries/modules'
 import { useCreateReport } from '@/lib/queries/reports'
 import { templateQueries } from '@/lib/queries/templates'
-import { formatRequirementLabel } from '@/components/reports/citation-display'
-import {
-  buildDataRequirement,
-  dropBlankParams,
-  metricKey,
-  selectedMetricKeys,
-} from '@/lib/templates'
+import { dropBlankParams, paramInputKind } from '@/lib/templates'
 
 export const Route = createFileRoute('/dmu/reports/new')({
   component: AdminGeneratePage,
@@ -40,13 +30,9 @@ const adminReportSchema = z.object({
 function AdminGeneratePage() {
   const navigate = useNavigate()
   const templatesQuery = useQuery(templateQueries.list())
-  const modulesQuery = useQuery(moduleQueries.list())
   const createReport = useCreateReport((id) => {
     void navigate({ to: '/dmu/reports/$reportId', params: { reportId: id } })
   })
-
-  const [selectedMetrics, setSelectedMetrics] = useState<string[]>([])
-  const [useDefaultMetrics, setUseDefaultMetrics] = useState(true)
 
   const form = useAppForm({
     defaultValues: {
@@ -77,31 +63,9 @@ function AdminGeneratePage() {
       // officer never asked for.
       const params = dropBlankParams(value.params)
 
-      const templateParamNames = template.params.map((param) => param.name)
-      const allMetrics =
-        modulesQuery.data?.flatMap((module) =>
-          module.metrics.map((metric) => ({
-            ...metric,
-            module: module.name,
-          })),
-        ) ?? []
-
       await createReport.mutateAsync({
         template: template.name,
         params,
-        ...(useDefaultMetrics
-          ? {}
-          : {
-              data_requirements: allMetrics
-                .filter((metric) =>
-                  selectedMetrics.includes(
-                    metricKey(metric.module, metric.name),
-                  ),
-                )
-                .map((metric) =>
-                  buildDataRequirement(metric, templateParamNames),
-                ),
-            }),
       })
     },
   })
@@ -134,28 +98,17 @@ function AdminGeneratePage() {
         selectedTemplate.params.map((param) => [param.name, '']),
       ),
     )
-    setSelectedMetrics(selectedMetricKeys(selectedTemplate.data_requirements))
-    setUseDefaultMetrics(true)
   }, [form, selectedTemplate])
 
-  const toggleMetric = (key: string, checked: boolean) => {
-    setUseDefaultMetrics(false)
-    setSelectedMetrics((current) =>
-      checked
-        ? [...new Set([...current, key])]
-        : current.filter((item) => item !== key),
-    )
-  }
-
-  const isLoading = templatesQuery.isPending || modulesQuery.isPending
-  const isError = templatesQuery.isError || modulesQuery.isError
-  const error = templatesQuery.error ?? modulesQuery.error
+  const isLoading = templatesQuery.isPending
+  const isError = templatesQuery.isError
+  const error = templatesQuery.error
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Generate report"
-        description="Full template picker with dynamic params and optional metric overrides."
+        description="Built from each corporation's latest filing in the period."
         actions={
           <div className="flex flex-wrap gap-2">
             <ButtonLink variant="outline" to="/dmu/reports">
@@ -191,7 +144,7 @@ function AdminGeneratePage() {
                     required
                     options={generateTemplates.map((template) => ({
                       value: template.name,
-                      label: `${template.title} (v${template.version})`,
+                      label: template.title,
                     }))}
                   />
                 )}
@@ -205,99 +158,58 @@ function AdminGeneratePage() {
                     key={param.name}
                     name={`params.${param.name}`}
                   >
-                    {(field) =>
-                      param.name === 'corporation' ? (
-                        <field.SelectField
-                          label={formatDisplayLabel(param.name)}
-                          required={param.required}
-                          options={CORPORATION_OPTIONS}
-                        />
-                      ) : param.name === 'date_from' ||
-                        param.name === 'date_to' ? (
-                        <field.TextField
-                          label={formatDisplayLabel(param.name)}
-                          type="date"
-                          required={param.required}
-                        />
-                      ) : (
-                        <field.TextField
-                          label={formatDisplayLabel(param.name)}
-                          required={param.required}
-                        />
-                      )
-                    }
+                    {(field) => {
+                      const label = formatDisplayLabel(param.name)
+                      switch (paramInputKind(param)) {
+                        case 'corporation':
+                          return (
+                            <field.SelectField
+                              label={label}
+                              required={param.required}
+                              options={CORPORATION_OPTIONS}
+                            />
+                          )
+                        case 'date':
+                          return (
+                            <field.TextField
+                              label={label}
+                              type="date"
+                              required={param.required}
+                            />
+                          )
+                        case 'datetime':
+                          return (
+                            <field.TextField
+                              label={label}
+                              type="datetime-local"
+                              required={param.required}
+                            />
+                          )
+                        case 'textarea':
+                          return (
+                            <div className="sm:col-span-2">
+                              <field.TextareaField
+                                label={label}
+                                required={param.required}
+                              />
+                            </div>
+                          )
+                        default:
+                          return (
+                            <field.TextField
+                              label={label}
+                              required={param.required}
+                            />
+                          )
+                      }
+                    }}
                   </form.AppField>
                 ))}
               </div>
             </ContentCard>
 
-            <ContentCard
-              title="Metrics"
-              description="Defaults to the template's requirements. Uncheck a metric or toggle override to customize."
-            >
-              <div className="mb-4 flex items-center gap-3">
-                <Checkbox
-                  checked={useDefaultMetrics}
-                  onCheckedChange={(value) =>
-                    setUseDefaultMetrics(value === true)
-                  }
-                />
-                <Label>Use template default metrics</Label>
-              </div>
-
-              {!useDefaultMetrics ? (
-                <div className="space-y-4">
-                  {modulesQuery.data?.map((module) => (
-                    <div key={module.name} className="space-y-2">
-                      <p className="text-sm font-medium">
-                        {moduleDisplayName(module.name)}
-                      </p>
-                      <ul className="space-y-2">
-                        {module.metrics.map((metric) => {
-                          const key = metricKey(module.name, metric.name)
-                          const checked = selectedMetrics.includes(key)
-                          return (
-                            <li key={key} className="flex items-start gap-3">
-                              <Checkbox
-                                checked={checked}
-                                onCheckedChange={(value) =>
-                                  toggleMetric(key, value === true)
-                                }
-                              />
-                              <div>
-                                <p className="text-sm font-medium">
-                                  {formatDisplayLabel(metric.name)}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                  {metric.description}
-                                </p>
-                              </div>
-                            </li>
-                          )
-                        })}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <ul className="space-y-1 text-sm text-muted-foreground">
-                  {selectedTemplate.data_requirements.map((requirement) => (
-                    <li key={`${requirement.module}.${requirement.metric}`}>
-                      {formatRequirementLabel(
-                        requirement.module,
-                        requirement.metric,
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </ContentCard>
-
             <div className="flex justify-end">
-              <form.SubmitButton
-                label="Generate report"
-                disabled={!useDefaultMetrics && selectedMetrics.length === 0}
-              />
+              <form.SubmitButton label="Generate report" />
             </div>
           </form.AppForm>
         </form>

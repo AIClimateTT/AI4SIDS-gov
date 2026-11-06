@@ -22,7 +22,6 @@ def test_named_workflows_match_the_spec():
     assert NAMED_WORKFLOWS == (
         "corp_capture_issue",
         "dmu_generate_report",
-        "whatsapp_briefing",
         "survey123_ingest",
     )
 

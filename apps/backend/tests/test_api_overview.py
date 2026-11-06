@@ -5,7 +5,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import create_app
-from app.core.registry import reset_registry
 from app.db import Base, engine as db_engine
 from app.modules.survey123.ingest import ingest_csv
 
@@ -17,12 +16,10 @@ CORP = "diego_martin_regional_corporati"
 
 @pytest.fixture(autouse=True)
 def _clean_registry():
-    reset_registry()
     db_engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()
     yield
-    reset_registry()
     db_engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()

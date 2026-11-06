@@ -4,12 +4,10 @@ import type { LinkProps } from '@tanstack/react-router'
 import type { LucideIcon } from 'lucide-react'
 import {
   ChartColumn as ChartColumnIcon,
-  DatabaseIcon,
   FileTextIcon,
   LayoutDashboardIcon,
-  LibraryIcon,
-  MessageSquareIcon,
   UploadIcon,
+  TableIcon,
   UsersIcon,
 } from 'lucide-react'
 
@@ -63,16 +61,14 @@ const DMU_NAV: NavGroup[] = [
         exact: true,
       },
       { title: 'Reports', to: '/dmu/reports', icon: FileTextIcon },
+      { title: 'Incidents & logs', to: '/dmu/records', icon: TableIcon },
       { title: 'Field data', to: '/dmu/field-data', icon: UploadIcon },
-      { title: 'WhatsApp', to: '/dmu/whatsapp', icon: MessageSquareIcon },
     ],
   },
   {
     label: 'Administration',
     recessed: true,
     items: [
-      { title: 'Templates', to: '/dmu/admin/templates', icon: LibraryIcon },
-      { title: 'Modules', to: '/dmu/admin/modules', icon: DatabaseIcon },
       { title: 'Quality', to: '/dmu/admin/quality', icon: ChartColumnIcon },
       { title: 'Users', to: '/dmu/admin/users', icon: UsersIcon },
     ],

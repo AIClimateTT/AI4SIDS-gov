@@ -2,7 +2,6 @@ from procrastinate import App, PsycopgConnector
 
 from app.config import settings
 from app.jobs.reports import run_generate_report
-from app.jobs.whatsapp import run_briefing, run_extract
 
 
 def postgres_dsn() -> str:
@@ -18,16 +17,6 @@ app = App(connector=PsycopgConnector(conninfo=postgres_dsn()))
 @app.task(name="generate_report")
 def generate_report_task(report_id: str) -> None:
     run_generate_report(report_id)
-
-
-@app.task(name="extract_whatsapp")
-def extract_whatsapp_task(draft_id: int) -> None:
-    run_extract(draft_id)
-
-
-@app.task(name="generate_briefing")
-def generate_briefing_task(draft_id: int, report_id: str) -> None:
-    run_briefing(draft_id, report_id)
 
 
 def defer_job(name: str, **kwargs) -> None:

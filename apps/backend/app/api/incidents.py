@@ -39,6 +39,8 @@ def get_incidents(
     page_size: int = Query(10, ge=1, le=100),
     q: str | None = None,
     source: str = Query("all"),
+    corporation: str | None = None,
+    submission_id: int | None = None,
     session: Session = Depends(get_session),
 ) -> IncidentListResponse:
     try:
@@ -48,6 +50,8 @@ def get_incidents(
             page_size=page_size,
             q=q,
             source=source,
+            corporation=corporation,
+            submission_id=submission_id,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

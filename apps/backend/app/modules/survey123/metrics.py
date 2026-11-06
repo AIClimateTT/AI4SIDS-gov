@@ -121,10 +121,8 @@ def build_citation(
     model,
 ) -> Citation:
     # Provenance comes from the model and nothing else. It must never be
-    # derivable from params: DataRequirement.params is a free-form dict an
-    # author controls via POST /templates and the data_requirements override on
-    # POST /reports, so honouring a "source" key there would let a caller forge
-    # the module label on a citation in the rendered report.
+    # derivable from params, or a "source" key there could forge the module
+    # label on a citation in the rendered report.
     module = module_name_of(model)
     ordered = sorted(global_ids)
     # No cap: `ordered[:200] if len(ordered) <= 200 else None` was a no-op
@@ -331,6 +329,14 @@ def incidents_by_corporation(params: dict, session: Session | None, model=FieldO
                 [getattr(r, "validation_status", "validated") for r in rows]
             ),
             citation=citation,
+            # An empty window must not read as "nothing happened": the usual
+            # cause is that no data was loaded for it.
+            gaps=[]
+            if rows
+            else [
+                f"No {source_label_of(model)} records found for this period. "
+                "Confirm data for it has been uploaded."
+            ],
         )
     ]
 

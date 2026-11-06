@@ -1,11 +1,24 @@
 import re
+from datetime import datetime
 
 from app.core.contracts import FactTable, Template
+from app.core.localtime import to_local
 from app.modules.survey123.normalize import CORPORATION_LABELS
 
 # Matches the [C001] markers the composer is told to emit, plus any space
 # ahead of them, so stripping "injured [C005]." leaves "injured." not
 # "injured ." — the final variant is prose a reader sees, not a QC view.
+HAZARD_TITLES = {
+    "adverse_weather": "ADVERSE WEATHER",
+    "flood": "FLOOD",
+    "landslide": "LANDSLIDE",
+    "wind": "HIGH WIND",
+    "fire": "FIRE",
+    "other": "",
+}
+MINISTRY_NAME = "Ministry of Rural Development and Local Government"
+MINISTRY_LOCATION = f"{MINISTRY_NAME}, Kent House"
+
 _CITATION_MARKER = re.compile(r"[ \t]*\[C\d{3}\]")
 
 
@@ -111,12 +124,15 @@ def _label(value: str) -> str:
 
 
 def _document_title(template: Template, fact_table: FactTable) -> str:
+    if template.render.layout == "filing":
+        hazard = HAZARD_TITLES.get(str(fact_table.params.get("hazard_type")), "")
+        title = f"{hazard} SITUATION REPORT".strip()
+        number = fact_table.params.get("report_number")
+        return f"{title} #{number}" if number else title
     corp = fact_table.params.get("corporation")
     if not corp:
         return template.title
     name = _label(str(corp))
-    if template.render.layout == "filing":
-        return f"{name} Situation Report"
     if name.lower() in template.title.lower():
         return template.title
     return f"{template.title} — {name}"
@@ -174,11 +190,11 @@ def render_filing(
     *,
     include_citations: bool = True,
 ) -> str:
-    """Render the filing layout.
+    """Render the filing layout, in the order of the corporation baselines.
 
     With ``include_citations`` the output is the draft an officer checks its
-    figures against. Without it, the same facts render as the document that
-    gets issued: no [Cxxx] markers, no Cite columns, no appendix.
+    figures against, gaps included. Without it, the same facts render as the
+    document that gets issued: no [Cxxx] markers, no Cite columns, no gaps.
     """
     parts = [f"# {_document_title(template, fact_table)}", ""]
 
@@ -188,8 +204,6 @@ def render_filing(
     def headers(names: list[str]) -> list[str]:
         return names + ["Cite"] if include_citations else names
 
-    # Words first, tables after — the issued document is read as prose, with
-    # the register underneath as the figures that prose is about.
     if narrative.strip():
         prose = narrative.strip()
         if not include_citations:
@@ -204,39 +218,61 @@ def render_filing(
             if value
         ]
         if rows:
-            parts.extend(["## Situation summary", ""])
+            parts.extend(["## Situation Summary", ""])
             parts.extend(_md_table(headers(["Type", "Count"]), rows))
 
-    relief = [
+    stock = [
         fact
         for fact in fact_table.facts
         if fact.metric == "relief_stock_summary" and fact.value
     ]
-    if relief:
-        parts.extend(["## Relief and resources", ""])
-        rows = []
-        for fact in relief:
-            rows.append(
-                cited(
-                    [
-                        fact.scope.get("item") or fact.scope.get("statement") or "",
-                        _format_number(fact.value),
-                        fact.unit or "",
-                        _humanize(fact.scope.get("status") or ""),
-                    ],
-                    fact.citation.cid,
-                )
+    distributed = [fact for fact in stock if fact.scope.get("category") == "relief_distributed"]
+    resources = [fact for fact in stock if fact.scope.get("category") != "relief_distributed"]
+
+    def item(fact) -> str:
+        return fact.scope.get("item") or fact.scope.get("statement") or ""
+
+    if distributed:
+        parts.extend(["## Disaster Relief Distribution Summary", ""])
+        rows = [
+            cited([item(f), _format_number(f.value), f.unit or ""], f.citation.cid)
+            for f in distributed
+        ]
+        parts.extend(_md_table(headers(["Item", "Quantity", "Unit"]), rows))
+
+    if resources:
+        parts.extend(["## Resources", ""])
+        rows = [
+            cited(
+                [
+                    item(f),
+                    _format_number(f.value),
+                    f.unit or "",
+                    _humanize(f.scope.get("status") or ""),
+                ],
+                f.citation.cid,
             )
+            for f in resources
+        ]
         parts.extend(_md_table(headers(["Item", "Quantity", "Unit", "Status"]), rows))
+
+    activities = [fact for fact in fact_table.facts if fact.metric == "activity_log"]
+    if activities:
+        parts.extend(["## Summary of Activities", ""])
+        for fact in activities:
+            marker = f" [{fact.citation.cid}]" if include_citations else ""
+            parts.append(f"- {fact.value}{marker}")
+        parts.append("")
 
     register = [fact for fact in fact_table.facts if fact.metric == "incident_register"]
     if register:
         parts.extend(["## Incidents", ""])
         rows = []
-        for fact in register:
+        for number, fact in enumerate(register, start=1):
             rows.append(
                 cited(
                     [
+                        str(number),
                         fact.scope.get("date") or "",
                         _place(fact.scope),
                         _humanize(fact.scope.get("type") or ""),
@@ -251,29 +287,28 @@ def render_filing(
         parts.extend(
             _md_table(
                 headers(
-                    ["Date", "Place", "Type", "Summary", "Injuries", "Deaths", "Action"]
+                    [
+                        "No.",
+                        "Date",
+                        "Location",
+                        "Type",
+                        "Description",
+                        "Injuries",
+                        "Deaths",
+                        "Action Taken",
+                    ]
                 ),
                 rows,
             )
         )
-
-    activities = [fact for fact in fact_table.facts if fact.metric == "activity_log"]
-    if activities:
-        parts.extend(["## Activities", ""])
-        for fact in activities:
-            marker = f" [{fact.citation.cid}]" if include_citations else ""
-            parts.append(f"- {fact.value}{marker}")
-        parts.append("")
 
     gaps = [
         gap
         for gap in fact_table.gaps
         if gap.strip() and gap.strip().lower() != "none"
     ]
-    if gaps:
-        # A reader of the issued filing still needs to know what was not
-        # recorded — only the internal QC framing is dropped.
-        parts.append("## Data Gaps" if include_citations else "## Information not yet available")
+    if gaps and include_citations:
+        parts.append("## Data Gaps")
         for gap in gaps:
             parts.append(f"- {gap}")
         parts.append("")
@@ -283,8 +318,87 @@ def render_filing(
         for fact in fact_table.facts:
             citation = fact.citation
             parts.append(_citation_appendix_line(citation))
+        parts.append("")
 
-    return "\n".join(parts)
+    parts.append(
+        "No further reports to be submitted."
+        if fact_table.params.get("alert_level") == "discontinued"
+        else "END OF REPORT"
+    )
+    return "\n".join(parts) + "\n"
+
+
+def format_as_at(value: datetime) -> str:
+    """The baselines' form: 4:00 pm on 30/06/2023.
+
+    A naive value is the officer's Trinidad wall-clock reading and stays as it
+    is; an aware one (a generation time) is converted.
+    """
+    local = to_local(value) if value.tzinfo is not None else value
+    hour = local.strftime("%I").lstrip("0")
+    return f"{hour}:{local:%M} {local:%p}".lower() + f" on {local:%d/%m/%Y}"
+
+
+def _param(fact_table: FactTable, name: str) -> str:
+    return str(fact_table.params.get(name) or "").strip()
+
+
+def _ministerial_as_at(fact_table: FactTable) -> datetime:
+    raw = _param(fact_table, "as_at")
+    return datetime.fromisoformat(raw) if raw else fact_table.generated_at
+
+
+def _incident_line(fact) -> str:
+    counts = sorted(fact.breakdown.items(), key=lambda item: (-item[1], item[0]))
+    parts = [f"{_humanize(str(name))} {_format_number(count)}" for name, count in counts]
+    return "Incidents reported: " + ", ".join(parts)
+
+
+def render_ministerial(
+    template: Template,
+    fact_table: FactTable,
+    *,
+    include_citations: bool = True,
+) -> str:
+    hazard = _param(fact_table, "hazard").upper()
+    title = f"{hazard} SITUATION REPORT" if hazard else "SITUATION REPORT"
+    parts = [
+        f"# {title}",
+        "",
+        f"**As at:** {format_as_at(_ministerial_as_at(fact_table))}",
+        "",
+        f"**Location:** {MINISTRY_LOCATION}",
+        "",
+    ]
+    for label, name in (("Present Activity", "present_activity"), ("Alert Level", "alert_level")):
+        value = _param(fact_table, name)
+        if value:
+            parts.extend([f"**{label}:** {value}", ""])
+
+    overview = _param(fact_table, "situation_overview")
+    if overview:
+        parts.extend(["## Situation Overview", "", overview, ""])
+
+    facts = [fact for fact in fact_table.facts if fact.metric == "corporation_status"]
+    for corporation, label in CORPORATION_LABELS.items():
+        parts.extend([f"## {label}", ""])
+        own = [fact for fact in facts if fact.scope.get("corporation") == corporation]
+        logs = [fact for fact in own if fact.scope.get("kind") == "log"]
+        incidents = [fact for fact in own if fact.scope.get("kind") == "incidents"]
+        for fact in logs + incidents:
+            text = _incident_line(fact) if fact in incidents else str(fact.value)
+            marker = f" [{fact.citation.cid}]" if include_citations else ""
+            parts.append(f"- {text}{marker}")
+        if not own:
+            parts.append("- No reports at this time.")
+        parts.append("")
+
+    response = _param(fact_table, "ministry_response")
+    if response:
+        parts.extend([f"## Response from the {MINISTRY_NAME}", "", response, ""])
+
+    parts.append("END OF REPORT")
+    return "\n".join(parts) + "\n"
 
 
 def render_report(
@@ -298,6 +412,8 @@ def render_report(
         return render_filing(
             template, fact_table, narrative, include_citations=include_citations
         )
+    if template.render.layout == "ministerial":
+        return render_ministerial(template, fact_table, include_citations=include_citations)
 
     title = _document_title(template, fact_table)
     prose = narrative.strip()

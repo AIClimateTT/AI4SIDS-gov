@@ -1,6 +1,7 @@
 import type { CaptureIncident, CaptureSession } from '@/types/dmcu'
 
 export const EVENT_HAZARD_TYPES = [
+  'adverse_weather',
   'flood',
   'landslide',
   'wind',

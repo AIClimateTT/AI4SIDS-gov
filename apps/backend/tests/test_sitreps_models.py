@@ -131,7 +131,7 @@ def test_situation_log_quantity_is_optional(tmp_path):
 
 def test_enum_tuples_match_the_spec():
     assert ALERT_LEVELS == ("green", "yellow", "orange", "red", "discontinued", "none")
-    assert HAZARD_TYPES == ("flood", "landslide", "wind", "fire", "other")
+    assert HAZARD_TYPES == ("adverse_weather", "flood", "landslide", "wind", "fire", "other")
     assert LOG_CATEGORIES == (
         "resource",
         "personnel",

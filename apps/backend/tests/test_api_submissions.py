@@ -5,7 +5,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import create_app
-from app.core.registry import reset_registry
 from app.db import Base, engine
 
 CORP = "diego_martin_regional_corporati"
@@ -17,12 +16,10 @@ DEV_DB_PATH = Path(__file__).parent.parent / "dev.db"
 # do not leak state into each other regardless of ordering.
 @pytest.fixture(autouse=True)
 def _clean_registry():
-    reset_registry()
     engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()
     yield
-    reset_registry()
     engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()

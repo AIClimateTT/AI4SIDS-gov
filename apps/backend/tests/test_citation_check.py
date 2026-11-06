@@ -1,3 +1,5 @@
+import pytest
+
 from datetime import datetime
 
 from app.core.contracts import Citation, Fact, FactTable
@@ -617,3 +619,46 @@ def test_digit_invented_number_still_flagged():
         make_fact_table(),
     )
     assert any(v.kind == "invented_number" and v.token == "99" for v in result.violations)
+
+
+# Models write dates with typographic dashes as often as ASCII ones. The
+# stakeholder's first Survey123 report flagged "Date: 2026‑11‑02" (U+2011) as
+# the invented figures 2026 and 11.
+@pytest.mark.parametrize("dash", ["‐", "‑", "‒", "–", "—", "−"])
+def test_iso_date_with_a_typographic_dash_is_not_a_figure(dash):
+    date = dash.join(["2023", "06", "15"])
+    result = check_citations(f"On {date}, 19 incidents were recorded [{CID}].", make_fact_table())
+
+    assert result.violations == []
+
+
+def test_numbered_list_markers_are_not_figures():
+    narrative = (
+        "1. **Situation overview**\n"
+        f"19 incidents were recorded [{CID}].\n"
+        "2) **Relief and response**\n"
+        f"  10. Flooding accounted for 7 of them [{CID}]."
+    )
+
+    result = check_citations(narrative, make_fact_table())
+
+    assert result.violations == []
+
+
+def test_a_figure_after_a_list_marker_is_still_checked():
+    result = check_citations(
+        f"1. 42 homes were flooded.\n19 incidents were recorded [{CID}].", make_fact_table()
+    )
+
+    assert {(v.kind, v.token) for v in result.violations} == {
+        ("missing_citation", None),
+        ("invented_number", "42"),
+    }
+
+
+def test_a_number_ending_a_line_is_not_taken_for_a_list_marker():
+    result = check_citations(
+        f"19 incidents were recorded [{CID}]. Deaths recorded:\n4.", make_fact_table()
+    )
+
+    assert ("invented_number", "4") in {(v.kind, v.token) for v in result.violations}

@@ -2,10 +2,11 @@ from app.core.contracts import FactTable, Template
 from app.quality.contracts import CompletenessScore
 
 _FILING_HEADINGS = (
-    ("incident_count", "Situation summary", "value_and_breakdown"),
-    ("relief_stock_summary", "Relief and resources", "truthy_value"),
+    ("incident_count", "Situation Summary", "value_and_breakdown"),
+    ("relief_stock_summary", "Disaster Relief Distribution Summary", "relief_distributed"),
+    ("relief_stock_summary", "Resources", "other_stock"),
     ("incident_register", "Incidents", "any_fact"),
-    ("activity_log", "Activities", "any_fact"),
+    ("activity_log", "Summary of Activities", "any_fact"),
 )
 
 
@@ -50,8 +51,16 @@ def score_completeness(
             justified = False
             if rule == "value_and_breakdown":
                 justified = any(fact.value and fact.breakdown for fact in facts)
-            elif rule == "truthy_value":
-                justified = any(fact.value for fact in facts)
+            elif rule == "relief_distributed":
+                justified = any(
+                    fact.value and fact.scope.get("category") == "relief_distributed"
+                    for fact in facts
+                )
+            elif rule == "other_stock":
+                justified = any(
+                    fact.value and fact.scope.get("category") != "relief_distributed"
+                    for fact in facts
+                )
             elif rule == "any_fact":
                 justified = bool(facts)
             if justified:

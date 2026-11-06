@@ -12,7 +12,9 @@ from app.core.contracts import RowErrorInfo, SubmissionIngestResult
 from app.core.llm import get_llm_client
 from app.core.renderer import strip_citation_markup
 from app.core.report_store import add_report
-from app.core.template_store import get_latest_template_version
+from app.core.template_catalog import get_template
+from app.auth.dependencies import CurrentUser, require_corporation_access
+from app.auth.models import User
 from app.db import get_session
 from app.quality.store import record_event
 from app.modules.capture.csv_import import import_csv_rows, read_csv_bytes
@@ -43,7 +45,7 @@ from app.modules.capture.prompt import compose_capture_prompt
 from app.modules.capture.turn import apply_turn, stream_turn
 from app.modules.sitreps.ingest import ingest_submission
 from app.modules.sitreps.models import ALERT_LEVELS, HAZARD_TYPES
-from app.modules.sitreps.store import create_event, get_event
+from app.modules.sitreps.store import create_event, get_event, next_sequence_no
 from app.modules.survey123.normalize import CANONICAL_CORPORATIONS
 
 router = APIRouter()
@@ -78,6 +80,7 @@ class CaptureSessionResponse(BaseModel):
     status: str
     as_at: datetime
     alert_level: str
+    alert_detail: str | None
     present_activity: str | None
     situation_overview: str | None
     incidents: list[CaptureIncident]
@@ -109,6 +112,7 @@ class StreamTurnRequest(BaseModel):
 class UpdateSessionRequest(BaseModel):
     as_at: datetime | None = None
     alert_level: str | None = None
+    alert_detail: str | None = None
     present_activity: str | None = None
     situation_overview: str | None = None
     incidents: list[CaptureIncident]
@@ -167,6 +171,7 @@ def _to_response(row: CaptureSession) -> CaptureSessionResponse:
         status=row.status,
         as_at=row.as_at,
         alert_level=row.alert_level,
+        alert_detail=row.alert_detail,
         present_activity=row.present_activity,
         situation_overview=row.situation_overview,
         incidents=working.incidents,
@@ -185,11 +190,12 @@ def _to_response(row: CaptureSession) -> CaptureSessionResponse:
 
 
 def _load_owned(
-    db: Session, session_id: int
+    db: Session, session_id: int, user: User
 ) -> CaptureSession:
     row = get_session_row(db, session_id)
     if row is None:
         raise HTTPException(status_code=404, detail=f"capture session not found: {session_id}")
+    require_corporation_access(user, row.corporation)
     return row
 
 
@@ -239,9 +245,12 @@ def _sse(event: dict) -> str:
 
 @router.post("/capture/sessions", response_model=CaptureSessionResponse, status_code=201)
 def post_session(
-    request: CreateSessionRequest, db: Session = Depends(get_session)
+    request: CreateSessionRequest,
+    user: CurrentUser,
+    db: Session = Depends(get_session),
 ) -> CaptureSessionResponse:
     corporation = _require_corporation(request.corporation)
+    require_corporation_access(user, corporation)
     if request.event_id is not None:
         event = get_event(db, request.event_id)
         if event is None or event.corporation != corporation:
@@ -263,18 +272,22 @@ def post_session(
 @router.get("/capture/sessions", response_model=list[CaptureSessionResponse])
 def get_sessions(
     corporation: str,
+    user: CurrentUser,
     event_id: int | None = None,
     db: Session = Depends(get_session),
 ) -> list[CaptureSessionResponse]:
     _require_corporation(corporation)
+    require_corporation_access(user, corporation)
     return [_to_response(row) for row in list_sessions(db, corporation=corporation, event_id=event_id)]
 
 
 @router.get("/capture/sessions/{session_id}", response_model=CaptureSessionResponse)
 def get_one_session(
-    session_id: int, db: Session = Depends(get_session)
+    session_id: int,
+    user: CurrentUser,
+    db: Session = Depends(get_session),
 ) -> CaptureSessionResponse:
-    return _to_response(_load_owned(db, session_id))
+    return _to_response(_load_owned(db, session_id, user))
 
 
 class AttachEventRequest(BaseModel):
@@ -286,9 +299,12 @@ class AttachEventRequest(BaseModel):
 
 @router.post("/capture/sessions/{session_id}/event", response_model=CaptureSessionResponse)
 def post_session_event(
-    session_id: int, request: AttachEventRequest, db: Session = Depends(get_session)
+    session_id: int,
+    request: AttachEventRequest,
+    user: CurrentUser,
+    db: Session = Depends(get_session),
 ) -> CaptureSessionResponse:
-    row = _load_owned(db, session_id)
+    row = _load_owned(db, session_id, user)
     _require_draft(row)
 
     if request.event_id is not None:
@@ -324,9 +340,12 @@ def post_session_event(
 
 @router.post("/capture/sessions/{session_id}/turns", response_model=CaptureSessionResponse)
 def post_turn(
-    session_id: int, request: TurnRequest, db: Session = Depends(get_session)
+    session_id: int,
+    request: TurnRequest,
+    user: CurrentUser,
+    db: Session = Depends(get_session),
 ) -> CaptureSessionResponse:
-    row = _load_owned(db, session_id)
+    row = _load_owned(db, session_id, user)
     _require_draft(row)
     working, _message, _missing, messages = apply_turn(
         working_set_from_session(row),
@@ -345,9 +364,10 @@ def post_turn(
 def post_turn_stream(
     session_id: int,
     request: StreamTurnRequest,
+    user: CurrentUser,
     db: Session = Depends(get_session),
 ) -> StreamingResponse:
-    row = _load_owned(db, session_id)
+    row = _load_owned(db, session_id, user)
     _require_draft(row)
     user_message = _latest_user_text(request.messages)
     thread_id = request.threadId or str(session_id)
@@ -429,15 +449,21 @@ def post_turn_stream(
 
 @router.put("/capture/sessions/{session_id}", response_model=CaptureSessionResponse)
 def put_session(
-    session_id: int, request: UpdateSessionRequest, db: Session = Depends(get_session)
+    session_id: int,
+    request: UpdateSessionRequest,
+    user: CurrentUser,
+    db: Session = Depends(get_session),
 ) -> CaptureSessionResponse:
-    row = _load_owned(db, session_id)
+    row = _load_owned(db, session_id, user)
     _require_draft(row)
     if request.alert_level is not None and request.alert_level not in ALERT_LEVELS:
         raise HTTPException(status_code=400, detail=f"unknown alert_level: {request.alert_level}")
     working = CaptureWorkingSet(
         as_at=request.as_at or row.as_at,
         alert_level=request.alert_level or row.alert_level,
+        alert_detail=(
+            request.alert_detail if request.alert_detail is not None else row.alert_detail
+        ),
         present_activity=(
             request.present_activity
             if request.present_activity is not None
@@ -467,11 +493,12 @@ def put_session(
 )
 async def post_session_csv(
     session_id: int,
+    user: CurrentUser,
     kind: Literal["incidents", "logs"] = Form(),
     file: UploadFile = File(),
     db: Session = Depends(get_session),
 ) -> CsvImportResponse:
-    row = _load_owned(db, session_id)
+    row = _load_owned(db, session_id, user)
     _require_draft(row)
     contents = await file.read()
     try:
@@ -507,7 +534,7 @@ def _require_event_if_incidents(row: CaptureSession) -> None:
 
 
 def _sitrep_template(db: Session):
-    template = get_latest_template_version("corp_situation_report", db)
+    template = get_template("corp_situation_report")
     if template is None:
         raise HTTPException(
             status_code=400,
@@ -516,11 +543,9 @@ def _sitrep_template(db: Session):
     return template
 
 
-def _event_title(db: Session, row: CaptureSession) -> str:
-    if row.event_id is None:
-        return "Untitled event"
-    event = get_event(db, row.event_id)
-    return event.title if event is not None else "Untitled event"
+def _hazard_type(db: Session, row: CaptureSession) -> str | None:
+    event = get_event(db, row.event_id) if row.event_id is not None else None
+    return event.hazard_type if event is not None else None
 
 
 def _generate_preview(db: Session, row: CaptureSession) -> CaptureSession:
@@ -530,7 +555,11 @@ def _generate_preview(db: Session, row: CaptureSession) -> CaptureSession:
         working,
         corporation=row.corporation,
         event_id=row.event_id,
-        event_title=_event_title(db, row),
+        hazard_type=_hazard_type(db, row),
+        # The number this filing will take; only an event has a sequence.
+        report_number=(
+            next_sequence_no(db, row.corporation, row.event_id) if row.event_id else None
+        ),
         template=template,
         llm_client=get_llm_client("chat"),
         request_id=str(uuid.uuid4()),
@@ -550,6 +579,7 @@ def ingest_working_set(
         as_at=working.as_at or row.as_at,
         event_id=row.event_id,
         alert_level=working.alert_level,
+        alert_detail=working.alert_detail,
         present_activity=working.present_activity,
         situation_overview=working.situation_overview,
         source_name="conversation",
@@ -574,9 +604,11 @@ def file_working_set(db: Session, row: CaptureSession) -> SubmissionIngestResult
     status_code=201,
 )
 def file_session(
-    session_id: int, db: Session = Depends(get_session)
+    session_id: int,
+    user: CurrentUser,
+    db: Session = Depends(get_session),
 ) -> FileSessionResponse:
-    row = _load_owned(db, session_id)
+    row = _load_owned(db, session_id, user)
     _require_draft(row)
     ingest = file_working_set(db, row)
     return FileSessionResponse(session=_to_response(row), ingest=ingest)
@@ -587,9 +619,11 @@ def file_session(
     response_model=CaptureSessionResponse,
 )
 def preview_session(
-    session_id: int, db: Session = Depends(get_session)
+    session_id: int,
+    user: CurrentUser,
+    db: Session = Depends(get_session),
 ) -> CaptureSessionResponse:
-    row = _load_owned(db, session_id)
+    row = _load_owned(db, session_id, user)
     _require_draft(row)
     row = _generate_preview(db, row)
     return _to_response(row)
@@ -601,9 +635,11 @@ def preview_session(
     status_code=201,
 )
 def issue_session(
-    session_id: int, db: Session = Depends(get_session)
+    session_id: int,
+    user: CurrentUser,
+    db: Session = Depends(get_session),
 ) -> FileSessionResponse:
-    row = _load_owned(db, session_id)
+    row = _load_owned(db, session_id, user)
     _require_draft(row)
     _require_event_if_incidents(row)
     ingest = ingest_working_set(db, row, commit=False)
@@ -612,7 +648,8 @@ def issue_session(
         working_set_from_session(row),
         corporation=row.corporation,
         event_id=row.event_id,
-        event_title=_event_title(db, row),
+        hazard_type=_hazard_type(db, row),
+        report_number=ingest.sequence_no if row.event_id else None,
         template=template,
         llm_client=get_llm_client("chat"),
         request_id=str(uuid.uuid4()),

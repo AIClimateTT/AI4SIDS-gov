@@ -13,7 +13,9 @@ from sqlalchemy import select
 
 from app.core.localtime import local_date, to_local
 from app.modules.survey123.ingest import (
+    IngestFormatError,
     ingest_csv,
+    ingest_survey123_export,
     normalize_headers,
     parse_calendar_date,
     parse_timestamp,
@@ -159,3 +161,59 @@ def test_community_falls_back_to_the_newer_community_question():
     fields = parse_row({"ObjectID": "1", "GlobalID": "g", "Community": "", "Community_2": "Morvant"}, "salt")
 
     assert fields["community"] == "Morvant"
+
+
+def _write_export(path, values):
+    rows = ["ObjectID,GlobalID,Validated/NotValidated"]
+    rows += [f"{i},g-{i},{value}" for i, value in enumerate(values, start=1)]
+    path.write_text("\n".join(rows) + "\n")
+    return path
+
+
+def _stored_rows(session):
+    return session.query(FieldObservation).count()
+
+
+def test_blank_validation_rejects_the_whole_file(tmp_path):
+    session = make_session(tmp_path)
+    path = _write_export(tmp_path / "export.csv", ["Validated", "Validated", ""])
+
+    with pytest.raises(IngestFormatError) as caught:
+        ingest_survey123_export(path, session, salt="s")
+
+    assert caught.value.detail == (
+        "1 row(s) are not marked Validated (first: row 4). Filter the Survey123 "
+        "export to validated records and upload again. Nothing was saved."
+    )
+    assert _stored_rows(session) == 0
+
+
+def test_not_validated_value_rejects_the_whole_file(tmp_path):
+    session = make_session(tmp_path)
+    path = _write_export(tmp_path / "export.csv", ["NotValidated", "Validated", "NotValidated"])
+
+    with pytest.raises(IngestFormatError) as caught:
+        ingest_survey123_export(path, session, salt="s")
+
+    assert caught.value.detail.startswith("2 row(s) are not marked Validated (first: row 2).")
+    assert _stored_rows(session) == 0
+
+
+def test_missing_validation_column_rejects_the_file(tmp_path):
+    session = make_session(tmp_path)
+    path = tmp_path / "export.csv"
+    path.write_text("ObjectID,GlobalID\n1,g-1\n")
+
+    with pytest.raises(IngestFormatError, match="Validated/NotValidated"):
+        ingest_survey123_export(path, session, salt="s")
+
+    assert _stored_rows(session) == 0
+
+
+def test_a_fully_validated_file_is_stored(tmp_path):
+    session = make_session(tmp_path)
+    path = _write_export(tmp_path / "export.csv", ["Validated", " validated "])
+
+    result = ingest_survey123_export(path, session, salt="s")
+
+    assert result.rows_inserted == 2

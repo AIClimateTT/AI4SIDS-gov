@@ -60,6 +60,7 @@ class IngestResult(BaseModel):
 class TemplateParam(BaseModel):
     name: str
     required: bool = False
+    multiline: bool = False
 
 
 class DataRequirement(BaseModel):
@@ -97,7 +98,7 @@ class NarrationConfig(BaseModel):
 class RenderConfig(BaseModel):
     format: Literal["markdown"] = "markdown"
     include_citation_appendix: bool = True
-    layout: Literal["narrative", "filing"] = "narrative"
+    layout: Literal["narrative", "filing", "ministerial"] = "narrative"
 
 
 class Template(BaseModel):

@@ -73,6 +73,7 @@ class CaptureLog(BaseModel):
 class CaptureWorkingSet(BaseModel):
     as_at: datetime | None = None
     alert_level: str = "none"
+    alert_detail: str | None = None
     present_activity: str | None = None
     situation_overview: str | None = None
     incidents: list[CaptureIncident] = Field(default_factory=list)

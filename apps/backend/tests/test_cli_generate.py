@@ -3,18 +3,20 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 import app.core.llm as llm_module
-from app.core.registry import reset_registry
 from app.db import Base, engine as db_engine
 from cli import app
+
+from app.core import template_catalog
+from app.templates.loader import load_template
 
 runner = CliRunner()
 
 FIXTURE_PATH = Path(__file__).parent.parent / "fixtures" / "sample_small.csv"
+VALIDATED_FIXTURE_PATH = Path(__file__).parent.parent / "fixtures" / "sample_small_validated.csv"
 DEV_DB_PATH = Path(__file__).parent.parent / "dev.db"
 
 
 def _reset_state():
-    reset_registry()
     db_engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()
@@ -25,7 +27,6 @@ def test_list_templates_shows_every_shipped_template():
     Base.metadata.create_all(db_engine)
 
     try:
-        runner.invoke(app, ["templates", "import-all", str(Path(__file__).parent.parent / "app" / "templates" / "definitions")])
 
         result = runner.invoke(app, ["list-templates"])
 
@@ -36,7 +37,7 @@ def test_list_templates_shows_every_shipped_template():
         _reset_state()
 
 
-def test_generate_minister_situation_report_produces_markdown_report(monkeypatch):
+def test_generate_survey123_summary_produces_markdown_report(monkeypatch):
     # Force the fake, network-free provider regardless of Settings.llm_provider's
     # real-world default ("ollama") — this test must stay testable without a
     # network connection or a running Ollama server, per PLAN.md's "everything
@@ -49,16 +50,15 @@ def test_generate_minister_situation_report_produces_markdown_report(monkeypatch
     Base.metadata.create_all(db_engine)
 
     try:
-        runner.invoke(app, ["templates", "import-all", str(Path(__file__).parent.parent / "app" / "templates" / "definitions")])
 
-        ingest_result = runner.invoke(app, ["ingest", "survey123", str(FIXTURE_PATH)])
+        ingest_result = runner.invoke(app, ["ingest", "survey123", str(VALIDATED_FIXTURE_PATH)])
         assert ingest_result.exit_code == 0, ingest_result.stdout
 
         result = runner.invoke(
             app,
             [
                 "generate",
-                "minister_situation_report",
+                "survey123_summary",
                 "--date-from",
                 "2024-06-01",
                 "--date-to",
@@ -78,7 +78,6 @@ def test_generate_missing_required_param_errors():
     Base.metadata.create_all(db_engine)
 
     try:
-        runner.invoke(app, ["templates", "import-all", str(Path(__file__).parent.parent / "app" / "templates" / "definitions")])
 
         result = runner.invoke(app, ["generate", "minister_situation_report", "--date-from", "2024-06-01"])
 
@@ -115,7 +114,6 @@ def test_generate_can_run_a_sitreps_template(monkeypatch, tmp_path):
     # invocation is a fresh process in reality, and the import above happens to
     # register every module as a side effect of template validation. Without
     # the reset this test would exercise leaked state, not the command.
-    from app.core.registry import reset_registry as clear_modules
 
     monkeypatch.setattr(llm_module.settings, "llm_provider", "fake")
 
@@ -125,10 +123,10 @@ def test_generate_can_run_a_sitreps_template(monkeypatch, tmp_path):
     try:
         template_path = tmp_path / "corp_sitrep_only.yaml"
         template_path.write_text(SITREP_TEMPLATE_YAML)
-        imported = runner.invoke(app, ["templates", "import", str(template_path)])
-        assert imported.exit_code == 0, imported.output
+        monkeypatch.setitem(
+            template_catalog._catalog(), "corp_sitrep_only", load_template(template_path)
+        )
 
-        clear_modules()
 
         result = runner.invoke(app, ["generate", "corp_sitrep_only"])
 
@@ -145,7 +143,6 @@ def test_generate_rejects_a_corporation_that_is_not_one_of_the_fourteen():
     Base.metadata.create_all(db_engine)
 
     try:
-        runner.invoke(app, ["templates", "import-all", str(Path(__file__).parent.parent / "app" / "templates" / "definitions")])
 
         result = runner.invoke(
             app,
@@ -174,8 +171,7 @@ def test_generate_accepts_a_canonical_corporation(monkeypatch):
     Base.metadata.create_all(db_engine)
 
     try:
-        runner.invoke(app, ["templates", "import-all", str(Path(__file__).parent.parent / "app" / "templates" / "definitions")])
-        runner.invoke(app, ["ingest", "survey123", str(FIXTURE_PATH)])
+        runner.invoke(app, ["ingest", "survey123", str(VALIDATED_FIXTURE_PATH)])
 
         result = runner.invoke(
             app,

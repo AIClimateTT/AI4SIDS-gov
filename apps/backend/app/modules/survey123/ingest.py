@@ -37,6 +37,8 @@ DUPLICATE_MARKER = "duplicate entry"
 
 REQUIRED_COLUMNS = ("ObjectID", "GlobalID")
 
+VALIDATION_COLUMN = "Validated/NotValidated"
+
 # Columns the parser reads. One missing is not fatal — Survey123 forms drift —
 # but every value in it would be silently dropped, so it is reported back.
 EXPECTED_COLUMNS = (
@@ -285,6 +287,39 @@ def parse_row(row: dict[str, str], salt: str, *, row_number: int = 2) -> dict:
         "lat": parse_float(row.get("y")),
         "dedup_hash": compute_dedup_hash(row.get("Identification Card Number"), salt),
     }
+
+
+def require_all_validated(file_path: Path) -> None:
+    """Every row must be marked Validated. A blank means the export was filtered
+    wrongly, so the rest of the file cannot be trusted either: reject it whole."""
+    with open(file_path, newline="", encoding="utf-8-sig") as f:
+        reader = csv.reader(f)
+        header = normalize_headers(next(reader, []))
+        if VALIDATION_COLUMN not in header:
+            raise IngestFormatError(
+                f"Survey123 CSV is missing required column(s): {VALIDATION_COLUMN}. "
+                "Upload the CSV exactly as ArcGIS exported it."
+            )
+        rows = [dict(zip(header, values)) for values in reader if any(values)]
+
+    # Spreadsheet row: the header is row 1, so the first data row is row 2.
+    rejected = [
+        index + 2
+        for index, row in enumerate(rows)
+        if _cell(row, VALIDATION_COLUMN).lower() != "validated"
+    ]
+    if rejected:
+        raise IngestFormatError(
+            f"{len(rejected)} row(s) are not marked Validated (first: row {rejected[0]}). "
+            "Filter the Survey123 export to validated records and upload again. "
+            "Nothing was saved."
+        )
+
+
+def ingest_survey123_export(file_path: Path, session: Session, salt: str) -> IngestResult:
+    """The way in for an uploaded export: checked first, stored only if it passes."""
+    require_all_validated(file_path)
+    return ingest_csv(file_path, session, salt)
 
 
 def ingest_csv(file_path: Path, session: Session, salt: str) -> IngestResult:

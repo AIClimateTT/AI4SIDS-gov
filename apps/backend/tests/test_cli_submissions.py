@@ -5,7 +5,6 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 import app.modules.sitreps.models  # noqa: F401 -- registers sitreps tables on Base.metadata
-from app.core.registry import reset_registry
 from app.db import Base, SessionLocal, engine as db_engine
 from app.modules.sitreps.store import create_event
 from cli import app
@@ -19,7 +18,6 @@ CORP = "diego_martin_regional_corporati"
 
 
 def _reset_state():
-    reset_registry()
     db_engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()

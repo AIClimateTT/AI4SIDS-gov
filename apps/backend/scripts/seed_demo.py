@@ -31,14 +31,9 @@ from sqlalchemy import delete  # noqa: E402
 from app.config import settings  # noqa: E402
 from app.core.engine import generate_report  # noqa: E402
 from app.core.llm import get_default_llm_client  # noqa: E402
-from app.core.registry import ensure_default_modules_registered  # noqa: E402
 from app.core.report_models import Report  # noqa: E402
 from app.core.report_store import save_report  # noqa: E402
-from app.core.template_models import TemplateRecord  # noqa: E402
-from app.core.template_store import (  # noqa: E402
-    get_latest_template_version,
-    import_template_directory,
-)
+from app.core.template_catalog import get_template  # noqa: E402
 from app.db import SessionLocal  # noqa: E402
 from app.modules.sitreps.ingest import ingest_submission  # noqa: E402
 from app.modules.sitreps.models import (  # noqa: E402
@@ -52,7 +47,6 @@ from app.modules.survey123.models import FieldObservation  # noqa: E402
 
 BACKEND = Path(__file__).resolve().parent.parent
 DEMO = BACKEND / "fixtures" / "demo"
-TEMPLATES = BACKEND / "app" / "templates" / "definitions"
 
 random.seed(20230627)  # reproducible
 
@@ -229,21 +223,13 @@ def main() -> None:
     print(f"target: {settings.database_url}")
     session = SessionLocal()
 
-    # Templates and reports too. import_template_directory is additive by
-    # design — every run adds a version — so without clearing, a database that
-    # has seen a few sessions accumulates dozens of versions of templates that
-    # no longer exist in the repo, and the UI shows retired names alongside
-    # current ones.
     for model in (
         SitrepIncident, SituationLog, Submission, Event, FieldObservation,
-        Report, TemplateRecord,
+        Report,
     ):
         session.execute(delete(model))
     session.commit()
-    print("cleared existing data, reports and templates")
-
-    import_template_directory(TEMPLATES, session)
-    print("imported templates")
+    print("cleared existing data and reports")
 
     survey_header = next(csv.reader(open(BACKEND / "fixtures" / "sample_small.csv", encoding="utf-8")))
     survey_path = write_csv(
@@ -283,14 +269,13 @@ def main() -> None:
     # Reports, saved. The CLI's generate command prints to stdout and never
     # persists — only POST /reports calls save_report — so a demo seeded
     # without this step leaves the reports list empty.
-    ensure_default_modules_registered()
     llm = get_default_llm_client()
     window = {"date_from": "2023-06-01", "date_to": "2023-06-30"}
     wanted = [
         ("minister_situation_report", dict(window)),
     ]
     for name, params in wanted:
-        template = get_latest_template_version(name, session)
+        template = get_template(name)
         try:
             report = generate_report(template, params, session, llm)
         except Exception as exc:  # Ollama down, model missing, timeout

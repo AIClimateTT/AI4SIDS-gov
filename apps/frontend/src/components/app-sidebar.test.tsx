@@ -24,11 +24,9 @@ afterEach(() => {
 const DMU_PATHS = [
   '/dmu',
   '/dmu/reports',
+  '/dmu/records',
   '/dmu/reports/new',
   '/dmu/field-data',
-  '/dmu/whatsapp',
-  '/dmu/admin/templates',
-  '/dmu/admin/modules',
   '/dmu/admin/quality',
   '/dmu/admin/users',
 ]
@@ -96,7 +94,7 @@ describe('AppSidebar', () => {
     expect(navGroups()).toEqual([
       {
         label: 'Operations',
-        links: ['Dashboard', 'Reports', 'Field data', 'WhatsApp'],
+        links: ['Dashboard', 'Reports', 'Incidents & logs', 'Field data'],
       },
     ])
   })
@@ -107,11 +105,11 @@ describe('AppSidebar', () => {
     expect(navGroups()).toEqual([
       {
         label: 'Operations',
-        links: ['Dashboard', 'Reports', 'Field data', 'WhatsApp'],
+        links: ['Dashboard', 'Reports', 'Incidents & logs', 'Field data'],
       },
       {
         label: 'Administration',
-        links: ['Templates', 'Modules', 'Quality', 'Users'],
+        links: ['Quality', 'Users'],
       },
     ])
   })
@@ -123,12 +121,12 @@ describe('AppSidebar', () => {
   })
 
   it('highlights the current section, and only that section', async () => {
-    await renderSidebar('/dmu/admin/modules', { role: 'admin' })
+    await renderSidebar('/dmu/admin/users', { role: 'admin' })
 
-    expect(isHighlighted('Modules')).toBe(true)
+    expect(isHighlighted('Users')).toBe(true)
     // The dashboard is a prefix of every DMU path; it must not light up here.
     expect(isHighlighted('Dashboard')).toBe(false)
-    expect(isHighlighted('Templates')).toBe(false)
+    expect(isHighlighted('Quality')).toBe(false)
   })
 
   it('treats nested pages as part of their section', async () => {

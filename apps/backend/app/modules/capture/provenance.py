@@ -11,7 +11,13 @@ from collections.abc import Iterable
 
 from app.modules.capture.schemas import CaptureIncident, CaptureLog, CaptureWorkingSet
 
-SESSION_FIELDS = ("as_at", "alert_level", "present_activity", "situation_overview")
+SESSION_FIELDS = (
+    "as_at",
+    "alert_level",
+    "alert_detail",
+    "present_activity",
+    "situation_overview",
+)
 
 
 def incident_path(row_id: str, field: str) -> str:

@@ -6,11 +6,11 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { z } from 'zod'
 
 import { DataTable } from '@/components/data-table'
+import { Survey123ReportCard } from '@/components/dmu/survey123-report-card'
 import {
   EmptyState,
   LoadingBlock,
   PageHeader,
-  SourceBadge,
 } from '@/components/shared'
 import { ContentCard } from '@/components/shared/content-card'
 import { Button } from '@/components/ui/button'
@@ -28,30 +28,11 @@ import { incidentQueries } from '@/lib/queries/incidents'
 import { useIngestModule } from '@/lib/queries/ingest'
 import type {
   IncidentListItem,
-  IncidentListSource,
   IngestResult,
 } from '@/types/dmcu'
 
-type FieldDataSearch = { source?: IncidentListSource }
-
-const SOURCE_OPTIONS = [
-  { value: 'all' as const, label: 'All' },
-  { value: 'survey123' as const, label: 'Field' },
-  { value: 'sitreps' as const, label: 'SITREP' },
-]
-
-function toSource(value: unknown): IncidentListSource {
-  return typeof value === 'string' &&
-    SOURCE_OPTIONS.some((option) => option.value === value)
-    ? (value as IncidentListSource)
-    : 'all'
-}
-
 export const Route = createFileRoute('/dmu/field-data')({
   component: IngestPage,
-  validateSearch: (search: Record<string, unknown>): FieldDataSearch => ({
-    source: toSource(search.source),
-  }),
 })
 
 const uploadSchema = z.object({
@@ -59,11 +40,6 @@ const uploadSchema = z.object({
 })
 
 const columns: ColumnDef<IncidentListItem>[] = [
-  {
-    accessorKey: 'source',
-    header: 'Source',
-    cell: ({ row }) => <SourceBadge module={row.original.source} />,
-  },
   {
     accessorKey: 'corporation',
     header: 'Corporation',
@@ -132,7 +108,7 @@ function IngestPage() {
     },
     onSubmit: async ({ value }) => {
       if (!value.file) return
-      await ingest.mutateAsync({ moduleName: 'survey123', file: value.file })
+      await ingest.mutateAsync({ file: value.file })
     },
   })
 
@@ -162,8 +138,8 @@ function IngestPage() {
         }
       >
         <p className="text-sm text-muted-foreground">
-          This file must be a Survey123 export. ObjectID and GlobalID are
-          required. Dates must be ISO-8601, for example 2024-06-01T09:00:00.
+          This file must be a Survey123 export with ObjectID and GlobalID. Every
+          row must be marked Validated, or the whole file is rejected.
         </p>
         <form
           className="space-y-4"
@@ -191,6 +167,8 @@ function IngestPage() {
         ) : null}
       </ContentCard>
 
+      <Survey123ReportCard />
+
       <StoredIncidents />
     </div>
   )
@@ -202,15 +180,12 @@ function StoredIncidents() {
     pageSize: 10,
   })
   const [q, setQ] = useState<string | undefined>()
-  const search = Route.useSearch()
-  const source = search.source ?? 'all'
-  const navigate = Route.useNavigate()
 
   const listParams = {
     page: pagination.pageIndex + 1,
     pageSize: pagination.pageSize,
     q,
-    source,
+    source: 'survey123' as const,
   }
 
   const { data, isPending, isError, error, isFetching } = useQuery(
@@ -220,7 +195,7 @@ function StoredIncidents() {
   return (
     <ContentCard
       title="Stored incidents"
-      description="Survey123 field observations and corporation situation-report incidents."
+      description="Survey123 records verified by field staff. Corporation records are under Incidents & logs."
       contentClassName="space-y-4"
     >
       {isPending && !data ? <LoadingBlock rows={5} /> : null}
@@ -261,13 +236,6 @@ function StoredIncidents() {
               )
               setPagination((prev) => ({ ...prev, pageIndex: 0 }))
             }
-            if ('source' in updates) {
-              void navigate({
-                search: { source: toSource(updates.source) },
-                replace: true,
-              })
-              setPagination((prev) => ({ ...prev, pageIndex: 0 }))
-            }
           }}
           toolbar={{
             search: {
@@ -275,15 +243,7 @@ function StoredIncidents() {
               placeholder: 'Search incidents…',
             },
           }}
-          filters={[
-            {
-              type: 'toggle',
-              key: 'source',
-              label: 'Source',
-              options: SOURCE_OPTIONS,
-            },
-          ]}
-          filterValues={{ q, source }}
+          filterValues={{ q }}
           features={{
             enablePageSizeSelector: true,
             enableColumnVisibility: true,

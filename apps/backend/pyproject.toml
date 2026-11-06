@@ -10,7 +10,6 @@ dependencies = [
     "fastapi>=0.139.0",
     "langchain-ollama>=1.1.0",
     "langchain-openai>=1.6.0",
-    "mcp>=1.9.0",
     "procrastinate>=3.9.0",
     "psycopg[binary]>=3.3.4",
     "pydantic[email]>=2.0",

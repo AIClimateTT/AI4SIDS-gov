@@ -2,7 +2,7 @@ from datetime import datetime
 
 from sqlalchemy.orm import sessionmaker
 
-from app.core.registry import get_module, reset_registry, ensure_default_modules_registered
+from app.core.metrics import run_metric
 from app.db import Base, make_engine
 from app.modules.sitreps.ingest import ingest_submission
 from app.modules.survey123.models import FieldObservation
@@ -50,14 +50,10 @@ def test_sitrep_module_never_sees_field_observations(tmp_path):
         session, corporation=CORP, as_at=datetime(2023, 6, 27), incidents_path=path
     )
 
-    reset_registry()
-    ensure_default_modules_registered()
 
-    sitreps = get_module("sitreps").run_metric(
-        "incident_count", {"corporation": CORP}, session
+    sitreps = run_metric("sitreps", "incident_count", {"corporation": CORP}, session
     )
-    survey123 = get_module("survey123").run_metric(
-        "incident_count", {"corporation": CORP}, session
+    survey123 = run_metric("survey123", "incident_count", {"corporation": CORP}, session
     )
 
     assert sitreps[0].value == 1
@@ -71,11 +67,9 @@ def test_each_module_tags_its_citations_with_its_own_name(tmp_path):
     # a sitreps fact must not claim to have come from survey123 now that the
     # module identity no longer travels in the params as "source".
     session = make_session(tmp_path)
-    reset_registry()
-    ensure_default_modules_registered()
 
-    sitreps = get_module("sitreps").run_metric("incident_count", {}, session)
-    survey123 = get_module("survey123").run_metric("incident_count", {}, session)
+    sitreps = run_metric("sitreps", "incident_count", {}, session)
+    survey123 = run_metric("survey123", "incident_count", {}, session)
 
     assert sitreps[0].citation.module == "sitreps"
     assert sitreps[0].citation.cid == "sitreps-incident_count-0"
@@ -105,11 +99,8 @@ def test_a_caller_supplied_source_param_cannot_forge_citation_provenance(tmp_pat
         )
     )
     session.commit()
-    reset_registry()
-    ensure_default_modules_registered()
 
-    forged = get_module("survey123").run_metric(
-        "incident_count", {"corporation": CORP, "source": "sitreps"}, session
+    forged = run_metric("survey123", "incident_count", {"corporation": CORP, "source": "sitreps"}, session
     )
 
     assert forged[0].value == 1
@@ -118,8 +109,7 @@ def test_a_caller_supplied_source_param_cannot_forge_citation_provenance(tmp_pat
 
     # ... and the same in the other direction: a sitreps query cannot claim to
     # be survey123 data either.
-    forged_back = get_module("sitreps").run_metric(
-        "incident_count", {"corporation": CORP, "source": "survey123"}, session
+    forged_back = run_metric("sitreps", "incident_count", {"corporation": CORP, "source": "survey123"}, session
     )
 
     assert forged_back[0].citation.module == "sitreps"
@@ -146,11 +136,9 @@ def test_sitreps_data_coverage_returns_no_facts(tmp_path):
         )
     )
     session.commit()
-    reset_registry()
-    ensure_default_modules_registered()
 
-    assert get_module("sitreps").run_metric("data_coverage", {}, session) == []
-    assert len(get_module("survey123").run_metric("data_coverage", {}, session)) == 1
+    assert run_metric("sitreps", "data_coverage", {}, session) == []
+    assert len(run_metric("survey123", "data_coverage", {}, session)) == 1
 
 
 def test_sitreps_metrics_survive_the_missing_survey123_only_columns(tmp_path):
@@ -169,9 +157,6 @@ def test_sitreps_metrics_survive_the_missing_survey123_only_columns(tmp_path):
         session, corporation=CORP, as_at=datetime(2023, 6, 27), incidents_path=path
     )
 
-    reset_registry()
-    ensure_default_modules_registered()
-    module = get_module("sitreps")
 
     for metric in (
         "incident_count",
@@ -183,6 +168,6 @@ def test_sitreps_metrics_survive_the_missing_survey123_only_columns(tmp_path):
         "special_needs_count",
         "estimated_damage_total",
     ):
-        facts = module.run_metric(metric, {"include_pending": False}, session)
+        facts = run_metric("sitreps", metric, {"include_pending": False}, session)
         assert facts, f"{metric} returned no facts for the sitreps module"
         assert all(f.citation.module == "sitreps" for f in facts)

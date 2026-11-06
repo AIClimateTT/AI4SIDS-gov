@@ -129,3 +129,18 @@ def test_incidents_by_corporation_include_pending_widens_blank_bucket(tmp_path):
         "unmapped": 1,
     }
     assert fact.verification == "mixed"
+
+
+def test_empty_window_reports_a_gap_not_just_a_zero(tmp_path):
+    from app.modules.survey123.metrics import incidents_by_corporation
+
+    session = make_session(tmp_path)
+
+    facts = incidents_by_corporation(
+        {"date_from": "2026-01-01", "date_to": "2026-02-01"}, session
+    )
+
+    assert facts[0].value == 0
+    assert facts[0].gaps == [
+        "No Survey123 records found for this period. Confirm data for it has been uploaded."
+    ]

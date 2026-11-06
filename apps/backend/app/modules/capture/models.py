@@ -19,6 +19,7 @@ class CaptureSession(Base):
     status: Mapped[str] = mapped_column(String, nullable=False, default="draft")
     as_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     alert_level: Mapped[str] = mapped_column(String, nullable=False, default="none")
+    alert_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
     present_activity: Mapped[str | None] = mapped_column(Text, nullable=True)
     situation_overview: Mapped[str | None] = mapped_column(Text, nullable=True)
     incidents: Mapped[list] = mapped_column(JSON, nullable=False, default=list)

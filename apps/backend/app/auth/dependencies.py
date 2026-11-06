@@ -53,5 +53,17 @@ def require_admin_user(current_user: CurrentUser) -> User:
     return current_user
 
 
+def require_corporation_access(user: User, corporation: str | None) -> None:
+    """DMU and admin see every corporation; a corporation user only its own."""
+    if user.role in WORKSPACE_ROLES:
+        return
+    if user.role == "corp" and corporation is not None and user.corporation == corporation:
+        return
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="This belongs to another corporation",
+    )
+
+
 DmuWorkspace = Annotated[User, Depends(require_dmu_workspace)]
 AdminUser = Annotated[User, Depends(require_admin_user)]

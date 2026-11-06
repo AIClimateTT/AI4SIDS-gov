@@ -1,0 +1,53 @@
+name: survey123_summary
+version: 100
+title: Survey123 Summary Report
+description: Short report on Survey123 records verified by field staff, for a period and optionally one corporation.
+params:
+  - name: date_from
+    required: true
+  - name: date_to
+    required: true
+  - name: corporation
+    required: false
+data_requirements:
+  - module: survey123
+    metric: incident_count
+    params: { corporation: "{corporation}", date_from: "{date_from}", date_to: "{date_to}" }
+  - module: survey123
+    metric: incidents_by_corporation
+    params: { corporation: "{corporation}", date_from: "{date_from}", date_to: "{date_to}" }
+  - module: survey123
+    metric: homes_affected_count
+    params: { corporation: "{corporation}", date_from: "{date_from}", date_to: "{date_to}" }
+  - module: survey123
+    metric: casualty_summary
+    params: { corporation: "{corporation}", date_from: "{date_from}", date_to: "{date_to}" }
+  - module: survey123
+    metric: relief_actions_summary
+    params: { corporation: "{corporation}", date_from: "{date_from}", date_to: "{date_to}" }
+  - module: survey123
+    metric: estimated_damage_total
+    params: { corporation: "{corporation}", date_from: "{date_from}", date_to: "{date_to}" }
+narration:
+  identity: |
+    You summarise Survey123 incident records for the Ministry of Rural
+    Development and Local Government of Trinidad and Tobago. Field staff
+    verified these records before they were uploaded.
+  skills:
+    compose: |
+      Keep the report to one page. Write plain prose under the section headings
+      with no numbering on the headings. Lead with the total incidents, then how
+      they fall across corporations and incident types, then homes affected,
+      casualties and relief. State casualties once, factually. When citing
+      estimated damage, include the coverage caveat from the fact table and never
+      present a partial total as complete. If the fact table lists gaps, state
+      them and do not conclude that nothing happened. Cite every figure.
+  output_sections:
+    - overview
+    - by_corporation
+    - impact_and_relief
+    - damage_caveat
+render:
+  format: markdown
+  include_citation_appendix: true
+  layout: narrative

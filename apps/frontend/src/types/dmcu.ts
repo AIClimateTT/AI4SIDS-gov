@@ -3,6 +3,7 @@ export type ReportStatus = 'ok' | 'needs_review' | 'queued' | 'running' | 'faile
 export type TemplateParamInfo = {
   name: string
   required: boolean
+  multiline?: boolean
 }
 
 export type DataRequirementInfo = {
@@ -30,44 +31,6 @@ export type TemplateInfo = {
   params: TemplateParamInfo[]
   data_requirements: DataRequirementInfo[]
   narration: NarrationInfo
-}
-
-export type TemplateVersionSummary = {
-  name: string
-  version: number
-  title: string
-  created_at: string
-}
-
-export type CreateTemplateVersionInput = {
-  name: string
-  title: string
-  description: string
-  params: TemplateParamInfo[]
-  data_requirements: DataRequirementInfo[]
-  narration: NarrationInfo
-}
-
-export const CITATION_RULES = `RULES (absolute — always apply):
-- Use ONLY numbers present in the fact table you are given as JSON. Never compute, sum, estimate, or round a number that is not already present.
-- Every sentence containing a figure must end with its citation marker, e.g. [C001]. Citation markers look like C001, C002, etc.
-- Distinguish validated vs pending figures exactly as labeled in the fact table's "verification" field.
-- If the fact table lists gaps, state them plainly in a Data Gaps section.`
-
-export type MetricSpec = {
-  name: string
-  description: string
-  params_schema: {
-    type?: string
-    properties?: Record<string, unknown>
-    [key: string]: unknown
-  }
-  module: string
-}
-
-export type ModuleInfo = {
-  name: string
-  metrics: MetricSpec[]
 }
 
 export type CitationViolation = {
@@ -260,8 +223,6 @@ export type OverviewSummary = {
   recent_reports: ReportListItem[]
 }
 
-export type IngestModuleName = 'survey123' | 'sitreps'
-
 export type IngestResult = {
   rows_read: number
   rows_inserted: number
@@ -299,6 +260,35 @@ export type IncidentListParams = {
   pageSize?: number
   q?: string
   source?: IncidentListSource
+  corporation?: string
+  submissionId?: number
+}
+
+export type SituationLogItem = {
+  id: number
+  corporation: string
+  submission_id: number
+  as_at: string
+  event_title: string | null
+  category: string
+  statement: string
+  item: string | null
+  quantity: number | null
+  unit: string | null
+  status: string | null
+}
+
+export type SituationLogListParams = {
+  page?: number
+  pageSize?: number
+  q?: string
+  corporation?: string
+  submissionId?: number
+}
+
+export type SituationLogListResponse = {
+  items: SituationLogItem[]
+  total: number
 }
 
 export type IncidentListResponse = {
@@ -341,6 +331,7 @@ export type SubmissionSummary = {
   sequence_no: number
   incident_count: number
   log_count: number
+  report_id?: string | null
 }
 
 export type SubmissionDetail = SubmissionSummary & {
@@ -372,92 +363,6 @@ export type FileSubmissionInput = {
   situation_overview?: string
   incidentsFile?: File
   logsFile?: File
-}
-
-export type ProposedIncident = {
-  corporation: string | null
-  community: string | null
-  street: string | null
-  incident_type: string | null
-  incident_summary: string
-  event_date: string | null
-  injuries_count: number | null
-  deaths_count: number | null
-  source_index: number
-  source_quote: string
-}
-
-export type ProposedLog = {
-  corporation: string | null
-  category: string
-  statement: string
-  item: string | null
-  quantity: number | null
-  unit: string | null
-  status: string | null
-  source_index: number
-  source_quote: string
-}
-
-export type DraftIncident = ProposedIncident & { included: boolean; row_id: string }
-export type DraftLog = ProposedLog & { included: boolean; row_id: string }
-
-export type WhatsAppDraft = {
-  id: number
-  draft_id: number
-  filename: string
-  source_kind: 'export' | 'paste'
-  as_at: string
-  message_count: number
-  pii_redacted: boolean
-  incidents: DraftIncident[]
-  logs: DraftLog[]
-  messages: CaptureMessage[]
-  manual_fields: string[]
-  missing: CaptureMissingField[]
-  status?: string
-  error?: string | null
-  briefing_report_id?: string | null
-  briefing_stale?: boolean
-  created_at: string
-  updated_at: string
-}
-
-export type WhatsAppDraftSummary = {
-  id: number
-  filename: string
-  source_kind: 'export' | 'paste'
-  as_at: string
-  updated_at: string
-  incident_count: number
-  log_count: number
-}
-
-export type WhatsAppDraftUpdate = {
-  as_at?: string
-  incidents: DraftIncident[]
-  logs: DraftLog[]
-  manual_fields?: string[]
-}
-
-export type WhatsAppExtractResult = WhatsAppDraft
-
-export type WhatsAppConfirmInput = {
-  as_at: string
-  filename: string
-  incidents: ProposedIncident[]
-  logs: ProposedLog[]
-}
-
-export type WhatsAppConfirmResult = {
-  submissions: SubmissionIngestResult[]
-}
-
-export type WhatsAppBriefingResult = {
-  id: string
-  status: ReportStatus
-  markdown: string
-  error?: string | null
 }
 
 export type CaptureIncident = {
@@ -522,6 +427,7 @@ export type CaptureSession = {
   status: 'draft' | 'filed' | string
   as_at: string
   alert_level: string
+  alert_detail?: string | null
   present_activity: string | null
   situation_overview: string | null
   incidents: CaptureIncident[]
@@ -539,6 +445,7 @@ export type CaptureSession = {
 export type CaptureSessionUpdate = {
   as_at?: string
   alert_level?: string
+  alert_detail?: string | null
   present_activity?: string | null
   situation_overview?: string | null
   incidents: CaptureIncident[]

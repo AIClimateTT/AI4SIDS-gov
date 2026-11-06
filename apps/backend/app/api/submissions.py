@@ -4,10 +4,13 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.contracts import SubmissionIngestResult
+from app.auth.dependencies import CurrentUser, require_corporation_access
 from app.db import get_session
+from app.modules.capture.models import CaptureSession
 from app.modules.sitreps.ingest import ingest_submission
 from app.modules.sitreps.models import ALERT_LEVELS, HAZARD_TYPES, Submission
 from app.modules.sitreps.store import (
@@ -49,9 +52,12 @@ def _require_corporation(corporation: str) -> str:
 
 @router.post("/events", response_model=EventSummary, status_code=201)
 def post_event(
-    request: CreateEventRequest, session: Session = Depends(get_session)
+    request: CreateEventRequest,
+    user: CurrentUser,
+    session: Session = Depends(get_session),
 ) -> EventSummary:
     _require_corporation(request.corporation)
+    require_corporation_access(user, request.corporation)
     if request.hazard_type not in HAZARD_TYPES:
         raise HTTPException(
             status_code=400, detail=f"unknown hazard_type: {request.hazard_type}"
@@ -69,8 +75,9 @@ def post_event(
 
 @router.get("/events", response_model=list[EventSummary])
 def get_events(
-    corporation: str, session: Session = Depends(get_session)
+    corporation: str, user: CurrentUser, session: Session = Depends(get_session)
 ) -> list[EventSummary]:
+    require_corporation_access(user, corporation)
     return [
         EventSummary.model_validate(e, from_attributes=True)
         for e in list_events(session, corporation)
@@ -88,6 +95,7 @@ async def _spool(upload: UploadFile | None) -> tuple[Path, str] | None:
 
 @router.post("/submissions", response_model=SubmissionIngestResult, status_code=201)
 async def post_submission(
+    user: CurrentUser,
     corporation: str = Form(...),
     as_at: datetime = Form(...),
     event_id: int | None = Form(None),
@@ -99,6 +107,7 @@ async def post_submission(
     session: Session = Depends(get_session),
 ) -> SubmissionIngestResult:
     _require_corporation(corporation)
+    require_corporation_access(user, corporation)
     if alert_level not in ALERT_LEVELS:
         raise HTTPException(status_code=400, detail=f"unknown alert_level: {alert_level}")
     if incidents_file is not None and event_id is None:
@@ -151,6 +160,7 @@ class SubmissionSummary(BaseModel):
     sequence_no: int
     incident_count: int
     log_count: int
+    report_id: str | None = None
 
 
 class SubmissionDetail(SubmissionSummary):
@@ -173,17 +183,26 @@ def _summary(session: Session, submission) -> SubmissionSummary:
         sequence_no=submission.sequence_no,
         incident_count=incidents,
         log_count=logs,
+        report_id=session.scalar(
+            select(CaptureSession.report_id).where(
+                CaptureSession.submission_id == submission.id
+            )
+        ),
     )
 
 
 @router.get("/submissions", response_model=list[SubmissionSummary])
 def get_submissions(
+    user: CurrentUser,
     corporation: str | None = None,
     event_id: int | None = None,
     date_from: datetime | None = None,
     date_to: datetime | None = None,
     session: Session = Depends(get_session),
 ) -> list[SubmissionSummary]:
+    if user.role == "corp" and corporation is None:
+        corporation = user.corporation
+    require_corporation_access(user, corporation)
     return [
         _summary(session, s)
         for s in list_submissions(
@@ -195,11 +214,12 @@ def get_submissions(
 
 @router.get("/submissions/{submission_id}", response_model=SubmissionDetail)
 def get_submission(
-    submission_id: int, session: Session = Depends(get_session)
+    submission_id: int, user: CurrentUser, session: Session = Depends(get_session)
 ) -> SubmissionDetail:
     submission = session.get(Submission, submission_id)
     if submission is None:
         raise HTTPException(status_code=404, detail=f"submission not found: {submission_id}")
+    require_corporation_access(user, submission.corporation)
     summary = _summary(session, submission)
     return SubmissionDetail(
         **summary.model_dump(),

@@ -7,10 +7,8 @@ from sqlalchemy.orm import sessionmaker
 from app.core.contracts import DataRequirement, NarrationConfig, RenderConfig, Template, TemplateParam
 from app.core.engine import assemble_fact_table, generate_report
 from app.core.llm import FakeLLMClient
-from app.core.registry import register_module, reset_registry
 from app.db import Base, make_engine
 from app.modules.survey123.ingest import ingest_csv
-from app.modules.survey123.module import survey123_module
 
 FIXTURE_PATH = Path(__file__).parent.parent / "fixtures" / "sample_small.csv"
 
@@ -41,10 +39,7 @@ def make_session(tmp_path):
 
 @pytest.fixture(autouse=True)
 def _clean_registry():
-    reset_registry()
-    register_module(survey123_module)
     yield
-    reset_registry()
 
 
 def make_minister_template() -> Template:
@@ -177,3 +172,80 @@ def test_llm_payload_omits_record_ids_but_report_keeps_them_in_full(tmp_path):
     assert report.fact_table.facts
     for fact in report.fact_table.facts:
         assert fact.citation.record_ids  # full provenance preserved for storage/rendering
+
+
+def _prose_free_table():
+    from datetime import datetime, timezone
+
+    from app.core.contracts import Citation, Fact, FactTable
+
+    return FactTable(
+        request_id="r",
+        template="t",
+        params={},
+        generated_at=datetime(2026, 8, 21, tzinfo=timezone.utc),
+        facts=[
+            Fact(
+                metric="incident_count",
+                value=3,
+                unit="incidents",
+                scope={},
+                breakdown=None,
+                verification="pending",
+                citation=Citation(
+                    cid="C001",
+                    module="sitreps",
+                    description="d",
+                    query_ref="q",
+                    record_ids=[],
+                    as_of=datetime(2026, 8, 21, tzinfo=timezone.utc),
+                ),
+            )
+        ],
+        gaps=[],
+    )
+
+
+def _template_with_sections(sections: list[str]) -> Template:
+    return Template(
+        name="t",
+        title="T",
+        description="d",
+        params=[],
+        data_requirements=[],
+        narration=NarrationConfig.of(output_sections=sections),
+        render=RenderConfig(),
+    )
+
+
+class _RecordingLLM:
+    def __init__(self):
+        self.calls = 0
+
+    def generate(self, system_prompt: str, user_content: str) -> str:
+        self.calls += 1
+        return "3 incidents were recorded [C001]."
+
+
+def test_no_output_sections_skips_the_llm():
+    from app.core.engine import narrate_fact_table
+
+    llm = _RecordingLLM()
+
+    report = narrate_fact_table(_template_with_sections([]), _prose_free_table(), llm)
+
+    assert llm.calls == 0
+    assert report.narrative == ""
+    assert report.status == "ok"
+    assert report.violations == []
+
+
+def test_output_sections_still_call_the_llm():
+    from app.core.engine import narrate_fact_table
+
+    llm = _RecordingLLM()
+
+    report = narrate_fact_table(_template_with_sections(["overview"]), _prose_free_table(), llm)
+
+    assert llm.calls == 1
+    assert "3 incidents" in report.narrative

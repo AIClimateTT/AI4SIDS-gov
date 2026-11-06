@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.auth import router as auth_router
@@ -9,12 +9,13 @@ from app.api.overview import router as overview_router
 from app.api.reports import router as reports_router
 from app.api.submissions import router as submissions_router
 from app.api.templates import router as templates_router
-from app.api.whatsapp import router as whatsapp_router
 from app.api.capture import router as capture_router
 from app.api.users import router as users_router
 from app.api.quality import router as quality_router
+from app.api.situation_logs import router as situation_logs_router
 from app.config import settings, validate_runtime_settings
-from app.core.registry import ensure_default_modules_registered
+from app.auth.dependencies import require_dmu_workspace
+from app.core.template_catalog import list_templates
 
 
 def _cors_origins() -> list[str]:
@@ -38,19 +39,21 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    dmu_only = [Depends(require_dmu_workspace)]
     app.include_router(meta_router)
-    app.include_router(templates_router)
-    app.include_router(overview_router)
+    app.include_router(templates_router, dependencies=dmu_only)
+    app.include_router(overview_router, dependencies=dmu_only)
     app.include_router(reports_router)
-    app.include_router(ingest_router)
-    app.include_router(incidents_router)
+    app.include_router(ingest_router, dependencies=dmu_only)
+    app.include_router(incidents_router, dependencies=dmu_only)
+    app.include_router(situation_logs_router, dependencies=dmu_only)
     app.include_router(submissions_router)
-    app.include_router(whatsapp_router)
     app.include_router(capture_router)
     app.include_router(auth_router)
     app.include_router(users_router)
-    app.include_router(quality_router)
-    ensure_default_modules_registered()
+    app.include_router(quality_router, dependencies=dmu_only)
+    # A broken template fails the deploy, not the first report that needs it.
+    list_templates()
     return app
 
 

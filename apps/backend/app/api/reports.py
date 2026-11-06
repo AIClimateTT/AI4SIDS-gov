@@ -5,13 +5,17 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
-from app.auth.dependencies import CurrentUser
+from app.auth.dependencies import (
+    CurrentUser,
+    require_corporation_access,
+    require_dmu_workspace,
+)
 
 from app.core.contracts import DataRequirement
-from app.core.engine import PLACEHOLDER_RE, resolve_effective_requirements, validate_params
+from app.core.engine import validate_params
 from app.core.jobs import enqueue
 from app.core.report_store import get_report, list_reports, save_placeholder_report
-from app.core.template_store import get_latest_template_version, get_template_version
+from app.core.template_catalog import get_template
 from app.db import get_session
 from app.modules.survey123.normalize import CANONICAL_CORPORATIONS
 from app.quality.store import record_event, save_rating
@@ -19,17 +23,9 @@ from app.quality.store import record_event, save_rating
 router = APIRouter()
 
 
-class DataRequirementInput(BaseModel):
-    module: str
-    metric: str
-    params: dict = {}
-
-
 class GenerateReportRequest(BaseModel):
     template: str
     params: dict
-    version: int | None = None
-    data_requirements: list[DataRequirementInput] | None = None
 
 
 class GenerateReportResponse(BaseModel):
@@ -44,51 +40,35 @@ def validate_corporations(request: GenerateReportRequest) -> None:
 
     A typo matches no row, so every metric returns a confident zero and the
     report reads as an authoritative "nothing happened" for a region that may
-    have filed plenty. Checked on the template params and on any literal value
-    in a data_requirements override, which is caller-controlled — a placeholder
-    like "{corporation}" resolves from the params already checked.
+    have filed plenty.
     """
-    values = [request.params.get("corporation")]
-    for requirement in request.data_requirements or []:
-        values.append(requirement.params.get("corporation"))
-
-    for value in values:
-        if value is None or value == "":
-            continue
-        if isinstance(value, str) and PLACEHOLDER_RE.match(value):
-            continue
-        if value not in CANONICAL_CORPORATIONS:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"unknown corporation: {value!r}; expected one of the fourteen "
-                    "regional corporations"
-                ),
-            )
+    value = request.params.get("corporation")
+    if value and value not in CANONICAL_CORPORATIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"unknown corporation: {value!r}; expected one of the fourteen "
+                "regional corporations"
+            ),
+        )
 
 
-@router.post("/reports", response_model=GenerateReportResponse, status_code=202)
+@router.post(
+    "/reports",
+    response_model=GenerateReportResponse,
+    status_code=202,
+    dependencies=[Depends(require_dmu_workspace)],
+)
 def create_report(
     request: GenerateReportRequest, session: Session = Depends(get_session)
 ) -> GenerateReportResponse:
     validate_corporations(request)
 
-    if request.version is not None:
-        template = get_template_version(request.template, request.version, session)
-    else:
-        template = get_latest_template_version(request.template, session)
+    template = get_template(request.template)
     if template is None:
         raise HTTPException(status_code=404, detail=f"unknown template: {request.template}")
 
-    override = None
-    if request.data_requirements is not None:
-        override = [
-            DataRequirement(module=d.module, metric=d.metric, params=d.params)
-            for d in request.data_requirements
-        ]
-
     try:
-        resolve_effective_requirements(template, override)
         validate_params(template, request.params)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -99,7 +79,7 @@ def create_report(
         report_id=report_id,
         template=template,
         params=request.params,
-        data_requirements=override,
+        data_requirements=None,
     )
     record_event(
         session,
@@ -132,7 +112,11 @@ class ReportListResponse(BaseModel):
     total: int
 
 
-@router.get("/reports", response_model=ReportListResponse)
+@router.get(
+    "/reports",
+    response_model=ReportListResponse,
+    dependencies=[Depends(require_dmu_workspace)],
+)
 def get_reports(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
@@ -184,10 +168,13 @@ class ReportDetail(BaseModel):
 
 
 @router.get("/reports/{report_id}", response_model=ReportDetail)
-def read_report(report_id: str, session: Session = Depends(get_session)) -> ReportDetail:
+def read_report(
+    report_id: str, user: CurrentUser, session: Session = Depends(get_session)
+) -> ReportDetail:
     db_report = get_report(report_id, session)
     if db_report is None:
         raise HTTPException(status_code=404, detail=f"report not found: {report_id}")
+    require_corporation_access(user, (db_report.params or {}).get("corporation"))
 
     return ReportDetail(
         id=db_report.id,
@@ -234,6 +221,7 @@ def post_report_rating(
     db_report = get_report(report_id, session)
     if db_report is None:
         raise HTTPException(status_code=404, detail=f"report not found: {report_id}")
+    require_corporation_access(current_user, (db_report.params or {}).get("corporation"))
     saved = save_rating(
         session,
         report_id=report_id,

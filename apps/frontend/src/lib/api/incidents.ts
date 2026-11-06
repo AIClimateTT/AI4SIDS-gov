@@ -12,6 +12,8 @@ export async function getIncidents(
         page_size: params.pageSize ?? 10,
         q: params.q,
         source: params.source === 'all' ? undefined : params.source,
+        corporation: params.corporation,
+        submission_id: params.submissionId,
       },
     })
     return data

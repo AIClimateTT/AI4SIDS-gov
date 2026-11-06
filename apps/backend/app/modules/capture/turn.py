@@ -8,6 +8,7 @@ from pydantic import ValidationError
 
 from app.core.llm import LLMClient
 from app.modules.capture.missing import missing_fields
+from app.modules.capture.model_json import parse_model_json
 from app.modules.capture.numbers import (
     extract_numbers,
     numbers_from_working_set,
@@ -24,7 +25,6 @@ from app.modules.capture.schemas import (
 )
 from app.modules.capture.stream_json import AssistantMessageExtractor
 from app.modules.sitreps.parse import normalize_corp_incident_type
-from app.modules.whatsapp.extract import parse_model_json
 
 def _now() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
@@ -135,6 +135,7 @@ def coerce_working_set(raw: dict, previous: CaptureWorkingSet) -> CaptureWorking
     payload = {
         "as_at": as_at,
         "alert_level": capture_raw.get("alert_level", previous.alert_level),
+        "alert_detail": capture_raw.get("alert_detail", previous.alert_detail),
         "present_activity": capture_raw.get(
             "present_activity", previous.present_activity
         ),

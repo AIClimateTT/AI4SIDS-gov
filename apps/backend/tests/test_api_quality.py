@@ -3,7 +3,6 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.core.registry import reset_registry
 from app.db import Base, engine as db_engine
 from app import create_app
 from app.modules.survey123.ingest import ingest_csv
@@ -15,12 +14,10 @@ DEV_DB_PATH = Path(__file__).parent.parent / "dev.db"
 
 @pytest.fixture(autouse=True)
 def _clean_registry():
-    reset_registry()
     db_engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()
     yield
-    reset_registry()
     db_engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()
@@ -29,13 +26,11 @@ def _clean_registry():
 def make_client(monkeypatch) -> TestClient:
     from sqlalchemy.orm import sessionmaker
 
-    from app.core.template_store import import_template_directory
 
     monkeypatch.setattr("app.core.llm.settings.llm_provider", "fake")
     Base.metadata.create_all(db_engine)
     Session = sessionmaker(bind=db_engine)
     session = Session()
-    import_template_directory(TEMPLATES_DIR, session)
     session.close()
     return TestClient(create_app())
 
@@ -53,7 +48,7 @@ def _generate(client: TestClient):
     return client.post(
         "/reports",
         json={
-            "template": "minister_situation_report",
+            "template": "survey123_summary",
             "params": {"date_from": "2024-06-01", "date_to": "2024-06-30"},
         },
     )
@@ -123,6 +118,7 @@ def test_patch_assisted_excludes_event_from_unaided_success(monkeypatch):
     assert summary["task_succeeded_unaided"] == 0
 
 
+@pytest.mark.real_auth
 def test_rating_requires_auth(monkeypatch):
     client = make_client(monkeypatch)
     response = client.post("/reports/nope/rating", json={"rating": 5})
@@ -192,6 +188,7 @@ def test_dmu_user_can_verdict_a_pending_claim(monkeypatch):
 
 
 def test_corp_user_cannot_verdict_a_claim(monkeypatch):
+    from app.auth.dependencies import get_current_user
     from app.auth.tokens import create_access_token
     from tests.auth_helpers import create_user
 
@@ -203,6 +200,7 @@ def test_corp_user_cannot_verdict_a_claim(monkeypatch):
     claims = (detail.get("quality_eval") or {}).get("claims", {}).get("claims", [])
     assert claims
     claim_id = claims[0]["claim_id"]
+    client.app.dependency_overrides.pop(get_current_user)
     user = create_user(role="corp", corporation="arima")
     token = create_access_token(
         user_id=user.user_id,

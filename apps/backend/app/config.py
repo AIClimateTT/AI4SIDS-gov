@@ -38,7 +38,6 @@ class Settings(BaseSettings):
     report_timezone: str = "America/Port_of_Spain"
     app_env: str = "development"
     dedup_salt: str = "dev-salt-change-in-production"
-    survey123_transport: Literal["inprocess", "mcp"] = "inprocess"
 
     @field_validator("secret_key")
     @classmethod

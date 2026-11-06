@@ -4,11 +4,10 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from app.core.metrics import run_metric
 from app import create_app
 from app.core.llm import FakeLLMClient
-from app.core.registry import reset_registry
 from app.db import Base, engine as db_engine
-from app.modules.sitreps.module import sitrep_module
 
 CORP = "diego_martin_regional_corporati"
 OTHER_CORP = "san_fernando_city_corporation"
@@ -102,12 +101,10 @@ INVENTED_JSON = json.dumps(
 
 @pytest.fixture(autouse=True)
 def _clean_registry():
-    reset_registry()
     db_engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()
     yield
-    reset_registry()
     db_engine.dispose()
     if DEV_DB_PATH.exists():
         DEV_DB_PATH.unlink()
@@ -131,29 +128,16 @@ class _SitrepAwareLLM(FakeLLMClient):
 
 def make_client(monkeypatch, llm_responses: list[str] | None = None) -> TestClient:
     import app.core.report_models  # noqa: F401
-    import app.core.template_models  # noqa: F401
     import app.modules.capture.models  # noqa: F401
     import app.modules.sitreps.models  # noqa: F401
     import app.modules.survey123.models  # noqa: F401
-    import app.modules.whatsapp.models  # noqa: F401
 
     monkeypatch.setattr(
         "app.api.capture.get_llm_client",
         lambda purpose="batch": _SitrepAwareLLM(responses=llm_responses or [EXTRACT_JSON]),
     )
     Base.metadata.create_all(db_engine)
-    install_templates()
     return TestClient(create_app())
-
-
-def install_templates() -> None:
-    from sqlalchemy.orm import sessionmaker
-
-    from app.core.template_store import import_template_directory
-
-    db = sessionmaker(bind=db_engine)()
-    import_template_directory(TEMPLATES_DIR, db)
-    db.close()
 
 
 def create_event(client: TestClient) -> int:
@@ -325,8 +309,7 @@ def test_file_creates_submission_rows_metrics_can_see(monkeypatch):
 
     Session = sessionmaker(bind=db_engine)
     db = Session()
-    facts = sitrep_module.run_metric(
-        "incident_count",
+    facts = run_metric("sitreps", "incident_count",
         {
             "corporation": CORP,
             "date_from": "2026-08-01",
@@ -386,7 +369,6 @@ def test_capture_turn_requests_the_chat_llm(monkeypatch):
     import app.modules.capture.models  # noqa: F401
     import app.modules.sitreps.models  # noqa: F401
     import app.modules.survey123.models  # noqa: F401
-    import app.modules.whatsapp.models  # noqa: F401
 
     monkeypatch.setattr("app.api.capture.get_llm_client", fake_get)
     Base.metadata.create_all(db_engine)
@@ -935,8 +917,7 @@ def test_issue_incident_count_matches_ingested_metric(monkeypatch):
         )
         if fact.metric == "incident_count"
     )
-    ingested = sitrep_module.run_metric(
-        "incident_count",
+    ingested = run_metric("sitreps", "incident_count",
         {"corporation": CORP, "submission_id": submission_id},
         db,
     )
@@ -1088,3 +1069,47 @@ def test_csv_import_is_rejected_once_filed(monkeypatch):
         files={"file": ("incidents.csv", INCIDENTS_CSV.read_bytes(), "text/csv")},
     )
     assert response.status_code == 409
+
+
+def test_alert_detail_is_saved_and_reaches_the_filed_submission(tmp_path, monkeypatch):
+    from app.db import SessionLocal
+    from app.modules.sitreps.models import Submission
+
+    client = make_client(monkeypatch)
+    created = client.post(
+        "/capture/sessions", json={"corporation": "arima_borough_corporation"}
+    ).json()
+    wording = "Flood Alert #2 - Yellow Level - extended until Mon 6pm"
+
+    saved = client.put(
+        f"/capture/sessions/{created['id']}",
+        json={
+            "alert_detail": wording,
+            "incidents": [],
+            "logs": [{"row_id": "1", "category": "activity", "statement": "CERT on standby"}],
+        },
+    )
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["alert_detail"] == wording
+
+    filed = client.post(f"/capture/sessions/{created['id']}/file")
+    assert filed.status_code == 201, filed.text
+
+    db = SessionLocal()
+    submission = db.get(Submission, filed.json()["ingest"]["submission_id"])
+    assert submission.alert_detail == wording
+    db.close()
+
+
+def test_a_new_session_defaults_as_at_to_trinidad_wall_clock(monkeypatch):
+    from datetime import datetime, timezone
+
+    from app.core.localtime import to_local
+
+    client = make_client(monkeypatch)
+    created = client.post(
+        "/capture/sessions", json={"corporation": "arima_borough_corporation"}
+    ).json()
+
+    expected = to_local(datetime.now(timezone.utc)).replace(tzinfo=None)
+    assert abs((datetime.fromisoformat(created["as_at"]) - expected).total_seconds()) < 60
