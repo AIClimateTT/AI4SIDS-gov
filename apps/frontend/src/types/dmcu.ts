@@ -206,6 +206,7 @@ export type OverviewSummary = {
   incident_count_sitreps: number
   report_count: number
   needs_review_count: number
+  survey123_last_uploaded_at: string | null
   recent_reports: ReportListItem[]
 }
 

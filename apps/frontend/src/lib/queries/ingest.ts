@@ -29,7 +29,7 @@ export const ingestMutations = {
 // Hook Wrappers
 // ---------------------------------------------------------------------------
 
-export function useIngestModule(onSuccess?: () => void) {
+export function useUploadFieldData(onSuccess?: () => void) {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -38,12 +38,12 @@ export function useIngestModule(onSuccess?: () => void) {
       void queryClient.invalidateQueries({ queryKey: overviewKeys.summary() })
       void queryClient.invalidateQueries({ queryKey: incidentKeys.lists() })
       toast.success(
-        `Ingested ${result.rows_inserted} inserted, ${result.rows_updated} updated`,
+        `${result.rows_inserted} new, ${result.rows_updated} updated`,
       )
       onSuccess?.()
     },
     onError: (error: Error) =>
-      toast.error('Failed to ingest file', {
+      toast.error('Upload rejected', {
         description: error.message,
       }),
   })

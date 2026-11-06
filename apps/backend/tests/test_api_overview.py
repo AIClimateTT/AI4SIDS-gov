@@ -9,6 +9,7 @@ from app.db import Base, engine as db_engine
 from app.modules.survey123.ingest import ingest_csv
 
 FIXTURE_PATH = Path(__file__).parent.parent / "fixtures" / "sample_small.csv"
+VALIDATED_FIXTURE_PATH = Path(__file__).parent.parent / "fixtures" / "sample_small_validated.csv"
 SITREP_FIXTURE_PATH = Path(__file__).parent.parent / "fixtures" / "sample_sitrep_small.csv"
 DEV_DB_PATH = Path(__file__).parent.parent / "dev.db"
 CORP = "diego_martin_regional_corporati"
@@ -83,3 +84,14 @@ def test_get_overview_counts_sitrep_incidents():
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["incident_count_sitreps"] == 3
+
+
+def test_overview_says_when_survey123_data_was_last_uploaded():
+    client = make_client()
+
+    assert client.get("/overview").json()["survey123_last_uploaded_at"] is None
+
+    with open(VALIDATED_FIXTURE_PATH, "rb") as f:
+        client.post("/field-data/upload", files={"file": ("export.csv", f, "text/csv")})
+
+    assert client.get("/overview").json()["survey123_last_uploaded_at"] is not None

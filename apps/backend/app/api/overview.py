@@ -33,6 +33,7 @@ class OverviewSummary(BaseModel):
     incident_count_sitreps: int
     report_count: int
     needs_review_count: int
+    survey123_last_uploaded_at: datetime | None
     recent_reports: list[ReportListItem]
 
 
@@ -71,6 +72,7 @@ def get_overview(
         incident_count_sitreps=sitreps_count,
         report_count=report_count,
         needs_review_count=needs_review_count,
+        survey123_last_uploaded_at=session.scalar(select(func.max(FieldObservation.ingested_at))),
         recent_reports=[
             ReportListItem(
                 id=item.id,
