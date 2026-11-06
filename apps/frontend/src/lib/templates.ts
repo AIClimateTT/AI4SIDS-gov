@@ -1,5 +1,19 @@
-import type { DataRequirementInfo, MetricSpec } from '@/types/dmcu'
+import type {
+  DataRequirementInfo,
+  MetricSpec,
+  TemplateParamInfo,
+} from '@/types/dmcu'
 import { formatDisplayLabel } from '@/lib/format-display'
+
+export function paramInputKind(
+  param: TemplateParamInfo,
+): 'corporation' | 'date' | 'datetime' | 'textarea' | 'text' {
+  if (param.multiline) return 'textarea'
+  if (param.name === 'corporation') return 'corporation'
+  if (param.name === 'date_from' || param.name === 'date_to') return 'date'
+  if (param.name === 'as_at') return 'datetime'
+  return 'text'
+}
 
 export function metricKey(module: string, metric: string) {
   return `${module}.${metric}`

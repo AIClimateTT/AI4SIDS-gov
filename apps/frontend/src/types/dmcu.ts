@@ -3,6 +3,7 @@ export type ReportStatus = 'ok' | 'needs_review' | 'queued' | 'running' | 'faile
 export type TemplateParamInfo = {
   name: string
   required: boolean
+  multiline?: boolean
 }
 
 export type DataRequirementInfo = {

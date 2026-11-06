@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { dropBlankParams } from '@/lib/templates'
+import { dropBlankParams, paramInputKind } from '@/lib/templates'
 
 describe('dropBlankParams', () => {
   it('drops a param the officer left blank', () => {
@@ -35,5 +35,17 @@ describe('dropBlankParams', () => {
     const params = { corporation: 'arima_borough_corporation', community: 'Arima' }
 
     expect(dropBlankParams(params)).toEqual(params)
+  })
+})
+
+describe('paramInputKind', () => {
+  it.each([
+    [{ name: 'corporation', required: false }, 'corporation'],
+    [{ name: 'date_from', required: true }, 'date'],
+    [{ name: 'as_at', required: false }, 'datetime'],
+    [{ name: 'situation_overview', required: false, multiline: true }, 'textarea'],
+    [{ name: 'hazard', required: false }, 'text'],
+  ])('%o is a %s input', (param, expected) => {
+    expect(paramInputKind(param)).toBe(expected)
   })
 })

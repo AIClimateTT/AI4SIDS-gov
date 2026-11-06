@@ -24,6 +24,7 @@ import { formatRequirementLabel } from '@/components/reports/citation-display'
 import {
   buildDataRequirement,
   dropBlankParams,
+  paramInputKind,
   metricKey,
   selectedMetricKeys,
 } from '@/lib/templates'
@@ -205,27 +206,51 @@ function AdminGeneratePage() {
                     key={param.name}
                     name={`params.${param.name}`}
                   >
-                    {(field) =>
-                      param.name === 'corporation' ? (
-                        <field.SelectField
-                          label={formatDisplayLabel(param.name)}
-                          required={param.required}
-                          options={CORPORATION_OPTIONS}
-                        />
-                      ) : param.name === 'date_from' ||
-                        param.name === 'date_to' ? (
-                        <field.TextField
-                          label={formatDisplayLabel(param.name)}
-                          type="date"
-                          required={param.required}
-                        />
-                      ) : (
-                        <field.TextField
-                          label={formatDisplayLabel(param.name)}
-                          required={param.required}
-                        />
-                      )
-                    }
+                    {(field) => {
+                      const label = formatDisplayLabel(param.name)
+                      switch (paramInputKind(param)) {
+                        case 'corporation':
+                          return (
+                            <field.SelectField
+                              label={label}
+                              required={param.required}
+                              options={CORPORATION_OPTIONS}
+                            />
+                          )
+                        case 'date':
+                          return (
+                            <field.TextField
+                              label={label}
+                              type="date"
+                              required={param.required}
+                            />
+                          )
+                        case 'datetime':
+                          return (
+                            <field.TextField
+                              label={label}
+                              type="datetime-local"
+                              required={param.required}
+                            />
+                          )
+                        case 'textarea':
+                          return (
+                            <div className="sm:col-span-2">
+                              <field.TextareaField
+                                label={label}
+                                required={param.required}
+                              />
+                            </div>
+                          )
+                        default:
+                          return (
+                            <field.TextField
+                              label={label}
+                              required={param.required}
+                            />
+                          )
+                      }
+                    }}
                   </form.AppField>
                 ))}
               </div>

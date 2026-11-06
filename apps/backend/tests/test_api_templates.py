@@ -78,3 +78,14 @@ def test_post_templates_is_gone():
     client = TestClient(create_app())
 
     assert client.post("/templates", json={}).status_code == 405
+
+
+def test_templates_say_which_params_are_multiline():
+    client = make_client()
+
+    body = client.get("/templates").json()
+
+    minister = next(t for t in body if t["name"] == "minister_situation_report")
+    params = {p["name"]: p for p in minister["params"]}
+    assert params["situation_overview"]["multiline"] is True
+    assert params["date_from"]["multiline"] is False

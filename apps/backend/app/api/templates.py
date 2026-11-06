@@ -10,6 +10,7 @@ router = APIRouter()
 class TemplateParamInfo(BaseModel):
     name: str
     required: bool
+    multiline: bool = False
 
 
 class DataRequirementInfo(BaseModel):
@@ -51,7 +52,10 @@ def _template_to_summary(template: Template) -> TemplateSummary:
         version=template.version,
         title=template.title,
         description=template.description,
-        params=[TemplateParamInfo(name=p.name, required=p.required) for p in template.params],
+        params=[
+            TemplateParamInfo(name=p.name, required=p.required, multiline=p.multiline)
+            for p in template.params
+        ],
         data_requirements=[
             DataRequirementInfo(module=d.module, metric=d.metric, params=d.params)
             for d in template.data_requirements
