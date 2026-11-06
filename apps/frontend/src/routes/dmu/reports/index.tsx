@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { PlusIcon } from 'lucide-react'
 
 import {
-  ButtonLink,
   EmptyState,
   LoadingBlock,
   PageHeader,
@@ -12,6 +11,8 @@ import {
 import { ContentCard } from '@/components/shared/content-card'
 import { DataTable } from '@/components/data-table'
 import { reportColumns } from '@/components/reports/report-columns'
+import { NewReportDialog } from '@/components/reports/new-report-dialog'
+import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { reportQueries } from '@/lib/queries/reports'
 import type { ReportKind, ReportStatus } from '@/types/dmcu'
@@ -74,6 +75,7 @@ function ReportsPage() {
     pageSize: 10,
   })
   const [q, setQ] = useState<string | undefined>()
+  const [creating, setCreating] = useState(false)
   const search = Route.useSearch()
   const status = search.status ?? 'all'
   const kind = search.kind ?? 'all'
@@ -99,12 +101,14 @@ function ReportsPage() {
         title="Reports"
         description="Every report, in one place."
         actions={
-          <ButtonLink to="/dmu/reports/new">
+          <Button type="button" onClick={() => setCreating(true)}>
             <PlusIcon />
             New report
-          </ButtonLink>
+          </Button>
         }
       />
+
+      {creating ? <NewReportDialog open onOpenChange={setCreating} /> : null}
 
       <ContentCard contentClassName="space-y-4">
         {isPending && !data ? <LoadingBlock rows={5} /> : null}

@@ -8,7 +8,6 @@ from app.api.meta import router as meta_router
 from app.api.overview import router as overview_router
 from app.api.reports import router as reports_router
 from app.api.submissions import router as submissions_router
-from app.api.templates import router as templates_router
 from app.api.capture import router as capture_router
 from app.api.users import router as users_router
 from app.api.quality import router as quality_router
@@ -41,7 +40,6 @@ def create_app() -> FastAPI:
     )
     dmu_only = [Depends(require_dmu_workspace)]
     app.include_router(meta_router)
-    app.include_router(templates_router, dependencies=dmu_only)
     app.include_router(overview_router, dependencies=dmu_only)
     app.include_router(reports_router)
     app.include_router(ingest_router, dependencies=dmu_only)

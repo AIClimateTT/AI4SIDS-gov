@@ -1,36 +1,9 @@
 export type ReportStatus = 'ok' | 'needs_review' | 'queued' | 'running' | 'failed'
 
-export type TemplateParamInfo = {
-  name: string
-  required: boolean
-  multiline?: boolean
-}
-
 export type DataRequirementInfo = {
   module: string
   metric: string
   params: Record<string, string>
-}
-
-export type NarrationSkillsInfo = {
-  capture?: string
-  compose: string
-}
-
-export type NarrationInfo = {
-  identity: string
-  skills: NarrationSkillsInfo
-  output_sections: string[]
-}
-
-export type TemplateInfo = {
-  name: string
-  version: number
-  title: string
-  description: string
-  params: TemplateParamInfo[]
-  data_requirements: DataRequirementInfo[]
-  narration: NarrationInfo
 }
 
 export type CitationViolation = {
@@ -203,8 +176,6 @@ export type ReportDetail = {
 export type GenerateReportInput = {
   template: string
   params: Record<string, string>
-  version?: number
-  data_requirements?: DataRequirementInfo[]
 }
 
 export type GenerateReportResult = {
