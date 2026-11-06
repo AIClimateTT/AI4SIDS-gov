@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 
-import { CitationMarkdown } from '@/components/reports/citation-markdown'
+import { ReportPrintDocument } from '@/components/reports/report-print-document'
 import { stripCitationMarkup } from '@/components/reports/citation-utils'
 import { EmptyState, LoadingBlock } from '@/components/shared'
 import { formatDisplayValue } from '@/lib/format-display'
@@ -63,19 +63,12 @@ function SitrepPrintRoute() {
   const issued = session.status === 'filed'
 
   return (
-    <article className="mx-auto max-w-[46rem] bg-white px-10 py-10 text-black print:px-0 print:py-0">
-      <header className="mb-6 flex items-baseline justify-between border-b border-black/20 pb-3">
-        <span className="text-sm font-semibold">{corporation}</span>
-        <span className="text-xs text-black/60">
-          {issued && session.report_id
-            ? `Report ${session.report_id}`
-            : 'Draft — not issued'}
-        </span>
-      </header>
-      <CitationMarkdown
-        markdown={stripCitationMarkup(sitrep.final_markdown)}
-        className="prose-headings:break-after-avoid prose-table:break-inside-avoid"
-      />
-    </article>
+    <ReportPrintDocument
+      title={corporation}
+      statusLine={
+        issued && session.report_id ? `Report ${session.report_id}` : 'Draft — not issued'
+      }
+      markdown={stripCitationMarkup(sitrep.final_markdown)}
+    />
   )
 }
