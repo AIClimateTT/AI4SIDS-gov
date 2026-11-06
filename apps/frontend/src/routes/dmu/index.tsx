@@ -1,274 +1,144 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
-import { FileTextIcon, UploadIcon } from 'lucide-react'
 
-import { AlertLevelBadge, ButtonLink, EmptyState, LoadingBlock, NeedsReviewBand, PageHeader, StatCard, StatusBadge } from '@/components/shared'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { ContentCard } from '@/components/shared/content-card'
+import { WhoHasReported, windowPhrase } from '@/components/dmu/who-has-reported'
 import { RoleMismatchNotice } from '@/components/identity/role-mismatch-notice'
+import { ReportTypeBadge } from '@/components/reports/report-type-badge'
+import {
+  AlertLevelBadge,
+  ButtonLink,
+  EmptyState,
+  LoadingBlock,
+  PageHeader,
+  StatCard,
+  StatusBadge,
+} from '@/components/shared'
+import { ContentCard } from '@/components/shared/content-card'
+import { formatWhen } from '@/lib/format-when'
 import { overviewQueries } from '@/lib/queries/overview'
 import { submissionQueries } from '@/lib/queries/submissions'
-import { deriveWhoReported } from '@/lib/who-reported'
-import { formatDisplayPairs, formatDisplayValue } from '@/lib/format-display'
-import { formatWhen } from '@/lib/format-when'
+import { deriveWhoReported, highestAlert } from '@/lib/who-reported'
+import type { ReportingWindowHours } from '@/lib/who-reported'
 
-export const Route = createFileRoute('/dmu/')({ component: OverviewPage })
+export const Route = createFileRoute('/dmu/')({ component: DashboardPage })
 
-function isoDate(date: Date): string {
-  return date.toISOString().slice(0, 10)
-}
+function DashboardPage() {
+  const overview = useQuery(overviewQueries.summary())
+  const filings = useQuery(submissionQueries.list({}))
+  const [windowHours, setWindowHours] = useState<ReportingWindowHours>(24)
+  const now = useMemo(() => new Date(), [filings.dataUpdatedAt])
 
-function defaultWindow(): { from: string; to: string } {
-  const to = new Date()
-  const from = new Date(to)
-  from.setDate(from.getDate() - 30)
-  return { from: isoDate(from), to: isoDate(to) }
-}
-
-function OverviewPage() {
-  const { data, isPending, isError, error } = useQuery(
-    overviewQueries.summary(),
+  const { rows, reportedCount } = useMemo(
+    () => deriveWhoReported(filings.data ?? [], now, windowHours),
+    [filings.data, now, windowHours],
   )
+  const worst = highestAlert(rows)
+  const data = overview.data
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Dashboard"
         description="Who has reported, and the latest reports."
-        actions={
-          <>
-            <ButtonLink variant="outline" to="/dmu/field-data">
-              <UploadIcon />
-              Field data
-            </ButtonLink>
-            <ButtonLink to="/dmu/reports/new">
-              <FileTextIcon />
-              Generate report
-            </ButtonLink>
-          </>
-        }
       />
 
       <RoleMismatchNotice expected="dmu" />
 
-      {isPending ? <LoadingBlock rows={4} /> : null}
+      {overview.isPending ? <LoadingBlock rows={4} /> : null}
 
-      {isError ? (
+      {overview.isError ? (
         <EmptyState
-          title="Could not load overview"
-          description={error.message}
+          title="Could not load the dashboard"
+          description={overview.error.message}
         />
       ) : null}
 
       {data ? (
-        <>
-          <NeedsReviewBand count={data.needs_review_count} />
-
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard
-              label="Survey123 incidents"
-              value={data.incident_count_survey123}
-              hint="Loaded field assessments"
-            />
-            <StatCard
-              label="Corporation incidents"
-              value={data.incident_count_sitreps}
-              hint="Filed by corporations"
-            />
-            {/* The needs-review count deliberately does not appear here. It is
-                the one number on this screen that asks for action, and a
-                sub-label on a card is where it goes to be skimmed past — the
-                band above owns it. */}
-            <StatCard
-              label="Reports"
-              value={data.report_count}
-              hint="All reports"
-            />
-            <StatCard
-              label="API"
-              value={isError ? 'down' : 'connected'}
-              hint="Live backend responses"
-            />
-          </div>
-
-          <ContentCard
-            title="Recent reports"
-            description="The latest reports"
-            action={
-              <ButtonLink variant="outline" size="sm" to="/dmu/reports">
-                View all
-              </ButtonLink>
-            }
-          >
-            {data.recent_reports.length === 0 ? (
-              <EmptyState
-                title="No reports yet"
-                description="Generate a report to see it here."
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+          <div className="space-y-6">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <StatCard
+                label="Reporting"
+                value={`${reportedCount} of ${rows.length}`}
+                hint={`In ${windowPhrase(windowHours)}`}
               />
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Template</TableHead>
-                    <TableHead>Params</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead className="text-right">Open</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+              <Link
+                to="/dmu/reports"
+                search={{ status: 'needs_review' }}
+                className="rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <StatCard
+                  label="Reports to review"
+                  value={data.needs_review_count}
+                  hint={data.needs_review_count > 0 ? 'Open the list' : 'Nothing waiting'}
+                />
+              </Link>
+              <StatCard
+                label="Highest alert"
+                value={
+                  worst?.latest ? (
+                    <AlertLevelBadge level={worst.latest.alert_level} />
+                  ) : (
+                    'None'
+                  )
+                }
+                hint={worst?.label ?? 'No filings in this period'}
+              />
+            </div>
+
+            <ContentCard
+              title="Recent reports"
+              action={
+                <ButtonLink variant="outline" size="sm" to="/dmu/reports">
+                  View all
+                </ButtonLink>
+              }
+            >
+              {data.recent_reports.length === 0 ? (
+                <EmptyState
+                  title="No reports yet"
+                  description="Reports will appear here once they are generated or filed."
+                />
+              ) : (
+                <ul className="divide-y">
                   {data.recent_reports.map((report) => (
-                    <TableRow key={report.id}>
-                      <TableCell>
-                        <StatusBadge status={report.status} />
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {formatDisplayValue(report.template)}
-                        <span className="ml-1 text-muted-foreground">
-                          v{report.template_version}
-                        </span>
-                      </TableCell>
-                      <TableCell className="max-w-[220px] truncate text-muted-foreground">
-                        {formatDisplayPairs(report.params)}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {formatWhen(report.created_at)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <ButtonLink
-                          variant="ghost"
-                          size="sm"
+                    <li key={report.id} className="space-y-1 py-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <Link
                           to="/dmu/reports/$reportId"
                           params={{ reportId: report.id }}
+                          className="text-sm font-medium underline-offset-4 hover:underline"
                         >
-                          Open
-                        </ButtonLink>
-                      </TableCell>
-                    </TableRow>
+                          {report.title}
+                        </Link>
+                        <StatusBadge status={report.status} />
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        <ReportTypeBadge kind={report.kind} verified={report.verified} />
+                        {report.period ? <span>{report.period}</span> : null}
+                        <span>{formatWhen(report.created_at)}</span>
+                      </div>
+                    </li>
                   ))}
-                </TableBody>
-              </Table>
-            )}
-          </ContentCard>
+                </ul>
+              )}
+            </ContentCard>
+          </div>
 
-          <WhoHasReportedCard />
-        </>
+          {filings.isError ? (
+            <EmptyState title="Could not load filings" description={filings.error.message} />
+          ) : (
+            <WhoHasReported
+              rows={rows}
+              reportedCount={reportedCount}
+              windowHours={windowHours}
+              onWindowChange={setWindowHours}
+              now={now}
+            />
+          )}
+        </div>
       ) : null}
     </div>
-  )
-}
-
-function WhoHasReportedCard() {
-  const [range, setRange] = useState(defaultWindow)
-
-  const { data, isPending, isError, error } = useQuery(
-    submissionQueries.list({ date_from: range.from, date_to: range.to }),
-  )
-
-  const rows = useMemo(() => deriveWhoReported(data ?? []), [data])
-
-  return (
-    <ContentCard
-      title="Who has reported"
-      description="Every corporation, across the selected window — corporations that filed nothing still get a row."
-      action={
-        <div className="flex items-center gap-2">
-          <Label htmlFor="who-reported-from" className="sr-only">
-            From
-          </Label>
-          <Input
-            id="who-reported-from"
-            type="date"
-            className="w-auto"
-            value={range.from}
-            max={range.to}
-            onChange={(event) =>
-              setRange((prev) => ({ ...prev, from: event.target.value }))
-            }
-          />
-          <span className="text-sm text-muted-foreground">to</span>
-          <Label htmlFor="who-reported-to" className="sr-only">
-            To
-          </Label>
-          <Input
-            id="who-reported-to"
-            type="date"
-            className="w-auto"
-            value={range.to}
-            min={range.from}
-            onChange={(event) =>
-              setRange((prev) => ({ ...prev, to: event.target.value }))
-            }
-          />
-        </div>
-      }
-    >
-      {isPending ? <LoadingBlock rows={4} /> : null}
-
-      {isError ? (
-        <EmptyState
-          title="Could not load filings"
-          description={error.message}
-        />
-      ) : null}
-
-      {data ? (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Corporation</TableHead>
-              <TableHead>As at</TableHead>
-              <TableHead>Alert level</TableHead>
-              <TableHead>Incidents</TableHead>
-              <TableHead>Logs</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.corporation}>
-                <TableCell className="font-medium">
-                  {/* A real link, not an onClick on the row: keyboard and
-                      assistive-technology users get the same navigation, and
-                      the target is visible on hover. */}
-                  <Link
-                    to="/dmu/corporations/$corporation"
-                    params={{ corporation: row.corporation }}
-                    className="underline-offset-4 hover:underline"
-                  >
-                    {row.label}
-                  </Link>
-                </TableCell>
-                {row.latest ? (
-                  <>
-                    <TableCell>
-                      {formatWhen(row.latest.as_at)}
-                    </TableCell>
-                    <TableCell>
-                      <AlertLevelBadge level={row.latest.alert_level} />
-                    </TableCell>
-                    <TableCell>{row.latest.incident_count}</TableCell>
-                    <TableCell>{row.latest.log_count}</TableCell>
-                  </>
-                ) : (
-                  <TableCell colSpan={4} className="text-muted-foreground">
-                    No reports at this time
-                  </TableCell>
-                )}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      ) : null}
-    </ContentCard>
   )
 }
