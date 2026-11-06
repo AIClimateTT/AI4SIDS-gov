@@ -59,7 +59,6 @@ def test_every_table_exists_after_upgrade_head(tmp_path):
         "submissions",
         "sitrep_incidents",
         "situation_logs",
-        "whatsapp_drafts",
         "capture_sessions",
         "users",
         "refresh_tokens",
@@ -91,12 +90,6 @@ def test_the_backfilled_columns_keep_their_shape(tmp_path):
     assert "quality_eval" in reports
     assert reports["quality_eval"][3] == 0
 
-    drafts = {r[1]: r for r in conn.execute("PRAGMA table_info(whatsapp_drafts)")}
-    assert "status" in drafts
-    assert "source_text" in drafts
-    assert "source_kind" in drafts
-    assert "messages" in drafts
-    assert "manual_fields" in drafts
 
 
 def test_capture_sessions_have_sitrep_columns(tmp_path):

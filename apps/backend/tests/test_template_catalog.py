@@ -81,7 +81,7 @@ def test_drop_report_templates_migration_round_trips(tmp_path):
 
     run_alembic("upgrade", "head", database_url=url)
     assert has_table() is False
-    run_alembic("downgrade", "-1", database_url=url)
+    run_alembic("downgrade", "d4c8a2f61b35", database_url=url)
     assert has_table() is True
     run_alembic("upgrade", "head", database_url=url)
     assert has_table() is False

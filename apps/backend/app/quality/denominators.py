@@ -47,7 +47,6 @@ WORD_NUMBERS: dict[str, float] = {
 NAMED_WORKFLOWS = (
     "corp_capture_issue",
     "dmu_generate_report",
-    "whatsapp_briefing",
     "survey123_ingest",
 )
 

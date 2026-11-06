@@ -8,7 +8,6 @@ from app.db import Base
 from app.modules.survey123 import models as survey123_models  # noqa: F401
 from app.core import report_models as report_models  # noqa: F401
 from app.modules.sitreps import models as sitreps_models  # noqa: F401
-from app.modules.whatsapp import models as whatsapp_models  # noqa: F401
 from app.modules.capture import models as capture_models  # noqa: F401
 from app.auth import models as auth_models  # noqa: F401
 from app.quality import models as quality_models  # noqa: F401

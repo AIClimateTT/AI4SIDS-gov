@@ -9,7 +9,6 @@ from app.api.overview import router as overview_router
 from app.api.reports import router as reports_router
 from app.api.submissions import router as submissions_router
 from app.api.templates import router as templates_router
-from app.api.whatsapp import router as whatsapp_router
 from app.api.capture import router as capture_router
 from app.api.users import router as users_router
 from app.api.quality import router as quality_router
@@ -48,7 +47,6 @@ def create_app() -> FastAPI:
     app.include_router(ingest_router, dependencies=dmu_only)
     app.include_router(incidents_router, dependencies=dmu_only)
     app.include_router(submissions_router)
-    app.include_router(whatsapp_router, dependencies=dmu_only)
     app.include_router(capture_router)
     app.include_router(auth_router)
     app.include_router(users_router)

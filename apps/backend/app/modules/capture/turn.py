@@ -8,6 +8,7 @@ from pydantic import ValidationError
 
 from app.core.llm import LLMClient
 from app.modules.capture.missing import missing_fields
+from app.modules.capture.model_json import parse_model_json
 from app.modules.capture.numbers import (
     extract_numbers,
     numbers_from_working_set,
@@ -24,7 +25,6 @@ from app.modules.capture.schemas import (
 )
 from app.modules.capture.stream_json import AssistantMessageExtractor
 from app.modules.sitreps.parse import normalize_corp_incident_type
-from app.modules.whatsapp.extract import parse_model_json
 
 def _now() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)

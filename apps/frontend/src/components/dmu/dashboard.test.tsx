@@ -36,7 +36,7 @@ afterEach(cleanup)
 
 describe('DMU dashboard', () => {
   it('does not load or show the quality band', async () => {
-    const Dashboard = Route.options.component as React.ComponentType
+    const Dashboard = Route.options.component as never
     const router = createRouter({
       routeTree: createRootRoute({ component: Dashboard }),
       history: createMemoryHistory({ initialEntries: ['/'] }),

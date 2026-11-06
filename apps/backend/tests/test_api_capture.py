@@ -134,7 +134,6 @@ def make_client(monkeypatch, llm_responses: list[str] | None = None) -> TestClie
     import app.modules.capture.models  # noqa: F401
     import app.modules.sitreps.models  # noqa: F401
     import app.modules.survey123.models  # noqa: F401
-    import app.modules.whatsapp.models  # noqa: F401
 
     monkeypatch.setattr(
         "app.api.capture.get_llm_client",
@@ -374,7 +373,6 @@ def test_capture_turn_requests_the_chat_llm(monkeypatch):
     import app.modules.capture.models  # noqa: F401
     import app.modules.sitreps.models  # noqa: F401
     import app.modules.survey123.models  # noqa: F401
-    import app.modules.whatsapp.models  # noqa: F401
 
     monkeypatch.setattr("app.api.capture.get_llm_client", fake_get)
     Base.metadata.create_all(db_engine)
