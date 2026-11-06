@@ -6,7 +6,15 @@ from pydantic import BaseModel
 from app.core.contracts import FactTable
 from app.quality.denominators import WORD_NUMBERS
 
-ISO_DATE_RE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
+# Models write dates with typographic dashes (U+2010–U+2015, U+2212) as often
+# as ASCII ones; an ASCII-only pattern read "2026‑11‑02" as the figures 2026
+# and 11.
+_DASH = r"[-‐-―−]"
+ISO_DATE_RE = re.compile(rf"\b\d{{4}}{_DASH}\d{{2}}{_DASH}\d{{2}}\b")
+# "1. **Overview**" and "2) Relief" number a list; they are not figures. Only
+# at a line start and followed by text, so a count that ends a line ("Deaths
+# recorded:\n4.") is still a figure.
+LIST_MARKER_RE = re.compile(r"^[ \t]*\d{1,3}[.)][ \t]+(?=\S)", re.MULTILINE)
 # A newline ends a unit of text as surely as a full stop does. Splitting only
 # on .!? made a markdown list or table one enormous "sentence", so a single
 # citation at the end of the block laundered every figure above it:
@@ -111,7 +119,7 @@ def _strip_dates(text: str) -> str:
 
 
 def _split_sentences(text: str) -> list[str]:
-    stripped = text.strip()
+    stripped = LIST_MARKER_RE.sub("", text).strip()
     if not stripped:
         return []
     return [s.strip() for s in SENTENCE_SPLIT_RE.split(stripped) if s.strip()]
