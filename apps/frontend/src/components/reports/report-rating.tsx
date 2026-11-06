@@ -46,7 +46,7 @@ export function ReportRatingField({
 
   return (
     <div className={cn('space-y-1.5', className)}>
-      <p className="text-xs text-muted-foreground">How useful was this briefing?</p>
+      <p className="text-xs text-muted-foreground">How useful was this report?</p>
       <ReportRating
         value={rate.data?.rating}
         onRate={(rating) => rate.mutate({ reportId, rating })}

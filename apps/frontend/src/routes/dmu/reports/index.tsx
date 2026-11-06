@@ -2,21 +2,20 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { PlusIcon } from 'lucide-react'
-import type { ColumnDef } from '@tanstack/react-table'
 
 import {
-  ButtonLink,
   EmptyState,
   LoadingBlock,
   PageHeader,
-  StatusBadge,
 } from '@/components/shared'
 import { ContentCard } from '@/components/shared/content-card'
 import { DataTable } from '@/components/data-table'
+import { reportColumns } from '@/components/reports/report-columns'
+import { NewReportDialog } from '@/components/reports/new-report-dialog'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { reportQueries } from '@/lib/queries/reports'
-import type { ReportListItem, ReportStatus } from '@/types/dmcu'
-import { formatDisplayPairs, formatDisplayValue } from '@/lib/format-display'
-import { formatWhen } from '@/lib/format-when'
+import type { ReportKind, ReportStatus } from '@/types/dmcu'
 
 /**
  * `status` lives in the URL rather than in component state so the needs-review
@@ -28,12 +27,30 @@ import { formatWhen } from '@/lib/format-when'
  * Optional, not required: a bare `/dmu/reports` is still a valid link, and
  * every existing one across the app keeps working. Absent means "all".
  */
-type ReportsSearch = { status?: ReportStatus | 'all' }
+type ReportsSearch = {
+  status?: ReportStatus | 'all'
+  kind?: ReportKind | 'all'
+  older?: boolean
+}
+
+const KIND_OPTIONS = [
+  { value: 'all' as const, label: 'All' },
+  { value: 'minister' as const, label: 'Minister' },
+  { value: 'corporation' as const, label: 'Corporation' },
+  { value: 'survey123' as const, label: 'Survey123' },
+]
+
+function toKind(value: unknown): ReportKind | 'all' {
+  return typeof value === 'string' &&
+    KIND_OPTIONS.some((option) => option.value === value)
+    ? (value as ReportKind | 'all')
+    : 'all'
+}
 
 const STATUS_OPTIONS = [
-  { value: 'all' as const, label: 'All' },
+  { value: 'all' as const, label: 'Any status' },
   { value: 'needs_review' as const, label: 'Needs review' },
-  { value: 'ok' as const, label: 'OK' },
+  { value: 'ok' as const, label: 'Ready' },
 ]
 
 function toStatus(value: unknown): ReportStatus | 'all' {
@@ -47,42 +64,10 @@ export const Route = createFileRoute('/dmu/reports/')({
   component: ReportsPage,
   validateSearch: (search: Record<string, unknown>): ReportsSearch => ({
     status: toStatus(search.status),
+    kind: toKind(search.kind),
+    older: search.older === true ? true : undefined,
   }),
 })
-
-const columns: ColumnDef<ReportListItem>[] = [
-  {
-    accessorKey: 'status',
-    header: 'Status',
-    cell: ({ row }) => <StatusBadge status={row.original.status} />,
-  },
-  {
-    accessorKey: 'template',
-    header: 'Template',
-    cell: ({ row }) => (
-      <div>
-        <p className="font-medium">{formatDisplayValue(row.original.template)}</p>
-        <p className="text-xs text-muted-foreground">
-          v{row.original.template_version}
-        </p>
-      </div>
-    ),
-  },
-  {
-    id: 'params',
-    header: 'Params',
-    cell: ({ row }) => (
-      <span className="text-muted-foreground">
-        {formatDisplayPairs(row.original.params)}
-      </span>
-    ),
-  },
-  {
-    accessorKey: 'created_at',
-    header: 'Created',
-    cell: ({ row }) => formatWhen(row.original.created_at),
-  },
-]
 
 function ReportsPage() {
   const [pagination, setPagination] = useState({
@@ -90,8 +75,11 @@ function ReportsPage() {
     pageSize: 10,
   })
   const [q, setQ] = useState<string | undefined>()
+  const [creating, setCreating] = useState(false)
   const search = Route.useSearch()
   const status = search.status ?? 'all'
+  const kind = search.kind ?? 'all'
+  const older = search.older === true
   const navigate = Route.useNavigate()
 
   const listParams = {
@@ -99,6 +87,8 @@ function ReportsPage() {
     pageSize: pagination.pageSize,
     q,
     status,
+    kind,
+    includeOlder: older,
   }
 
   const { data, isPending, isError, error, isFetching } = useQuery(
@@ -109,14 +99,16 @@ function ReportsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Reports"
-        description="Browse generated briefings and open citation-checked markdown."
+        description="Every report, in one place."
         actions={
-          <ButtonLink to="/dmu/reports/new">
+          <Button type="button" onClick={() => setCreating(true)}>
             <PlusIcon />
-            Generate
-          </ButtonLink>
+            New report
+          </Button>
         }
       />
+
+      {creating ? <NewReportDialog open onOpenChange={setCreating} /> : null}
 
       <ContentCard contentClassName="space-y-4">
         {isPending && !data ? <LoadingBlock rows={5} /> : null}
@@ -130,7 +122,7 @@ function ReportsPage() {
 
         {data ? (
           <DataTable
-            columns={columns}
+            columns={reportColumns}
             data={data.items}
             total={data.total}
             pagination={pagination}
@@ -162,7 +154,14 @@ function ReportsPage() {
                 // first one rather than stranding the officer on a page the
                 // narrowed list no longer has.
                 void navigate({
-                  search: { status: toStatus(updates.status) },
+                  search: { ...search, status: toStatus(updates.status) },
+                  replace: true,
+                })
+                setPagination((prev) => ({ ...prev, pageIndex: 0 }))
+              }
+              if ('kind' in updates) {
+                void navigate({
+                  search: { ...search, kind: toKind(updates.kind) },
                   replace: true,
                 })
                 setPagination((prev) => ({ ...prev, pageIndex: 0 }))
@@ -174,34 +173,40 @@ function ReportsPage() {
                 placeholder: 'Search reports…',
               },
               actions: (
-                <ButtonLink size="sm" to="/dmu/reports/new">
-                  Generate
-                </ButtonLink>
+                <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Checkbox
+                    checked={older}
+                    onCheckedChange={(checked) => {
+                      void navigate({
+                        search: { ...search, older: checked === true ? true : undefined },
+                        replace: true,
+                      })
+                      setPagination((prev) => ({ ...prev, pageIndex: 0 }))
+                    }}
+                  />
+                  Show older reports
+                </label>
               ),
             }}
             filters={[
               {
                 type: 'toggle',
+                key: 'kind',
+                label: 'Type',
+                options: KIND_OPTIONS,
+              },
+              {
+                type: 'select',
                 key: 'status',
                 label: 'Status',
                 options: STATUS_OPTIONS,
               },
             ]}
-            filterValues={{ q, status }}
+            filterValues={{ q, status, kind }}
             features={{
               enablePageSizeSelector: true,
               enableColumnVisibility: true,
             }}
-            rowActions={(row) => (
-              <ButtonLink
-                variant="ghost"
-                size="sm"
-                to="/dmu/reports/$reportId"
-                params={{ reportId: row.id }}
-              >
-                Open
-              </ButtonLink>
-            )}
           />
         ) : null}
       </ContentCard>

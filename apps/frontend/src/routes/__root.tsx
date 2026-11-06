@@ -59,7 +59,7 @@ function AppShell() {
 
   // The print view is the document alone — no sidebar, header, or devtools,
   // so what the browser puts on the page is only the filing.
-  if (pathname.startsWith('/corp/print/')) {
+  if (pathname.startsWith('/corp/print/') || pathname.startsWith('/dmu/print/')) {
     return <Outlet />
   }
 

@@ -47,8 +47,12 @@ describe('DMU dashboard', () => {
       </QueryClientProvider>,
     )
 
-    await screen.findByText('Survey123 incidents')
+    await screen.findByText('Reporting')
 
     expect(useQualitySummary).not.toHaveBeenCalled()
+    expect(document.body.textContent).not.toMatch(/API|Survey123 incidents|SITREP incidents/)
+    expect(screen.getByText('Reports to review')).toBeTruthy()
+    expect(screen.getByText('Highest alert')).toBeTruthy()
+    expect(await screen.findByText('Who has reported')).toBeTruthy()
   })
 })

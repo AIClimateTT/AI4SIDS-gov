@@ -113,6 +113,25 @@ describe('RecordsView', () => {
     expect(onSearchChange).toHaveBeenCalledWith(expect.objectContaining({ tab: 'logs' }))
   })
 
+  it('locks to one corporation, hiding that filter and the tab buttons', async () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <RecordsView
+          search={{ tab: 'logs' }}
+          onSearchChange={vi.fn()}
+          lockedCorporation={ARIMA}
+        />
+      </QueryClientProvider>,
+    )
+
+    expect(await screen.findByText('CERT on standby')).toBeTruthy()
+    expect(getSituationLogs).toHaveBeenCalledWith(
+      expect.objectContaining({ corporation: ARIMA }),
+    )
+    expect(screen.queryByRole('button', { name: 'Incidents' })).toBeNull()
+    expect(document.body.textContent).not.toContain('Corporation')
+  })
+
   it('warns that an incident moves to the filing that last updated it', async () => {
     renderView({ corporation: ARIMA })
 

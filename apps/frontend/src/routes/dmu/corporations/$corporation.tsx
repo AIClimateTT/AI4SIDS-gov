@@ -1,27 +1,35 @@
-import { Link, createFileRoute, notFound } from '@tanstack/react-router'
+import { createFileRoute, notFound } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { AlertLevelBadge, ButtonLink, EmptyState, LoadingBlock, PageHeader, StatCard } from '@/components/shared'
-import { ContentCard } from '@/components/shared/content-card'
-import { AlertTrajectory } from '@/components/dmu/alert-trajectory'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { submissionQueries, eventQueries } from '@/lib/queries/submissions'
+import { FilingsByEvent } from '@/components/dmu/filings-by-event'
+import { RecordsView } from '@/components/dmu/records-view'
+import { AlertLevelBadge, EmptyState, LoadingBlock, PageHeader } from '@/components/shared'
+import { Button } from '@/components/ui/button'
 import { CORPORATION_LABELS, isCanonicalCorporation } from '@/lib/corporations'
-import { formatConstant } from '@/lib/format-constant'
-import { formatDay, formatWhen } from '@/lib/format-when'
+import { formatWhen } from '@/lib/format-when'
+import { eventQueries, submissionQueries } from '@/lib/queries/submissions'
+
+type CorporationTab = 'filings' | 'incidents' | 'logs'
+
+type CorporationSearch = {
+  tab?: CorporationTab
+  submission_id?: number
+}
+
+const TABS: { value: CorporationTab; label: string }[] = [
+  { value: 'filings', label: 'Filings' },
+  { value: 'incidents', label: 'Incidents' },
+  { value: 'logs', label: 'Situation logs' },
+]
 
 export const Route = createFileRoute('/dmu/corporations/$corporation')({
   component: CorporationPage,
+  validateSearch: (search: Record<string, unknown>): CorporationSearch => ({
+    tab: search.tab === 'incidents' || search.tab === 'logs' ? search.tab : undefined,
+    submission_id:
+      typeof search.submission_id === 'number' ? search.submission_id : undefined,
+  }),
   // A slug outside the fourteen is a 404, not an empty page. An unknown
   // corporation matches no rows, and a page of zeroes for a region that may
   // have filed plenty reads as an authoritative "nothing happened" — the same
@@ -31,259 +39,83 @@ export const Route = createFileRoute('/dmu/corporations/$corporation')({
   },
 })
 
-function isoDate(date: Date): string {
-  return date.toISOString().slice(0, 10)
-}
-
-function defaultWindow(): { from: string; to: string } {
-  const to = new Date()
-  const from = new Date(to)
-  from.setDate(from.getDate() - 30)
-  return { from: isoDate(from), to: isoDate(to) }
-}
-
 function CorporationPage() {
   const { corporation } = Route.useParams()
-  const [range, setRange] = useState(defaultWindow)
+  const search = Route.useSearch()
+  const navigate = Route.useNavigate()
+  const tab = search.tab ?? 'filings'
 
   const label = isCanonicalCorporation(corporation)
     ? CORPORATION_LABELS[corporation]
     : corporation
 
-  const submissions = useQuery(
-    submissionQueries.list({
-      corporation,
-      date_from: range.from,
-      date_to: range.to,
-    }),
-  )
+  const filings = useQuery(submissionQueries.list({ corporation }))
   const events = useQuery(eventQueries.list(corporation))
 
-  // Newest first for the table; the trajectory reverses it, because a reader
-  // scanning history wants the latest at the top and a reader following a
-  // sequence of alert states wants it left to right in time order.
-  const rows = useMemo(
+  const latest = useMemo(
     () =>
-      [...(submissions.data ?? [])].sort(
+      [...(filings.data ?? [])].sort(
         (a, b) => new Date(b.as_at).getTime() - new Date(a.as_at).getTime(),
-      ),
-    [submissions.data],
-  )
-
-  const totals = useMemo(
-    () =>
-      rows.reduce(
-        (acc, row) => ({
-          incidents: acc.incidents + row.incident_count,
-          logs: acc.logs + row.log_count,
-        }),
-        { incidents: 0, logs: 0 },
-      ),
-    [rows],
+      )[0],
+    [filings.data],
   )
 
   return (
     <div className="space-y-6">
       <PageHeader
         title={label}
-        description="Everything this corporation filed in the selected window."
-        actions={
-          <ButtonLink variant="outline" to="/dmu">
-            Back to overview
-          </ButtonLink>
-        }
+        description={latest ? `Last filed ${formatWhen(latest.as_at)}` : 'Never filed'}
+        actions={latest ? <AlertLevelBadge level={latest.alert_level} /> : null}
       />
 
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="grid gap-1.5">
-          <Label htmlFor="corp-from" className="text-xs">
-            From
-          </Label>
-          <Input
-            id="corp-from"
-            type="date"
-            className="w-auto"
-            value={range.from}
-            max={range.to}
-            onChange={(event) =>
-              setRange((prev) => ({ ...prev, from: event.target.value }))
+      <div className="flex gap-2">
+        {TABS.map((option) => (
+          <Button
+            key={option.value}
+            type="button"
+            size="sm"
+            variant={tab === option.value ? 'default' : 'outline'}
+            onClick={() =>
+              void navigate({
+                search: {
+                  tab: option.value === 'filings' ? undefined : option.value,
+                  submission_id: search.submission_id,
+                },
+                replace: true,
+              })
             }
-          />
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="corp-to" className="text-xs">
-            To
-          </Label>
-          <Input
-            id="corp-to"
-            type="date"
-            className="w-auto"
-            value={range.to}
-            min={range.from}
-            onChange={(event) =>
-              setRange((prev) => ({ ...prev, to: event.target.value }))
-            }
-          />
-        </div>
+          >
+            {option.label}
+          </Button>
+        ))}
       </div>
 
-      {submissions.isPending ? <LoadingBlock rows={4} /> : null}
-
-      {submissions.isError ? (
-        <EmptyState
-          title="Could not load submissions"
-          description={submissions.error.message}
+      {tab === 'filings' ? (
+        <>
+          {filings.isPending || events.isPending ? <LoadingBlock rows={4} /> : null}
+          {filings.isError ? (
+            <EmptyState title="Could not load filings" description={filings.error.message} />
+          ) : null}
+          {filings.data && events.data ? (
+            <FilingsByEvent
+              corporation={corporation}
+              filings={filings.data}
+              events={events.data}
+            />
+          ) : null}
+        </>
+      ) : (
+        <RecordsView
+          lockedCorporation={corporation}
+          search={{ tab, submission_id: search.submission_id }}
+          onSearchChange={(next) =>
+            void navigate({
+              search: { tab, submission_id: next.submission_id },
+              replace: true,
+            })
+          }
         />
-      ) : null}
-
-      {submissions.data ? (
-        rows.length === 0 ? (
-          <EmptyState
-            title="No reports at this time"
-            description="This corporation filed nothing in the selected window. That is a gap to chase, not a report of no incidents."
-          />
-        ) : (
-          <>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {/* Safe to index: this branch only renders when rows is
-                  non-empty, and the empty case is handled above. */}
-              <StatCard
-                label="Current alert level"
-                value={formatConstant(rows[0].alert_level)}
-                hint={`As at ${formatWhen(rows[0].as_at)}`}
-              />
-              <StatCard
-                label="Submissions"
-                value={rows.length}
-                hint="Filings in this window"
-              />
-              <StatCard
-                label="Incidents"
-                value={totals.incidents}
-                hint="Across all filings"
-              />
-              <StatCard
-                label="Situation logs"
-                value={totals.logs}
-                hint="Across all filings"
-              />
-            </div>
-
-            <ContentCard
-              title="Alert level over time"
-              description="Oldest first. Each block is one filing, coloured by the level recorded as at that moment."
-            >
-              <AlertTrajectory submissions={[...rows].reverse()} />
-            </ContentCard>
-
-            <ContentCard
-              title="Filing history"
-              description="Most recent first."
-            >
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[64px]">#</TableHead>
-                      <TableHead>As at</TableHead>
-                      <TableHead>Event</TableHead>
-                      <TableHead>Alert level</TableHead>
-                      <TableHead className="text-right">Incidents</TableHead>
-                      <TableHead className="text-right">Logs</TableHead>
-                      <TableHead />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rows.map((row) => (
-                      <TableRow key={row.id}>
-                        <TableCell className="font-mono text-xs tabular-nums">
-                          {row.sequence_no}
-                        </TableCell>
-                        <TableCell>
-                          {formatWhen(row.as_at)}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {row.event_title ?? (
-                            <span className="italic">No event</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <AlertLevelBadge level={row.alert_level} />
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {row.incident_count}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {row.log_count}
-                        </TableCell>
-                        <TableCell className="text-right whitespace-nowrap">
-                          <Link
-                            className="text-sm underline"
-                            to="/dmu/records"
-                            search={{
-                              corporation: row.corporation,
-                              submission_id: row.id,
-                            }}
-                          >
-                            Records
-                          </Link>
-                          {row.report_id ? (
-                            <Link
-                              className="ml-3 text-sm underline"
-                              to="/dmu/reports/$reportId"
-                              params={{ reportId: row.report_id }}
-                            >
-                              Report
-                            </Link>
-                          ) : null}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </ContentCard>
-          </>
-        )
-      ) : null}
-
-      {events.data && events.data.length > 0 ? (
-        <ContentCard
-          title="Events"
-          description="Hazard events this corporation owns. An event with no end date is still running."
-        >
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Hazard</TableHead>
-                  <TableHead>Started</TableHead>
-                  <TableHead>Ended</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {events.data.map((event) => (
-                  <TableRow key={event.id}>
-                    <TableCell className="font-medium">{event.title}</TableCell>
-                    <TableCell>{formatConstant(event.hazard_type)}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {formatDay(event.started_at)}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {event.ended_at ? (
-                        formatDay(event.ended_at)
-                      ) : (
-                        <span className="italic">Still running</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </ContentCard>
-      ) : null}
+      )}
     </div>
   )
 }

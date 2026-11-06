@@ -44,7 +44,22 @@ describe('formatDay', () => {
 
   it('keeps a bare calendar day on that day in any timezone', () => {
     // new Date('2024-06-01') is UTC midnight: 31 May west of Greenwich.
-    expect(formatDay('2024-06-01')).toContain('01')
+    expect(formatDay('2024-06-01')).toBe('1 Jun 2024')
     expect(formatDay('2024-06-01')).toContain('Jun')
+  })
+})
+
+describe('one date format everywhere', () => {
+  it('writes day first with no leading zero', () => {
+    expect(formatWhen('2026-11-04T18:25:00')).toBe('4 Nov 2026, 18:25')
+    expect(formatDay('2026-06-30')).toBe('30 Jun 2026')
+    expect(formatDay('2026-06-03')).toBe('3 Jun 2026')
+  })
+})
+
+describe('September', () => {
+  it('is three letters like every other month', () => {
+    expect(formatDay('2026-09-27')).toBe('27 Sep 2026')
+    expect(formatWhen('2026-09-27T08:05:00')).toBe('27 Sep 2026, 08:05')
   })
 })

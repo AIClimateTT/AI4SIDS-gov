@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils'
 import type { ReportStatus } from '@/types/dmcu'
 
 const STATUS_LABELS: Record<ReportStatus, string> = {
-  ok: 'OK',
+  ok: 'Ready',
   needs_review: 'Needs review',
   queued: 'Queued',
   running: 'Generating',

@@ -1,36 +1,9 @@
 export type ReportStatus = 'ok' | 'needs_review' | 'queued' | 'running' | 'failed'
 
-export type TemplateParamInfo = {
-  name: string
-  required: boolean
-  multiline?: boolean
-}
-
 export type DataRequirementInfo = {
   module: string
   metric: string
   params: Record<string, string>
-}
-
-export type NarrationSkillsInfo = {
-  capture?: string
-  compose: string
-}
-
-export type NarrationInfo = {
-  identity: string
-  skills: NarrationSkillsInfo
-  output_sections: string[]
-}
-
-export type TemplateInfo = {
-  name: string
-  version: number
-  title: string
-  description: string
-  params: TemplateParamInfo[]
-  data_requirements: DataRequirementInfo[]
-  narration: NarrationInfo
 }
 
 export type CitationViolation = {
@@ -72,6 +45,8 @@ export type FactTable = {
   gaps?: string[]
 }
 
+export type ReportKind = 'corporation' | 'minister' | 'survey123' | 'other'
+
 export type ReportListItem = {
   id: string
   template: string
@@ -79,6 +54,11 @@ export type ReportListItem = {
   params: Record<string, string>
   status: ReportStatus
   created_at: string
+  kind: ReportKind
+  title: string
+  period: string | null
+  verified: boolean
+  older_format: boolean
 }
 
 export type ClaimVerdict = 'supported' | 'unsupported' | 'pending_semantic'
@@ -180,8 +160,14 @@ export type ReportDetail = {
   fact_table: FactTable
   narrative: string
   markdown: string
+  final_markdown: string
   status: ReportStatus
   violations: CitationViolation[]
+  kind: ReportKind
+  title: string
+  period: string | null
+  verified: boolean
+  older_format: boolean
   quality_eval?: QualityEval | null
   error?: string | null
   created_at: string
@@ -190,8 +176,6 @@ export type ReportDetail = {
 export type GenerateReportInput = {
   template: string
   params: Record<string, string>
-  version?: number
-  data_requirements?: DataRequirementInfo[]
 }
 
 export type GenerateReportResult = {
@@ -206,6 +190,8 @@ export type ReportListParams = {
   pageSize?: number
   q?: string
   status?: ReportStatus | 'all'
+  kind?: ReportKind | 'all'
+  includeOlder?: boolean
   sortBy?: string
   sortOrder?: 'asc' | 'desc'
 }
@@ -220,6 +206,7 @@ export type OverviewSummary = {
   incident_count_sitreps: number
   report_count: number
   needs_review_count: number
+  survey123_last_uploaded_at: string | null
   recent_reports: ReportListItem[]
 }
 

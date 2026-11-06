@@ -86,10 +86,10 @@ describe('humanizeStoredValue', () => {
 describe('formatRequirementLabel', () => {
   it('names the source and metric in words, not module.metric', () => {
     expect(formatRequirementLabel('survey123', 'incident_count')).toBe(
-      'Field · Incident Count',
+      'Survey123 · Incident Count',
     )
     expect(formatRequirementLabel('sitreps', 'relief_stock_summary')).toBe(
-      'SITREP · Relief Stock Summary',
+      'Corporation · Relief Stock Summary',
     )
   })
 })

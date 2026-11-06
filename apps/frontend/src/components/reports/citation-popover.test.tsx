@@ -45,7 +45,7 @@ describe('CitationPopover', () => {
 
     expect(screen.getByText('42 incidents')).toBeTruthy()
     expect(screen.getByText('Arima incident count')).toBeTruthy()
-    expect(screen.getByText('Field')).toBeTruthy()
+    expect(screen.getByText('Survey123')).toBeTruthy()
   })
 
   it('keeps the source query out of the primary view', () => {

@@ -70,3 +70,11 @@ export const CORPORATION_OPTIONS: CorporationOption[] =
     value,
     label: CORPORATION_LABELS[value],
   })).sort((a, b) => a.label.localeCompare(b.label))
+
+/** The place name alone, for narrow spaces: "Diego Martin", not "Diego Martin Regional Corporation". */
+export function corporationShortLabel(corporation: CanonicalCorporation): string {
+  return CORPORATION_LABELS[corporation].replace(
+    / (Regional|Borough|City) Corporation$/,
+    '',
+  )
+}

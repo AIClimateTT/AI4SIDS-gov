@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { fireEvent, render, screen } from '@testing-library/react'
 import {
   RouterProvider,
   createMemoryHistory,
@@ -7,7 +8,7 @@ import {
   createRoute,
   createRouter,
 } from '@tanstack/react-router'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { IdentityProvider } from '@/hooks/use-identity'
 import { SidebarProvider } from '@/components/ui/sidebar'
@@ -15,6 +16,11 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import type { Identity } from '@/lib/identity'
 
 import { AppSidebar, isNavItemActive } from './app-sidebar'
+
+vi.mock('@/lib/api/submissions', async (original) => ({
+  ...(await original<typeof import('@/lib/api/submissions')>()),
+  getSubmissions: vi.fn().mockResolvedValue([]),
+}))
 
 afterEach(() => {
   document.body.innerHTML = ''
@@ -29,6 +35,7 @@ const DMU_PATHS = [
   '/dmu/field-data',
   '/dmu/admin/quality',
   '/dmu/admin/users',
+  '/dmu/corporations/$corporation',
 ]
 
 async function renderSidebar(
@@ -38,11 +45,13 @@ async function renderSidebar(
   const rootRoute = createRootRoute({
     component: () => (
       <IdentityProvider identity={identity}>
-        <TooltipProvider>
-          <SidebarProvider>
-            <AppSidebar />
-          </SidebarProvider>
-        </TooltipProvider>
+        <QueryClientProvider client={new QueryClient()}>
+          <TooltipProvider>
+            <SidebarProvider>
+              <AppSidebar />
+            </SidebarProvider>
+          </TooltipProvider>
+        </QueryClientProvider>
       </IdentityProvider>
     ),
   })
@@ -87,6 +96,26 @@ function isHighlighted(name: string): boolean {
   return linkNamed(name).hasAttribute('data-active')
 }
 
+describe('AppSidebar corporations', () => {
+  it('lists all fourteen when opened', async () => {
+    await renderSidebar('/dmu', { role: 'dmu' })
+
+    fireEvent.click(screen.getByRole('button', { name: /corporations/i }))
+
+    expect(await screen.findByRole('link', { name: /Arima/ })).toBeTruthy()
+    const group = Array.from(
+      document.querySelectorAll<HTMLElement>('[data-slot="sidebar-group"]'),
+    ).find((el) => el.textContent?.includes('Corporations'))
+    expect(group?.querySelectorAll('a')).toHaveLength(14)
+  })
+
+  it('opens by itself on a corporation page', async () => {
+    await renderSidebar('/dmu/corporations/arima_borough_corporation', { role: 'dmu' })
+
+    expect(await screen.findByRole('link', { name: /Arima/ })).toBeTruthy()
+  })
+})
+
 describe('AppSidebar', () => {
   it('shows only Operations to a DMU officer', async () => {
     await renderSidebar('/dmu')
@@ -96,6 +125,7 @@ describe('AppSidebar', () => {
         label: 'Operations',
         links: ['Dashboard', 'Reports', 'Incidents & logs', 'Field data'],
       },
+      { label: 'Corporations', links: [] },
     ])
   })
 
@@ -107,6 +137,7 @@ describe('AppSidebar', () => {
         label: 'Operations',
         links: ['Dashboard', 'Reports', 'Incidents & logs', 'Field data'],
       },
+      { label: 'Corporations', links: [] },
       {
         label: 'Administration',
         links: ['Quality', 'Users'],

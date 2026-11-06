@@ -6,11 +6,9 @@ import { cn } from '@/lib/utils'
 /**
  * The two data sources, and the authority each carries.
  *
- * `sitreps` holds corporations' own human-verified, signed-off figures and is
- * authoritative. `survey123` holds raw field observation whose rows carry a
- * validation status. The backend forbids merging or summing them, and the
- * ministerial template instructs the model to report divergence rather than
- * reconcile it — so the interface must not render them identically either.
+ * `sitreps` holds what corporations file during an event, which is unverified.
+ * `survey123` holds records field staff verified before upload. No report mixes
+ * them, so the interface must not render them identically either.
  *
  * A module the frontend does not recognise falls back to `other`: a data module
  * added backend-side must degrade to "unstyled but labelled", never to a blank
@@ -19,14 +17,14 @@ import { cn } from '@/lib/utils'
 export type FactSource = 'sitreps' | 'survey123' | 'other'
 
 const SOURCE_LABELS: Record<FactSource, string> = {
-  sitreps: 'SITREP',
-  survey123: 'Field',
+  sitreps: 'Corporation',
+  survey123: 'Survey123',
   other: 'Other',
 }
 
 const SOURCE_TITLES: Record<FactSource, string> = {
-  sitreps: "Corporation's own verified figures — authoritative",
-  survey123: 'Raw field observation — unverified, corroboration only',
+  sitreps: 'Filed by the corporation, unverified',
+  survey123: 'Verified by field staff before upload',
   other: 'Source module not recognised by this interface',
 }
 

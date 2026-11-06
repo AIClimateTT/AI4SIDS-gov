@@ -118,7 +118,7 @@ describe('CitationMarkdown source identity', () => {
       />,
     )
     const marker = container.querySelector('[data-source="sitreps"]')
-    expect(marker?.getAttribute('title')).toContain('SITREP')
+    expect(marker?.getAttribute('title')).toContain('Corporation')
   })
 
   it('falls back to neutral markers when no map is supplied', () => {

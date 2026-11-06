@@ -6,5 +6,9 @@ export const Route = createFileRoute('/dmu')({
   beforeLoad: async ({ location }) => {
     await requireAuth({ location })
   },
-  component: () => <Outlet />,
+  component: () => (
+    <div className="mx-auto w-full max-w-6xl space-y-6">
+      <Outlet />
+    </div>
+  ),
 })

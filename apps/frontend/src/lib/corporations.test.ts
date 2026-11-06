@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   CANONICAL_CORPORATIONS,
   CORPORATION_LABELS,
+  corporationShortLabel,
   isCanonicalCorporation,
 } from '@/lib/corporations'
 
@@ -44,5 +45,16 @@ describe('CORPORATION_LABELS', () => {
       expect(CORPORATION_LABELS[corporation]).toBeTruthy()
       expect(CORPORATION_LABELS[corporation]).not.toBe(corporation)
     }
+  })
+})
+
+describe('corporationShortLabel', () => {
+  it.each([
+    ['diego_martin_regional_corporati', 'Diego Martin'],
+    ['arima_borough_corporation', 'Arima'],
+    ['port_of_spain_city_corporation', 'Port of Spain'],
+    ['san_juan_laventille_regional_co', 'San Juan/Laventille'],
+  ] as const)('%s reads %s', (corporation, label) => {
+    expect(corporationShortLabel(corporation)).toBe(label)
   })
 })

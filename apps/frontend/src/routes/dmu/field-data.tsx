@@ -1,12 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { DownloadIcon } from 'lucide-react'
+import { FileTextIcon, UploadIcon } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { z } from 'zod'
 
 import { DataTable } from '@/components/data-table'
-import { Survey123ReportCard } from '@/components/dmu/survey123-report-card'
+import { UploadFieldDataDialog } from '@/components/dmu/upload-field-data-dialog'
+import { NewReportDialog } from '@/components/reports/new-report-dialog'
 import {
   EmptyState,
   LoadingBlock,
@@ -14,29 +14,19 @@ import {
 } from '@/components/shared'
 import { ContentCard } from '@/components/shared/content-card'
 import { Button } from '@/components/ui/button'
-import { PiiDroppedNotice } from '@/components/submissions/pii-dropped-notice'
-import { UnmappedValuesNotice } from '@/components/submissions/unmapped-values-notice'
-import { useAppForm } from '@/hooks/form'
-import { CORPORATION_LABELS, isCanonicalCorporation } from '@/lib/corporations'
 import {
-  SURVEY123_CSV_HEADERS,
-  downloadCsvTemplate,
-} from '@/lib/csv-templates'
+  CORPORATION_OPTIONS,
+  corporationShortLabel,
+  isCanonicalCorporation,
+} from '@/lib/corporations'
 import { formatConstant } from '@/lib/format-constant'
-import { formatDay, formatWhen } from '@/lib/format-when'
+import { formatDay } from '@/lib/format-when'
 import { incidentQueries } from '@/lib/queries/incidents'
-import { useIngestModule } from '@/lib/queries/ingest'
-import type {
-  IncidentListItem,
-  IngestResult,
-} from '@/types/dmcu'
+import { overviewQueries } from '@/lib/queries/overview'
+import type { IncidentListItem } from '@/types/dmcu'
 
 export const Route = createFileRoute('/dmu/field-data')({
-  component: IngestPage,
-})
-
-const uploadSchema = z.object({
-  file: z.instanceof(File, { message: 'Choose a CSV file to upload' }),
+  component: FieldDataPage,
 })
 
 const columns: ColumnDef<IncidentListItem>[] = [
@@ -89,85 +79,48 @@ const columns: ColumnDef<IncidentListItem>[] = [
     header: 'Status',
     cell: ({ row }) => fieldStatus(row.original),
   },
-  {
-    accessorKey: 'ingested_at',
-    header: 'Ingested',
-    cell: ({ row }) => formatWhen(row.original.ingested_at),
-  },
 ]
 
-function IngestPage() {
-  const ingest = useIngestModule()
-
-  const form = useAppForm({
-    defaultValues: {
-      file: undefined as File | undefined,
-    },
-    validators: {
-      onSubmit: uploadSchema,
-    },
-    onSubmit: async ({ value }) => {
-      if (!value.file) return
-      await ingest.mutateAsync({ file: value.file })
-    },
-  })
+function FieldDataPage() {
+  const overview = useQuery(overviewQueries.summary())
+  const [dialog, setDialog] = useState<'upload' | 'report' | null>(null)
+  const uploaded = overview.data?.survey123_last_uploaded_at
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Ingest"
-        description="Upload Survey123 CSV exports into the incident store. To file a situation report, go to /corp instead."
+        title="Field data"
+        description={
+          overview.data
+            ? `${overview.data.incident_count_survey123.toLocaleString('en-GB')} records verified by field staff${
+                uploaded ? ` · last upload ${formatDay(uploaded)}` : ''
+              }`
+            : 'Survey123 records verified by field staff.'
+        }
+        actions={
+          <>
+            <Button type="button" variant="outline" onClick={() => setDialog('upload')}>
+              <UploadIcon />
+              Upload
+            </Button>
+            <Button type="button" onClick={() => setDialog('report')}>
+              <FileTextIcon />
+              Generate report
+            </Button>
+          </>
+        }
       />
 
-      <ContentCard
-        title="Upload file"
-        description="Attach a Survey123 CSV export and review the ingest result."
-        contentClassName="space-y-4"
-        action={
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              downloadCsvTemplate('survey123.csv', SURVEY123_CSV_HEADERS)
-            }
-          >
-            <DownloadIcon />
-            Survey123 template
-          </Button>
-        }
-      >
-        <p className="text-sm text-muted-foreground">
-          This file must be a Survey123 export with ObjectID and GlobalID. Every
-          row must be marked Validated, or the whole file is rejected.
-        </p>
-        <form
-          className="space-y-4"
-          onSubmit={(event) => {
-            event.preventDefault()
-            void form.handleSubmit()
-          }}
-        >
-          <form.AppForm>
-            <form.AppField name="file">
-              {(field) => (
-                <field.FileField label="Survey123 CSV" accept=".csv" />
-              )}
-            </form.AppField>
-            <div className="flex justify-end">
-              <form.SubmitButton label="Upload" />
-            </div>
-          </form.AppForm>
-        </form>
-
-        {ingest.isSuccess ? <IngestResultView result={ingest.data} /> : null}
-
-        {ingest.isError ? (
-          <p className="mt-4 text-sm text-destructive">{ingest.error.message}</p>
-        ) : null}
-      </ContentCard>
-
-      <Survey123ReportCard />
+      {dialog === 'upload' ? (
+        <UploadFieldDataDialog open onOpenChange={(open) => setDialog(open ? 'upload' : null)} />
+      ) : null}
+      {dialog === 'report' ? (
+        <NewReportDialog
+          open
+          initialKind="survey123"
+          onOpenChange={(open) => setDialog(open ? 'report' : null)}
+        />
+      ) : null}
 
       <StoredIncidents />
     </div>
@@ -180,12 +133,14 @@ function StoredIncidents() {
     pageSize: 10,
   })
   const [q, setQ] = useState<string | undefined>()
+  const [corporation, setCorporation] = useState<string | undefined>()
 
   const listParams = {
     page: pagination.pageIndex + 1,
     pageSize: pagination.pageSize,
     q,
     source: 'survey123' as const,
+    corporation,
   }
 
   const { data, isPending, isError, error, isFetching } = useQuery(
@@ -194,8 +149,8 @@ function StoredIncidents() {
 
   return (
     <ContentCard
-      title="Stored incidents"
-      description="Survey123 records verified by field staff. Corporation records are under Incidents & logs."
+      title="Records"
+      description="Corporation filings are under Incidents & logs."
       contentClassName="space-y-4"
     >
       {isPending && !data ? <LoadingBlock rows={5} /> : null}
@@ -236,14 +191,28 @@ function StoredIncidents() {
               )
               setPagination((prev) => ({ ...prev, pageIndex: 0 }))
             }
+            if ('corporation' in updates) {
+              setCorporation(
+                typeof updates.corporation === 'string' ? updates.corporation : undefined,
+              )
+              setPagination((prev) => ({ ...prev, pageIndex: 0 }))
+            }
           }}
           toolbar={{
             search: {
               key: 'q',
-              placeholder: 'Search incidents…',
+              placeholder: 'Search records…',
             },
           }}
-          filterValues={{ q }}
+          filters={[
+            {
+              type: 'select',
+              key: 'corporation',
+              label: 'Corporation',
+              options: CORPORATION_OPTIONS,
+            },
+          ]}
+          filterValues={{ q, corporation }}
           features={{
             enablePageSizeSelector: true,
             enableColumnVisibility: true,
@@ -254,36 +223,9 @@ function StoredIncidents() {
   )
 }
 
-/** What landed from a Survey123 upload. */
-function IngestResultView({ result }: { result: IngestResult }) {
-  return (
-    <div className="mt-4 space-y-3 border-t pt-4">
-      <p className="text-sm font-medium">
-        {result.rows_read} rows read · {result.rows_inserted} inserted ·{' '}
-        {result.rows_updated} updated · {result.duplicates_flagged} duplicates flagged
-      </p>
-
-      <UnmappedValuesNotice unmappedValues={result.unmapped_values} />
-
-      <PiiDroppedNotice columns={result.pii_columns_dropped} />
-
-      {result.warnings?.length ? (
-        <div className="rounded-md border border-dashed p-3 text-sm">
-          <p className="font-medium">Check before relying on these rows</p>
-          <ul className="mt-2 list-disc space-y-1 pl-4 text-muted-foreground">
-            {result.warnings.map((warning) => (
-              <li key={warning}>{warning}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-    </div>
-  )
-}
-
 function corporationLabel(value: string | null): string {
   if (!value) return '—'
-  if (isCanonicalCorporation(value)) return CORPORATION_LABELS[value]
+  if (isCanonicalCorporation(value)) return corporationShortLabel(value)
   return formatConstant(value)
 }
 

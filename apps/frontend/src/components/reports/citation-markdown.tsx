@@ -40,8 +40,7 @@ type CitationMarkdownProps = {
   /**
    * cid → the data module that produced that fact, from the report's own fact
    * table. Supplied, each marker is tinted by its source, so a reader can see
-   * which half of a sentence rests on a corporation's signed-off figures and
-   * which on unverified field observation without opening the appendix.
+   * which source each part of a sentence rests on without opening the appendix.
    *
    * Optional: omitted, markers fall back to the neutral styling, which is what
    * a report rendered without its fact table gets.

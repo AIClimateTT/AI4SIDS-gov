@@ -10,7 +10,6 @@ export { EmptyState } from './empty-state'
 export { FormPlaceholder } from './form-placeholder'
 export { LoadingBlock } from './loading-block'
 export { MarkdownPreview } from './markdown-preview'
-export { NeedsReviewBand } from './needs-review-band'
 export {
   SourceBadge,
   sourceEdgeClass,
