@@ -272,7 +272,9 @@ export function RecordsView({
       ) : null}
       {tab === 'logs' && logs.data ? (
         <DataTable
-          columns={LOG_COLUMNS}
+          columns={
+            locked ? LOG_COLUMNS.filter((column) => column.header !== 'Corporation') : LOG_COLUMNS
+          }
           data={logs.data.items}
           {...tableProps}
         />
