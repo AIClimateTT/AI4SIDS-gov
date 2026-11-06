@@ -24,15 +24,26 @@ def list_incidents(
     page_size: int = 10,
     q: str | None = None,
     source: str = "all",
+    corporation: str | None = None,
+    submission_id: int | None = None,
 ) -> tuple[list[dict], int]:
     if source not in SOURCES:
         raise ValueError(f"source must be one of: {', '.join(SOURCES)}")
 
     rows: list[dict] = []
-    if source in ("all", "survey123"):
-        rows.extend(_field_row(row) for row in session.scalars(select(FieldObservation)))
+    # A filing only ever holds corporation rows, so naming one leaves out Survey123.
+    if source in ("all", "survey123") and submission_id is None:
+        stmt = select(FieldObservation)
+        if corporation:
+            stmt = stmt.where(FieldObservation.corporation == corporation)
+        rows.extend(_field_row(row) for row in session.scalars(stmt))
     if source in ("all", "sitreps"):
-        rows.extend(_sitrep_row(row) for row in session.scalars(select(SitrepIncident)))
+        stmt = select(SitrepIncident)
+        if corporation:
+            stmt = stmt.where(SitrepIncident.corporation == corporation)
+        if submission_id is not None:
+            stmt = stmt.where(SitrepIncident.submission_id == submission_id)
+        rows.extend(_sitrep_row(row) for row in session.scalars(stmt))
 
     needle = (q or "").strip().lower()
     if needle:

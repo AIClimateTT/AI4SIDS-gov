@@ -17,6 +17,7 @@ import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DmuIndexRouteImport } from './routes/dmu/index'
 import { Route as CorpIndexRouteImport } from './routes/corp/index'
+import { Route as DmuRecordsRouteImport } from './routes/dmu/records'
 import { Route as DmuFieldDataRouteImport } from './routes/dmu/field-data'
 import { Route as DmuAdminRouteImport } from './routes/dmu/admin'
 import { Route as AuthVerifyRouteImport } from './routes/_auth/verify'
@@ -71,6 +72,11 @@ const CorpIndexRoute = CorpIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => CorpRoute,
+} as any)
+const DmuRecordsRoute = DmuRecordsRouteImport.update({
+  id: '/records',
+  path: '/records',
+  getParentRoute: () => DmuRoute,
 } as any)
 const DmuFieldDataRoute = DmuFieldDataRouteImport.update({
   id: '/field-data',
@@ -159,6 +165,7 @@ export interface FileRoutesByFullPath {
   '/verify': typeof AuthVerifyRoute
   '/dmu/admin': typeof DmuAdminRouteWithChildren
   '/dmu/field-data': typeof DmuFieldDataRoute
+  '/dmu/records': typeof DmuRecordsRoute
   '/corp/': typeof CorpIndexRoute
   '/dmu/': typeof DmuIndexRoute
   '/corp/c/$sessionId': typeof CorpCSessionIdRoute
@@ -181,6 +188,7 @@ export interface FileRoutesByTo {
   '/verify': typeof AuthVerifyRoute
   '/dmu/admin': typeof DmuAdminRouteWithChildren
   '/dmu/field-data': typeof DmuFieldDataRoute
+  '/dmu/records': typeof DmuRecordsRoute
   '/corp': typeof CorpIndexRoute
   '/dmu': typeof DmuIndexRoute
   '/corp/c/$sessionId': typeof CorpCSessionIdRoute
@@ -207,6 +215,7 @@ export interface FileRoutesById {
   '/_auth/verify': typeof AuthVerifyRoute
   '/dmu/admin': typeof DmuAdminRouteWithChildren
   '/dmu/field-data': typeof DmuFieldDataRoute
+  '/dmu/records': typeof DmuRecordsRoute
   '/corp/': typeof CorpIndexRoute
   '/dmu/': typeof DmuIndexRoute
   '/corp/c/$sessionId': typeof CorpCSessionIdRoute
@@ -233,6 +242,7 @@ export interface FileRouteTypes {
     | '/verify'
     | '/dmu/admin'
     | '/dmu/field-data'
+    | '/dmu/records'
     | '/corp/'
     | '/dmu/'
     | '/corp/c/$sessionId'
@@ -255,6 +265,7 @@ export interface FileRouteTypes {
     | '/verify'
     | '/dmu/admin'
     | '/dmu/field-data'
+    | '/dmu/records'
     | '/corp'
     | '/dmu'
     | '/corp/c/$sessionId'
@@ -280,6 +291,7 @@ export interface FileRouteTypes {
     | '/_auth/verify'
     | '/dmu/admin'
     | '/dmu/field-data'
+    | '/dmu/records'
     | '/corp/'
     | '/dmu/'
     | '/corp/c/$sessionId'
@@ -361,6 +373,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/corp/'
       preLoaderRoute: typeof CorpIndexRouteImport
       parentRoute: typeof CorpRoute
+    }
+    '/dmu/records': {
+      id: '/dmu/records'
+      path: '/records'
+      fullPath: '/dmu/records'
+      preLoaderRoute: typeof DmuRecordsRouteImport
+      parentRoute: typeof DmuRoute
     }
     '/dmu/field-data': {
       id: '/dmu/field-data'
@@ -519,6 +538,7 @@ const DmuAdminRouteWithChildren = DmuAdminRoute._addFileChildren(
 interface DmuRouteChildren {
   DmuAdminRoute: typeof DmuAdminRouteWithChildren
   DmuFieldDataRoute: typeof DmuFieldDataRoute
+  DmuRecordsRoute: typeof DmuRecordsRoute
   DmuIndexRoute: typeof DmuIndexRoute
   DmuCorporationsCorporationRoute: typeof DmuCorporationsCorporationRoute
   DmuReportsReportIdRoute: typeof DmuReportsReportIdRoute
@@ -529,6 +549,7 @@ interface DmuRouteChildren {
 const DmuRouteChildren: DmuRouteChildren = {
   DmuAdminRoute: DmuAdminRouteWithChildren,
   DmuFieldDataRoute: DmuFieldDataRoute,
+  DmuRecordsRoute: DmuRecordsRoute,
   DmuIndexRoute: DmuIndexRoute,
   DmuCorporationsCorporationRoute: DmuCorporationsCorporationRoute,
   DmuReportsReportIdRoute: DmuReportsReportIdRoute,

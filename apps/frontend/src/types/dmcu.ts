@@ -278,6 +278,35 @@ export type IncidentListParams = {
   pageSize?: number
   q?: string
   source?: IncidentListSource
+  corporation?: string
+  submissionId?: number
+}
+
+export type SituationLogItem = {
+  id: number
+  corporation: string
+  submission_id: number
+  as_at: string
+  event_title: string | null
+  category: string
+  statement: string
+  item: string | null
+  quantity: number | null
+  unit: string | null
+  status: string | null
+}
+
+export type SituationLogListParams = {
+  page?: number
+  pageSize?: number
+  q?: string
+  corporation?: string
+  submissionId?: number
+}
+
+export type SituationLogListResponse = {
+  items: SituationLogItem[]
+  total: number
 }
 
 export type IncidentListResponse = {
@@ -320,6 +349,7 @@ export type SubmissionSummary = {
   sequence_no: number
   incident_count: number
   log_count: number
+  report_id?: string | null
 }
 
 export type SubmissionDetail = SubmissionSummary & {

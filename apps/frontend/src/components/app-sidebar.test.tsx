@@ -24,6 +24,7 @@ afterEach(() => {
 const DMU_PATHS = [
   '/dmu',
   '/dmu/reports',
+  '/dmu/records',
   '/dmu/reports/new',
   '/dmu/field-data',
   '/dmu/admin/modules',
@@ -94,7 +95,7 @@ describe('AppSidebar', () => {
     expect(navGroups()).toEqual([
       {
         label: 'Operations',
-        links: ['Dashboard', 'Reports', 'Field data'],
+        links: ['Dashboard', 'Reports', 'Incidents & logs', 'Field data'],
       },
     ])
   })
@@ -105,7 +106,7 @@ describe('AppSidebar', () => {
     expect(navGroups()).toEqual([
       {
         label: 'Operations',
-        links: ['Dashboard', 'Reports', 'Field data'],
+        links: ['Dashboard', 'Reports', 'Incidents & logs', 'Field data'],
       },
       {
         label: 'Administration',

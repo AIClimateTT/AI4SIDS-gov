@@ -12,6 +12,7 @@ from app.api.templates import router as templates_router
 from app.api.capture import router as capture_router
 from app.api.users import router as users_router
 from app.api.quality import router as quality_router
+from app.api.situation_logs import router as situation_logs_router
 from app.config import settings, validate_runtime_settings
 from app.auth.dependencies import require_dmu_workspace
 from app.core.registry import ensure_default_modules_registered
@@ -46,6 +47,7 @@ def create_app() -> FastAPI:
     app.include_router(reports_router)
     app.include_router(ingest_router, dependencies=dmu_only)
     app.include_router(incidents_router, dependencies=dmu_only)
+    app.include_router(situation_logs_router, dependencies=dmu_only)
     app.include_router(submissions_router)
     app.include_router(capture_router)
     app.include_router(auth_router)

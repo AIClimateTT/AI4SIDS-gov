@@ -1,4 +1,4 @@
-import { createFileRoute, notFound } from '@tanstack/react-router'
+import { Link, createFileRoute, notFound } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 
@@ -190,6 +190,7 @@ function CorporationPage() {
                       <TableHead>Alert level</TableHead>
                       <TableHead className="text-right">Incidents</TableHead>
                       <TableHead className="text-right">Logs</TableHead>
+                      <TableHead />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -214,6 +215,27 @@ function CorporationPage() {
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
                           {row.log_count}
+                        </TableCell>
+                        <TableCell className="text-right whitespace-nowrap">
+                          <Link
+                            className="text-sm underline"
+                            to="/dmu/records"
+                            search={{
+                              corporation: row.corporation,
+                              submission_id: row.id,
+                            }}
+                          >
+                            Records
+                          </Link>
+                          {row.report_id ? (
+                            <Link
+                              className="ml-3 text-sm underline"
+                              to="/dmu/reports/$reportId"
+                              params={{ reportId: row.report_id }}
+                            >
+                              Report
+                            </Link>
+                          ) : null}
                         </TableCell>
                       </TableRow>
                     ))}

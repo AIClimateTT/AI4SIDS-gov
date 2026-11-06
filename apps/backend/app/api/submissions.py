@@ -4,11 +4,13 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.contracts import SubmissionIngestResult
 from app.auth.dependencies import CurrentUser, require_corporation_access
 from app.db import get_session
+from app.modules.capture.models import CaptureSession
 from app.modules.sitreps.ingest import ingest_submission
 from app.modules.sitreps.models import ALERT_LEVELS, HAZARD_TYPES, Submission
 from app.modules.sitreps.store import (
@@ -158,6 +160,7 @@ class SubmissionSummary(BaseModel):
     sequence_no: int
     incident_count: int
     log_count: int
+    report_id: str | None = None
 
 
 class SubmissionDetail(SubmissionSummary):
@@ -180,6 +183,11 @@ def _summary(session: Session, submission) -> SubmissionSummary:
         sequence_no=submission.sequence_no,
         incident_count=incidents,
         log_count=logs,
+        report_id=session.scalar(
+            select(CaptureSession.report_id).where(
+                CaptureSession.submission_id == submission.id
+            )
+        ),
     )
 
 
