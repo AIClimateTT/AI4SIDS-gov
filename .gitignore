@@ -25,3 +25,6 @@ todos.json
 
 # playwright mcp scratch
 .playwright-mcp/
+
+# Real Survey123 exports hold personal data
+apps/backend/survey_0.csv
