@@ -32,7 +32,7 @@ def test_sitrep_module_list_metrics_reports_module_as_sitreps():
     assert all(spec.module == "sitreps" for spec in specs)
     assert {spec.name for spec in specs} == (
         {spec.name for spec in survey123_module.list_metrics()} - {"data_coverage"}
-    ) | {"relief_stock_summary", "activity_log"}
+    ) | {"relief_stock_summary", "activity_log", "corporation_status"}
 
 
 def test_sitrep_module_run_metric_raises_for_unknown_metric(tmp_path):
