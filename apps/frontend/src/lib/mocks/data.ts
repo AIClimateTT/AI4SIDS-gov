@@ -1,22 +1,10 @@
 import type {
   IngestResult,
-  ModuleInfo,
   OverviewSummary,
   ReportDetail,
   ReportListItem,
   TemplateInfo,
 } from '@/types/dmcu'
-
-const SHARED_PARAMS_SCHEMA = {
-  type: 'object',
-  properties: {
-    corporation: { type: 'string' },
-    community: { type: 'string' },
-    date_from: { type: 'string', format: 'date' },
-    date_to: { type: 'string', format: 'date' },
-    include_pending: { type: 'boolean', default: false },
-  },
-}
 
 export const mockTemplates: TemplateInfo[] = [
   {
@@ -69,49 +57,6 @@ export const mockTemplates: TemplateInfo[] = [
       skills: { compose: 'Draft a single-region sitrep.' },
       output_sections: ['situation_overview', 'present_activity', 'data_gaps'],
     },
-  },
-]
-
-export const mockModules: ModuleInfo[] = [
-  {
-    name: 'survey123',
-    metrics: [
-      {
-        name: 'incident_count',
-        description: 'Total incidents, breakdown by incident_type.',
-        params_schema: SHARED_PARAMS_SCHEMA,
-        module: 'survey123',
-      },
-      {
-        name: 'incidents_by_corporation',
-        description: 'Counts per corporation.',
-        params_schema: SHARED_PARAMS_SCHEMA,
-        module: 'survey123',
-      },
-      {
-        name: 'data_coverage',
-        description: 'Validated vs pending coverage.',
-        params_schema: SHARED_PARAMS_SCHEMA,
-        module: 'survey123',
-      },
-    ],
-  },
-  {
-    name: 'sitreps',
-    metrics: [
-      {
-        name: 'incident_count',
-        description: 'SITREP incidents in the date window.',
-        params_schema: SHARED_PARAMS_SCHEMA,
-        module: 'sitreps',
-      },
-      {
-        name: 'data_coverage',
-        description: 'SITREP validation coverage.',
-        params_schema: SHARED_PARAMS_SCHEMA,
-        module: 'sitreps',
-      },
-    ],
   },
 ]
 

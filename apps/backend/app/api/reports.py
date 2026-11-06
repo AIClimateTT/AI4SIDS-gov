@@ -42,17 +42,15 @@ def validate_corporations(request: GenerateReportRequest) -> None:
     report reads as an authoritative "nothing happened" for a region that may
     have filed plenty.
     """
-    for value in [request.params.get("corporation")]:
-        if value is None or value == "":
-            continue
-        if value not in CANONICAL_CORPORATIONS:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"unknown corporation: {value!r}; expected one of the fourteen "
-                    "regional corporations"
-                ),
-            )
+    value = request.params.get("corporation")
+    if value and value not in CANONICAL_CORPORATIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"unknown corporation: {value!r}; expected one of the fourteen "
+                "regional corporations"
+            ),
+        )
 
 
 @router.post(
