@@ -18,6 +18,8 @@ export function DataTableFilterSelect({
   return (
     <Select
       value={value || ""}
+      // Without items the trigger shows the raw value rather than its label.
+      items={filter.options}
       onValueChange={(val) => onChange(val || undefined)}
     >
       <SelectTrigger className="h-9 w-[240px]">

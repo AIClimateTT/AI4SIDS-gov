@@ -2,13 +2,14 @@ import { useMemo, useState } from 'react'
 
 import { factsByCid } from '@/components/reports/citation-display'
 import { CitationMarkdown } from '@/components/reports/citation-markdown'
-import { pendingClaims, ReportReviewSheet } from '@/components/reports/report-review-sheet'
-import { ReportSourcesSheet } from '@/components/reports/report-sources-sheet'
+import { pendingClaims, ReportReviewPanel } from '@/components/reports/report-review-panel'
+import { ReportSourcesPanel } from '@/components/reports/report-sources-panel'
 import { ReportTypeBadge } from '@/components/reports/report-type-badge'
 import { ButtonLink, PageHeader, StatusBadge } from '@/components/shared'
 import { ContentCard } from '@/components/shared/content-card'
 import { Button } from '@/components/ui/button'
 import { formatWhen } from '@/lib/format-when'
+import { cn } from '@/lib/utils'
 import type { ReportDetail } from '@/types/dmcu'
 
 function problemsLine(count: number): string {
@@ -32,7 +33,10 @@ export function ReportView({ report }: { report: ReportDetail }) {
   const finished = report.status === 'ok' || report.status === 'needs_review'
   const problemCount = report.violations.length
   const hasReview = finished && (problemCount > 0 || pendingClaims(report).length > 0)
-  const reviewing = panel === 'review'
+  // The last verdict removes the Review button, so the panel goes with it.
+  const reviewing = panel === 'review' && hasReview
+  const showingSources = panel === 'sources'
+  const closePanel = () => setPanel(null)
 
   return (
     <div className="space-y-6">
@@ -43,11 +47,21 @@ export function ReportView({ report }: { report: ReportDetail }) {
           finished ? (
             <>
               {hasReview ? (
-                <Button type="button" variant="outline" onClick={() => setPanel('review')}>
+                <Button
+                  type="button"
+                  variant={reviewing ? 'secondary' : 'outline'}
+                  aria-expanded={reviewing}
+                  onClick={() => setPanel(reviewing ? null : 'review')}
+                >
                   Review
                 </Button>
               ) : null}
-              <Button type="button" variant="outline" onClick={() => setPanel('sources')}>
+              <Button
+                type="button"
+                variant={showingSources ? 'secondary' : 'outline'}
+                aria-expanded={showingSources}
+                onClick={() => setPanel(showingSources ? null : 'sources')}
+              >
                 Sources
               </Button>
               <ButtonLink
@@ -96,32 +110,29 @@ export function ReportView({ report }: { report: ReportDetail }) {
               {problemsLine(problemCount)}
             </p>
           ) : null}
-          <ContentCard>
-            <article className="mx-auto max-w-[46rem]">
-              {reviewing ? (
-                <CitationMarkdown
-                  markdown={report.markdown}
-                  violations={report.violations}
-                  sourceByCid={sourceByCid}
-                  factsByCid={citedFacts}
-                />
-              ) : (
-                <CitationMarkdown markdown={report.final_markdown} />
-              )}
-            </article>
-          </ContentCard>
-          <ReportSourcesSheet
-            report={report}
-            open={panel === 'sources'}
-            onOpenChange={(open) => setPanel(open ? 'sources' : null)}
-          />
-          {hasReview ? (
-            <ReportReviewSheet
-              report={report}
-              open={reviewing}
-              onOpenChange={(open) => setPanel(open ? 'review' : null)}
-            />
-          ) : null}
+          <div
+            className={cn(
+              'grid items-start gap-6',
+              (reviewing || showingSources) && 'xl:grid-cols-[minmax(0,1fr)_24rem]',
+            )}
+          >
+            <ContentCard className="min-w-0">
+              <article className="mx-auto max-w-[46rem]">
+                {reviewing || showingSources ? (
+                  <CitationMarkdown
+                    markdown={report.markdown}
+                    violations={reviewing ? report.violations : []}
+                    sourceByCid={sourceByCid}
+                    factsByCid={citedFacts}
+                  />
+                ) : (
+                  <CitationMarkdown markdown={report.final_markdown} />
+                )}
+              </article>
+            </ContentCard>
+            {reviewing ? <ReportReviewPanel report={report} onClose={closePanel} /> : null}
+            {showingSources ? <ReportSourcesPanel report={report} onClose={closePanel} /> : null}
+          </div>
         </>
       ) : null}
     </div>

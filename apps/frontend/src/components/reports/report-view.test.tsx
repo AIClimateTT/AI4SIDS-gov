@@ -95,7 +95,7 @@ describe('ReportView', () => {
     expect(screen.queryByRole('button', { name: 'Review' })).toBeNull()
   })
 
-  it('puts the report ID and template version in the Sources sheet', () => {
+  it('puts the report ID and template version in the Sources panel', () => {
     renderView(report())
 
     fireEvent.click(screen.getByRole('button', { name: 'Sources' }))
@@ -120,6 +120,86 @@ describe('ReportView', () => {
     expect(screen.getByText("The figure 99 doesn't match any source.")).toBeTruthy()
     expect(screen.getByText(/There were 99 incidents\./)).toBeTruthy()
     expect(document.body.textContent).toContain('C001')
+  })
+
+  it('keeps the report on the page beside an open panel', () => {
+    renderView(report({ ...NEEDS_REVIEW, markdown: 'There were 99 incidents.' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Review' }))
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByRole('complementary', { name: 'Review' })).toBeTruthy()
+    expect(document.querySelector('article mark')).toBeTruthy()
+  })
+
+  it('closes a panel from its button and from its close control', () => {
+    renderView(report(NEEDS_REVIEW))
+    const review = screen.getByRole('button', { name: 'Review' })
+
+    fireEvent.click(review)
+    expect(review.getAttribute('aria-expanded')).toBe('true')
+    fireEvent.click(review)
+    expect(screen.queryByRole('complementary')).toBeNull()
+    expect(screen.getByText('There were 719 incidents.')).toBeTruthy()
+
+    fireEvent.click(review)
+    fireEvent.click(screen.getByRole('button', { name: 'Close Review' }))
+    expect(screen.queryByRole('complementary')).toBeNull()
+  })
+
+  it('shows one panel at a time', () => {
+    renderView(report(NEEDS_REVIEW))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Review' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sources' }))
+
+    expect(screen.getByRole('complementary', { name: 'Sources' })).toBeTruthy()
+    expect(screen.queryByRole('complementary', { name: 'Review' })).toBeNull()
+  })
+
+  it('shows citation markers beside Sources, without highlighting problems', () => {
+    renderView(report({ ...NEEDS_REVIEW, markdown: 'There were 99 incidents [C001].' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sources' }))
+
+    expect(document.querySelector('article')?.textContent).toContain('C001')
+    expect(document.querySelector('article mark')).toBeNull()
+  })
+
+  it('returns to the clean report when the last claim has its verdict', () => {
+    const pending = {
+      quality_eval: {
+        claims: {
+          claims: [
+            {
+              claim_id: 'c1',
+              sentence: 'A team is on standby [C001].',
+              cited_cids: ['C001'],
+              number_tokens: [],
+              critical: false,
+              auto_verdict: 'pending_semantic',
+              human_verdict: null,
+            },
+          ],
+        },
+      } as unknown as ReportDetail['quality_eval'],
+    }
+    const client = new QueryClient()
+    const { rerender } = render(
+      <QueryClientProvider client={client}>
+        <ReportView report={report(pending)} />
+      </QueryClientProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Review' }))
+
+    rerender(
+      <QueryClientProvider client={client}>
+        <ReportView report={report()} />
+      </QueryClientProvider>,
+    )
+
+    expect(screen.queryByRole('complementary')).toBeNull()
+    expect(document.querySelector('article')?.textContent).not.toContain('C001')
   })
 
   it('offers Review for claims waiting on a verdict', () => {

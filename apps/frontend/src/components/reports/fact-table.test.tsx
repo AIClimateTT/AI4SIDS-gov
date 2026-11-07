@@ -2,6 +2,7 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 
+import { citationAnchorId } from '@/components/reports/citation-utils'
 import { ReportFactTable } from '@/components/reports/fact-table'
 import type { Fact, FactTable } from '@/types/dmcu'
 
@@ -56,5 +57,15 @@ describe('ReportFactTable', () => {
 
     expect(screen.getByText('Arima Borough Corporation')).toBeTruthy()
     expect(screen.queryByText('arima_borough_corporation')).toBeNull()
+  })
+
+  it('lists facts without a table when compact, keeping the anchor', () => {
+    render(<ReportFactTable factTable={table([fact()])} compact />)
+
+    expect(screen.queryByRole('table')).toBeNull()
+    expect(document.getElementById(citationAnchorId('C001'))).toBeTruthy()
+    expect(screen.getByText('Incidents By Corporation')).toBeTruthy()
+    expect(screen.getByText('Validated')).toBeTruthy()
+    expect(screen.getByText('Arima incidents')).toBeTruthy()
   })
 })

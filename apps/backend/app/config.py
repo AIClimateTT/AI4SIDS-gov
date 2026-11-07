@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     app_env: str = "development"
     dedup_salt: str = "dev-salt-change-in-production"
 
+    # Survey123 API
+    survey123_api_key: str = "none"
+    survey123_api_url: str = "https://survey123.arcgis.com/api/v3/surveys"
+
     @field_validator("secret_key")
     @classmethod
     def secret_key_must_not_be_empty(cls, value: str) -> str:

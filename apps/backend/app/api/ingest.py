@@ -1,15 +1,35 @@
 import tempfile
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import get_session
+from app.modules.survey123.client import (
+    Survey123NotConfigured,
+    Survey123Unavailable,
+    query_responses,
+)
 from app.modules.survey123.ingest import IngestFormatError, ingest_survey123_export
 from app.quality.store import record_event
 
 router = APIRouter()
+
+
+@router.get("/field-data/survey123/query")
+def query_survey123(
+    where: str = "1=1",
+    limit: int = Query(default=100, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
+    layer: int = Query(default=0, ge=0),
+) -> dict:
+    try:
+        return query_responses(where=where, limit=limit, offset=offset, layer=layer)
+    except Survey123NotConfigured as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Survey123Unavailable as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @router.post("/field-data/upload")

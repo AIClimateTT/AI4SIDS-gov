@@ -11,6 +11,11 @@ from app.core.llm import get_default_llm_client
 from app.core.template_catalog import get_template, list_templates
 from app.db import Base, SessionLocal, engine
 from app.config import settings
+from app.modules.survey123.client import (
+    Survey123NotConfigured,
+    Survey123Unavailable,
+    query_responses,
+)
 from app.modules.survey123.ingest import IngestFormatError, ingest_survey123_export
 from app.modules.survey123.normalize import CANONICAL_CORPORATIONS, CORPORATION_LABELS
 from app.templates.loader import load_template
@@ -328,6 +333,22 @@ def reset_db_command(
     typer.echo(f"admin: {SEED_ADMIN_EMAIL}")
     for corporation, label in sorted(CORPORATION_LABELS.items()):
         typer.echo(f"corp: {_seed_corp_email(label)} ({corporation})")
+
+
+survey123_app = typer.Typer()
+app.add_typer(survey123_app, name="survey123")
+
+
+@survey123_app.command("check")
+def survey123_check_command() -> None:
+    """Query Survey123 once, as this environment, without printing any responses."""
+    typer.echo(f"Referer: {settings.app_url}")
+    try:
+        result = query_responses(where="1=1", limit=1, offset=0, layer=0)
+    except (Survey123NotConfigured, Survey123Unavailable) as exc:
+        typer.echo(f"FAILED: {exc}")
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"OK: query returned {len(result['features'])} row(s) with limit=1")
 
 
 if __name__ == "__main__":
