@@ -1,16 +1,18 @@
+import re
 from pathlib import Path
 from typing import Optional
 
 import typer
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from app.core.engine import generate_report
 from app.core.llm import get_default_llm_client
 from app.core.template_catalog import get_template, list_templates
-from app.db import SessionLocal
+from app.db import Base, SessionLocal, engine
 from app.config import settings
 from app.modules.survey123.ingest import IngestFormatError, ingest_survey123_export
-from app.modules.survey123.normalize import CANONICAL_CORPORATIONS
+from app.modules.survey123.normalize import CANONICAL_CORPORATIONS, CORPORATION_LABELS
 from app.templates.loader import load_template
 
 app = typer.Typer()
@@ -251,6 +253,81 @@ def set_password_command(
         typer.echo(f"updated password for {user.email}")
     finally:
         session.close()
+
+
+db_app = typer.Typer()
+app.add_typer(db_app, name="db")
+
+SEED_ADMIN_EMAIL = "admin@mail.com"
+SEED_PASSWORD = "Password123!"
+
+
+def _seed_corp_email(label: str) -> str:
+    # "San Juan/Laventille Regional Corporation" -> san-juan-laventille@example.com
+    name = re.sub(r" (Regional|City|Borough) Corporation$", "", label)
+    return f"{re.sub(r'[/ ]', '-', name).lower()}@example.com"
+
+
+def _clear_tables(session: Session) -> None:
+    # alembic_version is not in the metadata, so the schema stays at head.
+    tables = Base.metadata.sorted_tables
+    if session.get_bind().dialect.name == "postgresql":
+        names = [table.name for table in tables]
+        # Queued jobs point at reports that are about to disappear.
+        if inspect(session.connection()).has_table("procrastinate_jobs"):
+            names.append("procrastinate_jobs")
+        session.execute(text(f"TRUNCATE {', '.join(names)} RESTART IDENTITY CASCADE"))
+        return
+    for table in reversed(tables):
+        session.execute(table.delete())
+
+
+@db_app.command("reset")
+def reset_db_command(
+    yes: bool = typer.Option(False, "--yes", help="Skip the confirmation prompt"),
+) -> None:
+    """Erase all data, then seed the admin and one account per corporation."""
+    from app.auth import models as auth_models
+    from app.auth.passwords import hash_password
+    from app.core import report_models  # noqa: F401
+    from app.modules.capture import models as capture_models  # noqa: F401
+    from app.modules.sitreps import models as sitreps_models  # noqa: F401
+    from app.modules.survey123 import models as survey123_models  # noqa: F401
+    from app.quality import models as quality_models  # noqa: F401
+
+    target = engine.url.render_as_string(hide_password=True)
+    if not yes:
+        typer.confirm(f"Erase all data in {target}?", abort=True)
+
+    session = SessionLocal()
+    try:
+        _clear_tables(session)
+        session.add(
+            auth_models.User(
+                email=SEED_ADMIN_EMAIL,
+                role="admin",
+                is_active=True,
+                password_hash=hash_password(SEED_PASSWORD),
+            )
+        )
+        for corporation, label in sorted(CORPORATION_LABELS.items()):
+            session.add(
+                auth_models.User(
+                    email=_seed_corp_email(label),
+                    role="corp",
+                    corporation=corporation,
+                    is_active=True,
+                    password_hash=hash_password(SEED_PASSWORD),
+                )
+            )
+        session.commit()
+    finally:
+        session.close()
+
+    typer.echo(f"reset {target}")
+    typer.echo(f"admin: {SEED_ADMIN_EMAIL}")
+    for corporation, label in sorted(CORPORATION_LABELS.items()):
+        typer.echo(f"corp: {_seed_corp_email(label)} ({corporation})")
 
 
 if __name__ == "__main__":
