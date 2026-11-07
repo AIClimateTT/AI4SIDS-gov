@@ -43,11 +43,8 @@ export function DataTableToolbar<TData>({
         const value = filterValues[filter.key]
         return Array.isArray(value) ? value.length > 0 : !!value
       }
-      if (filter.type === "toggle") {
-        const value = filterValues[filter.key]
-        return !!value && value !== "all"
-      }
-      return !!filterValues[filter.key]
+      const value = filterValues[filter.key]
+      return !!value && value !== "all"
     })
   }, [filters, filterValues])
 

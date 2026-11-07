@@ -6,7 +6,7 @@ from typer.testing import CliRunner
 from app.auth.models import User
 from app.auth.passwords import verify_with_timing_protection
 from app.db import Base, SessionLocal, engine as db_engine
-from cli import app
+from app.cli import app
 
 DEV_DB_PATH = Path(__file__).parent.parent / "dev.db"
 runner = CliRunner()

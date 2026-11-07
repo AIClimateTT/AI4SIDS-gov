@@ -17,7 +17,7 @@
 
 ```mermaid
 flowchart LR
-  subgraph CLI["cli.py"]
+  subgraph CLI["app/cli.py"]
     IN["ingest survey123"]
     GEN["generate template"]
   end
@@ -62,13 +62,13 @@ From `apps/backend`:
 ```bash
 cd apps/backend
 uv run alembic upgrade head
-uv run python cli.py ingest survey123 fixtures/sample_small.csv
+uv run python -m app.cli ingest survey123 fixtures/sample_small.csv
 ```
 
 **Generate the report:**
 
 ```bash
-uv run python cli.py generate minister_regional_comparison \
+uv run python -m app.cli generate minister_regional_comparison \
   --date-from 2024-06-01 \
   --date-to 2024-06-30
 ```
@@ -76,7 +76,7 @@ uv run python cli.py generate minister_regional_comparison \
 **Optional second template:**
 
 ```bash
-uv run python cli.py generate single_region_report \
+uv run python -m app.cli generate single_region_report \
   --corporation sangre_grande_regional_corporat \
   --date-from 2024-06-01 \
   --date-to 2024-06-30
@@ -85,7 +85,7 @@ uv run python cli.py generate single_region_report \
 **List templates:**
 
 ```bash
-uv run python cli.py list-templates
+uv run python -m app.cli list-templates
 ```
 
 Markdown prints to stdout; `status: ok` / `needs_review` goes to stderr.

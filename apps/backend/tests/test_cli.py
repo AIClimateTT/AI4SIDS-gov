@@ -3,7 +3,7 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from app.db import Base, engine as db_engine
-from cli import app
+from app.cli import app
 
 runner = CliRunner()
 

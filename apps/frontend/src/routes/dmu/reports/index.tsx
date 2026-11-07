@@ -34,7 +34,7 @@ type ReportsSearch = {
 }
 
 const KIND_OPTIONS = [
-  { value: 'all' as const, label: 'All' },
+  { value: 'all' as const, label: 'All types' },
   { value: 'minister' as const, label: 'Minister' },
   { value: 'corporation' as const, label: 'Corporation' },
   { value: 'survey123' as const, label: 'Survey123' },
@@ -190,7 +190,7 @@ function ReportsPage() {
             }}
             filters={[
               {
-                type: 'toggle',
+                type: 'select',
                 key: 'kind',
                 label: 'Type',
                 options: KIND_OPTIONS,

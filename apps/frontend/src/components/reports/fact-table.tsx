@@ -23,11 +23,14 @@ import type { FactTable } from '@/types/dmcu'
 
 type ReportFactTableProps = {
   factTable: FactTable
+  /** Stacks each fact instead of a table, for a narrow column. */
+  compact?: boolean
   className?: string
 }
 
 export function ReportFactTable({
   factTable,
+  compact = false,
   className,
 }: ReportFactTableProps) {
   const facts = factTable.facts ?? []
@@ -59,66 +62,97 @@ export function ReportFactTable({
         </div>
       ) : null}
 
-      <div className="overflow-x-auto rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[72px]">CID</TableHead>
-              <TableHead className="w-[84px]">Source</TableHead>
-              <TableHead>Metric</TableHead>
-              <TableHead>Value</TableHead>
-              <TableHead>Verification</TableHead>
-              <TableHead>Description</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {facts.map((fact) => {
-              const cid = fact.citation?.cid
-              if (!cid) return null
+      {compact ? (
+        <ul className="divide-y rounded-lg border">
+          {facts.map((fact) => {
+            const cid = fact.citation?.cid
+            if (!cid) return null
 
-              return (
-                <TableRow
-                  key={cid}
-                  id={citationAnchorId(cid)}
-                  className="scroll-mt-24 transition-colors"
-                >
-                  {/* The leading edge carries the source, and it lives on the
-                      first cell rather than the row. The table sets
-                      border-collapse: collapse, where a border declared on a
-                      <tr> collapses against the cell grid and paints behind the
-                      first cell — measured at zero visual width. Cell borders
-                      resolve predictably against the table edge. */}
-                  <TableCell
-                    className={cn(
-                      'border-l-4 font-mono text-xs font-medium',
-                      sourceEdgeClass(fact.citation.module),
-                    )}
+            return (
+              <li
+                key={cid}
+                id={citationAnchorId(cid)}
+                className={cn(
+                  'scroll-mt-24 space-y-1 border-l-4 p-3 text-sm',
+                  sourceEdgeClass(fact.citation.module),
+                )}
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-xs font-medium">{cid}</span>
+                  <SourceBadge module={fact.citation.module} />
+                  <Badge variant="outline">{formatMetricLabel(fact.verification)}</Badge>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <p className="font-medium">{formatMetricLabel(fact.metric)}</p>
+                  <p className="tabular-nums">{formatFactValue(fact)}</p>
+                </div>
+                <p className="text-muted-foreground">{fact.citation.description}</p>
+              </li>
+            )
+          })}
+        </ul>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[72px]">CID</TableHead>
+                <TableHead className="w-[84px]">Source</TableHead>
+                <TableHead>Metric</TableHead>
+                <TableHead>Value</TableHead>
+                <TableHead>Verification</TableHead>
+                <TableHead>Description</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {facts.map((fact) => {
+                const cid = fact.citation?.cid
+                if (!cid) return null
+
+                return (
+                  <TableRow
+                    key={cid}
+                    id={citationAnchorId(cid)}
+                    className="scroll-mt-24 transition-colors"
                   >
-                    {cid}
-                  </TableCell>
-                  <TableCell>
-                    <SourceBadge module={fact.citation.module} />
-                  </TableCell>
-                    <TableCell className="font-medium">
-                      {formatMetricLabel(fact.metric)}
-                    </TableCell>
-                    <TableCell className="tabular-nums">
-                      {formatFactValue(fact)}
+                    {/* The leading edge carries the source, and it lives on the
+                        first cell rather than the row. The table sets
+                        border-collapse: collapse, where a border declared on a
+                        <tr> collapses against the cell grid and paints behind the
+                        first cell — measured at zero visual width. Cell borders
+                        resolve predictably against the table edge. */}
+                    <TableCell
+                      className={cn(
+                        'border-l-4 font-mono text-xs font-medium',
+                        sourceEdgeClass(fact.citation.module),
+                      )}
+                    >
+                      {cid}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">
-                        {formatMetricLabel(fact.verification)}
-                      </Badge>
+                      <SourceBadge module={fact.citation.module} />
                     </TableCell>
-                  <TableCell className="max-w-[240px] text-muted-foreground">
-                    {fact.citation.description}
-                  </TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
-      </div>
+                      <TableCell className="font-medium">
+                        {formatMetricLabel(fact.metric)}
+                      </TableCell>
+                      <TableCell className="tabular-nums">
+                        {formatFactValue(fact)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {formatMetricLabel(fact.verification)}
+                        </Badge>
+                      </TableCell>
+                    <TableCell className="max-w-[240px] text-muted-foreground">
+                      {fact.citation.description}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
       {facts.some((f) => f.breakdown && Object.keys(f.breakdown).length > 0) ? (
         <div className="space-y-3">
@@ -144,7 +178,7 @@ export function ReportFactTable({
                   <SourceBadge module={fact.citation.module} />
                   {formatMetricLabel(fact.metric)}
                 </p>
-                <dl className="grid gap-1 text-sm sm:grid-cols-2">
+                <dl className={cn('grid gap-1 text-sm', !compact && 'sm:grid-cols-2')}>
                   {Object.entries(fact.breakdown).map(([key, value]) => (
                     <div key={key} className="flex justify-between gap-3">
                       <dt className="text-muted-foreground">

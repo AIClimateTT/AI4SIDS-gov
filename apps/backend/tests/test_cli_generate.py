@@ -4,7 +4,7 @@ from typer.testing import CliRunner
 
 import app.core.llm as llm_module
 from app.db import Base, engine as db_engine
-from cli import app
+from app.cli import app
 
 from app.core import template_catalog
 from app.templates.loader import load_template

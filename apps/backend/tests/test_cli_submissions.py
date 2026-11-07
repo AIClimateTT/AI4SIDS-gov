@@ -7,7 +7,7 @@ from typer.testing import CliRunner
 import app.modules.sitreps.models  # noqa: F401 -- registers sitreps tables on Base.metadata
 from app.db import Base, SessionLocal, engine as db_engine
 from app.modules.sitreps.store import create_event
-from cli import app
+from app.cli import app
 
 runner = CliRunner()
 
