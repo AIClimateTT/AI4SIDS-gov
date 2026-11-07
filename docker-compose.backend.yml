@@ -15,6 +15,8 @@ x-app-env: &app-env
   JOB_BACKEND: ${JOB_BACKEND:-procrastinate}
   REPORT_TIMEZONE: ${REPORT_TIMEZONE:-America/Port_of_Spain}
   SURVEY123_TRANSPORT: ${SURVEY123_TRANSPORT:-inprocess}
+  SURVEY123_API_KEY: ${SURVEY123_API_KEY:-none}
+  SURVEY123_API_URL: ${SURVEY123_API_URL:-}
   SECRET_KEY: ${SECRET_KEY:-change-me-to-a-long-random-value}
   APP_URL: ${APP_URL:-http://localhost:3000}
   APP_NAME: ${APP_NAME:-DMCU}
