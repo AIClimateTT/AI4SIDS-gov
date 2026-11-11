@@ -18,6 +18,7 @@ from app.modules.survey123.client import (
 )
 from app.modules.survey123.ingest import IngestFormatError, ingest_survey123_export
 from app.modules.survey123.normalize import CANONICAL_CORPORATIONS, CORPORATION_LABELS
+from app.modules.survey123.pull import pull_survey123
 from app.templates.loader import load_template
 
 app = typer.Typer()
@@ -349,6 +350,30 @@ def survey123_check_command() -> None:
         typer.echo(f"FAILED: {exc}")
         raise typer.Exit(code=1) from exc
     typer.echo(f"OK: query returned {len(result['features'])} row(s) with limit=1")
+
+
+@survey123_app.command("pull")
+def survey123_pull_command(layer: int = 0) -> None:
+    """Store the survey's validated responses, as an upload of its export would."""
+    session = SessionLocal()
+    try:
+        result = pull_survey123(session, settings.dedup_salt, layer=layer)
+    except (Survey123NotConfigured, Survey123Unavailable) as exc:
+        typer.echo(f"FAILED: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    except IngestFormatError as exc:
+        typer.echo(f"FAILED: {exc.detail}", err=True)
+        raise typer.Exit(code=1) from exc
+    finally:
+        session.close()
+
+    typer.echo(f"rows_read={result.rows_read}")
+    typer.echo(f"rows_inserted={result.rows_inserted}")
+    typer.echo(f"rows_updated={result.rows_updated}")
+    typer.echo(f"duplicates_flagged={result.duplicates_flagged}")
+    typer.echo(f"unmapped_values={result.unmapped_values}")
+    for warning in result.warnings:
+        typer.echo(f"warning: {warning}")
 
 
 if __name__ == "__main__":

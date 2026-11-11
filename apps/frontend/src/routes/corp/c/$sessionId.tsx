@@ -251,6 +251,7 @@ function CaptureChatSession({
           <ResizablePanel defaultSize="50%" minSize="32%" className="min-h-0">
             <div className="m-2 flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-background shadow-sm">
               <ArtifactPane
+                anchors
                 session={session}
                 events={events}
                 eventTitle={eventTitle}
@@ -291,6 +292,7 @@ function CaptureChatSession({
           </SheetHeader>
           <div className="flex min-h-0 flex-1 flex-col">
             <ArtifactPane
+              anchors={false}
               session={session}
               events={events}
               eventTitle={eventTitle}
@@ -322,6 +324,7 @@ function ArtifactPane({
   onPreview,
   onIssue,
   onDownloadPdf,
+  anchors = false,
 }: {
   session: CaptureSession
   events: EventSummary[]
@@ -334,6 +337,7 @@ function ArtifactPane({
   onPreview: () => void
   onIssue: () => void
   onDownloadPdf: () => void
+  anchors?: boolean
 }) {
   const autoPreviewedFor = useRef<number | null>(null)
 
@@ -354,8 +358,15 @@ function ArtifactPane({
     >
       <div className="flex shrink-0 items-center border-b px-3 py-2">
         <TabsList variant="line">
-          <TabsTrigger value="facts">Facts</TabsTrigger>
-          <TabsTrigger value="sitrep">Sitrep</TabsTrigger>
+          <TabsTrigger value="facts" data-tour={anchors ? 'facts' : undefined}>
+            Facts
+          </TabsTrigger>
+          <TabsTrigger
+            value="sitrep"
+            data-tour={anchors ? 'sitrep-tab' : undefined}
+          >
+            Sitrep
+          </TabsTrigger>
         </TabsList>
       </div>
       <TabsContent value="facts" className="min-h-0 overflow-hidden">
@@ -364,6 +375,7 @@ function ArtifactPane({
           events={events}
           disabled={disabled}
           pending={pending}
+          anchors={anchors}
           onSave={onSave}
         />
       </TabsContent>
@@ -376,6 +388,7 @@ function ArtifactPane({
           onDownloadPdf={onDownloadPdf}
           previewPending={previewPending}
           issuePending={issuePending}
+          anchors={anchors}
         />
       </TabsContent>
     </Tabs>

@@ -39,6 +39,8 @@ export type CaptureRecordProps = {
   pending?: boolean
   onSave: (payload: CaptureSessionUpdate) => void
   onReview?: () => void
+  /** Marks the situation boxes for the walkthrough. Off on the hidden mobile copy. */
+  anchors?: boolean
 }
 
 // A literal [] default prop allocates a brand-new array every render,
@@ -99,6 +101,7 @@ export function CaptureRecord({
   pending,
   onSave,
   onReview,
+  anchors = true,
 }: CaptureRecordProps) {
   const alertMissing = session.missing.find(
     (item) => item.path === 'alert_level',
@@ -143,7 +146,10 @@ export function CaptureRecord({
       </div>
 
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4">
-        <section className="space-y-3">
+        <section
+          className="space-y-3"
+          data-tour={anchors ? 'situation' : undefined}
+        >
           <h2 className="text-sm font-semibold text-muted-foreground">
             Situation
           </h2>

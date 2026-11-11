@@ -9,6 +9,7 @@ import type { QueryClient } from '@tanstack/react-query'
 
 import { AppSidebar } from '@/components/app-sidebar'
 import { CorpSidebar } from '@/components/corp/corp-sidebar'
+import { CorpTourHost } from '@/components/corp/corp-tour-host'
 import { IdentityBadge } from '@/components/identity/identity-badge'
 import { IdentityProvider, useIdentity } from '@/hooks/use-identity'
 import { AuthProvider } from '@/lib/auth/auth-context'
@@ -59,7 +60,10 @@ function AppShell() {
 
   // The print view is the document alone — no sidebar, header, or devtools,
   // so what the browser puts on the page is only the filing.
-  if (pathname.startsWith('/corp/print/') || pathname.startsWith('/dmu/print/')) {
+  if (
+    pathname.startsWith('/corp/print/') ||
+    pathname.startsWith('/dmu/print/')
+  ) {
     return <Outlet />
   }
 
@@ -104,6 +108,7 @@ function AppShell() {
           </div>
         </SidebarInset>
       </SidebarProvider>
+      {isCorp ? <CorpTourHost /> : null}
       <Toaster />
       <TanStackDevtools
         config={{

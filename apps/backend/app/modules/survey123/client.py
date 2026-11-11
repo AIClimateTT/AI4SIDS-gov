@@ -92,3 +92,24 @@ def query_responses(where: str, limit: int, offset: int, layer: int) -> dict:
         "features": body.get("features", []),
         "has_more": bool(body.get("exceededTransferLimit", False)),
     }
+
+
+def fetch_layer(layer: int = 0) -> tuple[str, list[dict], list[dict]]:
+    """(item id, field definitions, every feature) for one layer of the survey."""
+    portal, item_id = _survey_location()
+    with _client() as client:
+        service_url = _feature_service_url(client, portal, item_id)
+        meta = _get(client, f"{service_url}/{layer}", {})
+        page_size = min(meta.get("maxRecordCount") or 1000, 1000)
+        params = {"where": "1=1", "outFields": "*", "outSR": 4326, "resultRecordCount": page_size}
+        # Ordered by object id so that pages cannot shift under the offset.
+        if meta.get("objectIdField"):
+            params["orderByFields"] = meta["objectIdField"]
+        features: list[dict] = []
+        while True:
+            body = _get(client, f"{service_url}/{layer}/query", {**params, "resultOffset": len(features)})
+            page = body.get("features", [])
+            features.extend(page)
+            if not page or not body.get("exceededTransferLimit"):
+                break
+    return item_id, meta.get("fields", []), features

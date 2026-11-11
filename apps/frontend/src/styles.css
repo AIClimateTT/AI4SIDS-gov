@@ -3,6 +3,7 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 @import '@fontsource-variable/inter';
+@import 'driver.js/dist/driver.css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -273,4 +274,42 @@ body {
   h3 {
     break-after: avoid;
   }
+}
+
+/* Corporation tour: a popover beside the control. The dimmed layer does not
+   take clicks, and the rest of the page stays usable. */
+.driver-overlay,
+.driver-overlay * {
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
+
+.driver-active,
+.driver-active * {
+  pointer-events: auto !important;
+}
+
+.driver-overlay,
+.driver-overlay * {
+  pointer-events: none !important;
+}
+
+.corp-tour-popover {
+  font-family: inherit;
+  font-size: 14px;
+  max-width: 280px;
+}
+
+.corp-tour-popover .driver-popover-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.corp-tour-popover .driver-popover-description {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.corp-tour-popover .corp-tour-dismiss {
+  margin-right: auto;
 }

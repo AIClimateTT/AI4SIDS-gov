@@ -30,6 +30,13 @@ describe('Composer', () => {
     )
   })
 
+  it('marks the home composer for the walkthrough', () => {
+    render(
+      <Composer corporation={CORP} createSession={vi.fn()} onStarted={vi.fn()} />,
+    )
+    expect(document.querySelector('[data-tour="home-composer"]')).not.toBeNull()
+  })
+
   it('does not start a session on empty input', () => {
     const create = vi.fn()
     render(<Composer corporation={CORP} createSession={create} onStarted={vi.fn()} />)

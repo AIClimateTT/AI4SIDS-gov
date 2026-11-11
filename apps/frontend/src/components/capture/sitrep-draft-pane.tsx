@@ -27,10 +27,12 @@ function ViewToggle({
 }) {
   return (
     <div className="ml-auto flex items-center gap-0.5 rounded-lg border bg-muted/50 p-0.5">
-      {([
-        ['draft', 'Draft'],
-        ['final', 'Final'],
-      ] as const).map(([value, label]) => (
+      {(
+        [
+          ['draft', 'Draft'],
+          ['final', 'Final'],
+        ] as const
+      ).map(([value, label]) => (
         <button
           key={value}
           type="button"
@@ -57,6 +59,7 @@ export function SitrepDraftPane({
   onDownloadPdf,
   previewPending,
   issuePending,
+  anchors = true,
 }: {
   session: CaptureSession
   eventTitle?: string | null
@@ -65,6 +68,8 @@ export function SitrepDraftPane({
   onDownloadPdf?: () => void
   previewPending: boolean
   issuePending: boolean
+  /** Marks Issue for the walkthrough. Off on the hidden mobile copy. */
+  anchors?: boolean
 }) {
   const [view, setView] = useState<SitrepView>('draft')
   const sitrep = session.sitrep
@@ -173,7 +178,12 @@ export function SitrepDraftPane({
             Download PDF
           </Button>
         ) : null}
-        <Button type="button" disabled={issueDisabled} onClick={onIssue}>
+        <Button
+          type="button"
+          disabled={issueDisabled}
+          data-tour={anchors ? 'issue' : undefined}
+          onClick={onIssue}
+        >
           {filed ? 'Issued' : 'Issue'}
         </Button>
       </div>

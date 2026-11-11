@@ -331,6 +331,18 @@ def ingest_csv(file_path: Path, session: Session, salt: str) -> IngestResult:
         require_survey123_headers(header)
         raw_rows = [dict(zip(header, values)) for values in reader if any(values)]
 
+    return ingest_rows(header, raw_rows, session, salt, source=str(file_path))
+
+
+def ingest_rows(
+    header: list[str],
+    raw_rows: list[dict[str, str]],
+    session: Session,
+    salt: str,
+    *,
+    source: str,
+) -> IngestResult:
+    """Store rows shaped like a Survey123 CSV export, whatever they came from."""
     warnings = [
         f"Column {name!r} is not in this CSV, so it was left blank on every row."
         for name in EXPECTED_COLUMNS
@@ -416,7 +428,7 @@ def ingest_csv(file_path: Path, session: Session, salt: str) -> IngestResult:
                 **fields,
                 is_duplicate=is_duplicate,
                 duplicate_reason=duplicate_reason,
-                source_file=str(file_path),
+                source_file=source,
                 ingested_at=datetime.now(timezone.utc),
             )
             session.add(incident)
@@ -431,7 +443,7 @@ def ingest_csv(file_path: Path, session: Session, salt: str) -> IngestResult:
                     setattr(existing, key, value)
                 existing.is_duplicate = is_duplicate
                 existing.duplicate_reason = duplicate_reason
-                existing.source_file = str(file_path)
+                existing.source_file = source
                 existing.ingested_at = datetime.now(timezone.utc)
                 rows_updated += 1
 

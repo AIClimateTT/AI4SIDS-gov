@@ -107,6 +107,11 @@ describe('CaptureRecord', () => {
     expect(onReview).toHaveBeenCalled()
   })
 
+  it('marks the situation boxes for the walkthrough', () => {
+    renderRecord(<CaptureRecord session={session} onSave={vi.fn()} />)
+    expect(document.querySelector('[data-tour="situation"]')).not.toBeNull()
+  })
+
   it('shows empty placeholders for overview and present activity', () => {
     renderRecord(<CaptureRecord session={session} onSave={vi.fn()} />)
     expect(
