@@ -21,16 +21,23 @@ type SitrepView = 'draft' | 'final'
 function ViewToggle({
   view,
   onChange,
+  anchor,
 }: {
   view: SitrepView
   onChange: (next: SitrepView) => void
+  anchor?: boolean
 }) {
   return (
-    <div className="ml-auto flex items-center gap-0.5 rounded-lg border bg-muted/50 p-0.5">
-      {([
-        ['draft', 'Draft'],
-        ['final', 'Final'],
-      ] as const).map(([value, label]) => (
+    <div
+      className="ml-auto flex items-center gap-0.5 rounded-lg border bg-muted/50 p-0.5"
+      data-tour={anchor ? 'sitrep-view' : undefined}
+    >
+      {(
+        [
+          ['draft', 'Draft'],
+          ['final', 'Final'],
+        ] as const
+      ).map(([value, label]) => (
         <button
           key={value}
           type="button"
@@ -57,6 +64,7 @@ export function SitrepDraftPane({
   onDownloadPdf,
   previewPending,
   issuePending,
+  anchors = true,
 }: {
   session: CaptureSession
   eventTitle?: string | null
@@ -65,6 +73,9 @@ export function SitrepDraftPane({
   onDownloadPdf?: () => void
   previewPending: boolean
   issuePending: boolean
+  /** Marks the view toggle, Generate draft and Issue for the walkthrough.
+   * Off on the hidden mobile copy. */
+  anchors?: boolean
 }) {
   const [view, setView] = useState<SitrepView>('draft')
   const sitrep = session.sitrep
@@ -83,6 +94,7 @@ export function SitrepDraftPane({
               <Button
                 type="button"
                 disabled={previewPending}
+                data-tour={anchors ? 'sitrep-generate' : undefined}
                 onClick={onPreview}
               >
                 Generate draft
@@ -116,7 +128,7 @@ export function SitrepDraftPane({
               Facts changed — refresh to update the draft.
             </span>
           ) : null}
-          <ViewToggle view={view} onChange={setView} />
+          <ViewToggle view={view} onChange={setView} anchor={anchors} />
         </div>
 
         {isFinal ? (
@@ -173,7 +185,12 @@ export function SitrepDraftPane({
             Download PDF
           </Button>
         ) : null}
-        <Button type="button" disabled={issueDisabled} onClick={onIssue}>
+        <Button
+          type="button"
+          disabled={issueDisabled}
+          data-tour={anchors ? 'issue' : undefined}
+          onClick={onIssue}
+        >
           {filed ? 'Issued' : 'Issue'}
         </Button>
       </div>

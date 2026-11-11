@@ -91,7 +91,11 @@ function CorpHome({ identity }: { identity: CorpIdentity }) {
         description="Start a sitrep by describing what is happening. After the first update, confirm the event — the card stays until you do."
       />
 
-      {draft ? <DraftCard draft={draft} /> : null}
+      {draft ? (
+        <div data-tour="home-resume">
+          <DraftCard draft={draft} />
+        </div>
+      ) : null}
 
       <div className="flex max-w-2xl mx-auto w-full justify-center">
         <Composer

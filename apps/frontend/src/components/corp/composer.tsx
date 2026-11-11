@@ -1,7 +1,10 @@
 import { useState } from 'react'
 
 import { ChatComposer } from '@/components/chat/chat-composer'
-import { CORPORATION_LABELS, type CanonicalCorporation } from '@/lib/corporations'
+import {
+  CORPORATION_LABELS,
+  type CanonicalCorporation,
+} from '@/lib/corporations'
 
 export type ComposerProps = {
   corporation: CanonicalCorporation
@@ -12,7 +15,11 @@ export type ComposerProps = {
 // Filing by conversation is the primary path (see the plan brief): an
 // officer opens the app and just starts typing. This composer creates an
 // event-less session and hands the typed text off as the opening turn.
-export function Composer({ corporation, createSession, onStarted }: ComposerProps) {
+export function Composer({
+  corporation,
+  createSession,
+  onStarted,
+}: ComposerProps) {
   const [value, setValue] = useState('')
   const [pending, setPending] = useState(false)
 
@@ -32,13 +39,15 @@ export function Composer({ corporation, createSession, onStarted }: ComposerProp
   }
 
   return (
-    <ChatComposer
-      autoFocus
-      value={value}
-      onChange={setValue}
-      onSubmit={start}
-      disabled={pending}
-      placeholder={`What's happening in ${CORPORATION_LABELS[corporation]}?`}
-    />
+    <div data-tour="home-composer" className="w-full">
+      <ChatComposer
+        autoFocus
+        value={value}
+        onChange={setValue}
+        onSubmit={start}
+        disabled={pending}
+        placeholder={`What's happening in ${CORPORATION_LABELS[corporation]}?`}
+      />
+    </div>
   )
 }

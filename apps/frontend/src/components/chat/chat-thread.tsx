@@ -106,7 +106,7 @@ export function ChatThread({
         </MessageScroller>
       </MessageScrollerProvider>
       {banner ? <div className="shrink-0 pt-3">{banner}</div> : null}
-      <div className="shrink-0 pt-3">
+      <div data-tour="thread-composer" className="shrink-0 pt-3">
         <ChatComposer
           value={draft}
           onChange={setDraft}

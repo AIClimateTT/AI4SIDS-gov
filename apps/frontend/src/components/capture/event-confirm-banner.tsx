@@ -51,6 +51,7 @@ export function EventConfirmBanner({
   return (
     <section
       aria-label="Confirm event"
+      data-tour="event"
       className="rounded-lg border border-amber-700/25 bg-amber-50 px-3 py-3 text-sm dark:bg-amber-950/40"
     >
       <p className="font-medium">Confirm which event this sitrep belongs to</p>

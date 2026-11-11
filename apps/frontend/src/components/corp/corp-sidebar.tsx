@@ -1,6 +1,13 @@
-import { Link, useNavigate, useRouter, useRouterState } from '@tanstack/react-router'
-import { DownloadIcon, FileTextIcon, HouseIcon, MapPinIcon } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
+import {
+  Link,
+  useNavigate,
+  useRouter,
+  useRouterState,
+} from '@tanstack/react-router'
+import { DownloadIcon, FileTextIcon, HouseIcon, MapPinIcon } from 'lucide-react'
+
+import { CorpTips } from '@/components/corp/corp-tips'
 
 import {
   useCorpChatWorkspace,
@@ -198,6 +205,13 @@ export function CorpSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
+        <SidebarGroup className="p-0">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <CorpTips />
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroup>
         <SidebarGroup className="p-0">
           <SidebarGroupLabel>Resources</SidebarGroupLabel>
           <SidebarMenu>

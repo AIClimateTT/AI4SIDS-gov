@@ -101,6 +101,7 @@ describe('SitrepDraftPane', () => {
     )
     expect(screen.getByRole('button', { name: 'Generate draft' })).not.toBeNull()
     expect(screen.queryByRole('button', { name: 'Issue' })).toBeNull()
+    expect(document.querySelector('[data-tour="issue"]')).toBeNull()
   })
 
   it('renders live markdown and issue when a draft sitrep is present', () => {
@@ -115,6 +116,7 @@ describe('SitrepDraftPane', () => {
       />,
     )
     expect(screen.getByText(/Flooding in Arima/)).not.toBeNull()
+    expect(document.querySelector('[data-tour="issue"]')).not.toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Issue' }))
     expect(onIssue).toHaveBeenCalledTimes(1)
   })

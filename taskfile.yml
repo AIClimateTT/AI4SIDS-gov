@@ -5,7 +5,7 @@ vars:
   BACKEND_DIR: ./apps/backend
   FRONTEND_DIR: ./apps/frontend
   DATABASE_URL: "postgresql+psycopg://dmcu:dmcu_local@localhost:5434/dmcu"
-  LOCAL_COMPOSE_FILE: ./apps/backend/docker-compose.yml
+  LOCAL_COMPOSE_FILE: ./apps/backend/docker-compose.local.yml
 
 tasks:
   default:
@@ -56,6 +56,7 @@ tasks:
     desc: Start the backend
     dir: "{{.BACKEND_DIR}}"
     cmds:
+      - task: db:start
       - printf "\033]0;backend\007"
       - uv run fastapi dev app --host 0.0.0.0
 
@@ -87,10 +88,15 @@ tasks:
 
   # Database
   db:start:
-    desc: Start local PostgreSQL (apps/backend compose)
+    desc: Start local PostgreSQL if it is not already running
     cmds:
-      - docker compose -f {{.LOCAL_COMPOSE_FILE}} up -d postgres
       - |
+        if docker compose -f {{.LOCAL_COMPOSE_FILE}} ps --status running -q postgres | grep -q .; then
+          echo "PostgreSQL is already running."
+          exit 0
+        fi
+        echo "Starting PostgreSQL..."
+        docker compose -f {{.LOCAL_COMPOSE_FILE}} start postgres
         echo "Waiting for PostgreSQL to be ready..."
         for i in $(seq 1 30); do
           if docker compose -f {{.LOCAL_COMPOSE_FILE}} exec postgres pg_isready -U dmcu -d dmcu -q 2>/dev/null; then
