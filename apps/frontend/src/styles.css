@@ -276,28 +276,12 @@ body {
   }
 }
 
-/* Corporation tour: a popover beside the control. The dimmed layer does not
-   take clicks, and the rest of the page stays usable. */
-.driver-overlay,
-.driver-overlay * {
-  pointer-events: none !important;
-  opacity: 0 !important;
-}
-
-.driver-active,
-.driver-active * {
-  pointer-events: auto !important;
-}
-
-.driver-overlay,
-.driver-overlay * {
-  pointer-events: none !important;
-}
-
+/* Corporation tour: the page is dimmed except the control being explained,
+   which stays usable, and a popover sits beside it. */
 .corp-tour-popover {
   font-family: inherit;
   font-size: 14px;
-  max-width: 280px;
+  max-width: 320px;
 }
 
 .corp-tour-popover .driver-popover-title {

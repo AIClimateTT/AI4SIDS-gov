@@ -264,14 +264,26 @@ def set_password_command(
 db_app = typer.Typer()
 app.add_typer(db_app, name="db")
 
-SEED_ADMIN_EMAIL = "admin@mail.com"
 SEED_PASSWORD = "Password123!"
+
+# (email, first_name, last_name), all seeded as admins.
+SEED_ADMINS = [
+    ("murraydevon14@gmail.com", "Devon", "Murray - Developer"),
+    ("latoyapaul2508@gmail.com", "Latoya", "Paul - Developer"),
+    ("dmu_admin@mail.com", "DMU", "Admin"),
+    ("nivan.moonsammy@gov.tt", "Nivan", "Moonsammy"),
+]
+
+
+def _seed_corp_place(label: str) -> str:
+    # "San Juan/Laventille Regional Corporation" -> "San Juan/Laventille"
+    return re.sub(r" (Regional|City|Borough) Corporation$", "", label)
 
 
 def _seed_corp_email(label: str) -> str:
-    # "San Juan/Laventille Regional Corporation" -> san-juan-laventille@example.com
-    name = re.sub(r" (Regional|City|Borough) Corporation$", "", label)
-    return f"{re.sub(r'[/ ]', '-', name).lower()}@example.com"
+    # "San Juan/Laventille Regional Corporation" -> sanjuancorp@mail.com
+    first_place = _seed_corp_place(label).split("/")[0]
+    return f"{first_place.replace(' ', '').lower()}corp@mail.com"
 
 
 def _clear_tables(session: Session) -> None:
@@ -292,7 +304,7 @@ def _clear_tables(session: Session) -> None:
 def reset_db_command(
     yes: bool = typer.Option(False, "--yes", help="Skip the confirmation prompt"),
 ) -> None:
-    """Erase all data, then seed the admin and one account per corporation."""
+    """Erase all data, then seed the admins and one account per corporation."""
     from app.auth import models as auth_models
     from app.auth.passwords import hash_password
     from app.core import report_models  # noqa: F401
@@ -308,19 +320,24 @@ def reset_db_command(
     session = SessionLocal()
     try:
         _clear_tables(session)
-        session.add(
-            auth_models.User(
-                email=SEED_ADMIN_EMAIL,
-                role="admin",
-                is_active=True,
-                password_hash=hash_password(SEED_PASSWORD),
+        for email, first_name, last_name in SEED_ADMINS:
+            session.add(
+                auth_models.User(
+                    email=email,
+                    role="admin",
+                    first_name=first_name,
+                    last_name=last_name,
+                    is_active=True,
+                    password_hash=hash_password(SEED_PASSWORD),
+                )
             )
-        )
         for corporation, label in sorted(CORPORATION_LABELS.items()):
             session.add(
                 auth_models.User(
                     email=_seed_corp_email(label),
                     role="corp",
+                    first_name=_seed_corp_place(label),
+                    last_name="Corporation",
                     corporation=corporation,
                     is_active=True,
                     password_hash=hash_password(SEED_PASSWORD),
@@ -331,7 +348,8 @@ def reset_db_command(
         session.close()
 
     typer.echo(f"reset {target}")
-    typer.echo(f"admin: {SEED_ADMIN_EMAIL}")
+    for email, _, _ in SEED_ADMINS:
+        typer.echo(f"admin: {email}")
     for corporation, label in sorted(CORPORATION_LABELS.items()):
         typer.echo(f"corp: {_seed_corp_email(label)} ({corporation})")
 

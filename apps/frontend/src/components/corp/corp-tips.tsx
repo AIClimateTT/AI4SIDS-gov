@@ -26,7 +26,10 @@ export function CorpTips() {
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger render={<SidebarMenuButton tooltip="Tips" />}>
+      <PopoverTrigger
+        data-tour="tips"
+        render={<SidebarMenuButton tooltip="Tips" />}
+      >
         <CircleHelpIcon />
         <span>Tips</span>
       </PopoverTrigger>

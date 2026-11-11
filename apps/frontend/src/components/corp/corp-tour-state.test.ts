@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   dismissTour,
   nextStop,
-  rememberFactsNext,
+  rememberHomeSeen,
   resetTour,
   stepsForPage,
   tourPage,
@@ -39,31 +39,33 @@ describe('tour page', () => {
   })
 })
 
+const HOME = ['home-resume', 'home-composer', 'tips']
+const CONVERSATION = [
+  'thread',
+  'event',
+  'facts',
+  'situation',
+  'records',
+  'sitrep',
+  'sitrep-view',
+  'issue',
+]
+
 describe('steps for the page', () => {
-  it('starts on the home composer', () => {
-    expect(stepsForPage('/corp', memory())).toEqual(['home-composer'])
+  it('starts on home', () => {
+    expect(stepsForPage('/corp', memory())).toEqual(HOME)
   })
 
-  it('stays quiet on home after Next, and continues on a conversation', () => {
+  it('stays quiet on home once seen, and continues on a conversation', () => {
     const storage = memory()
-    rememberFactsNext(storage)
-    expect(nextStop(storage)).toBe('facts')
+    rememberHomeSeen(storage)
+    expect(nextStop(storage)).toBe('conversation')
     expect(stepsForPage('/corp', storage)).toBeNull()
-    expect(stepsForPage('/corp/c/8', storage)).toEqual([
-      'facts',
-      'situation',
-      'sitrep',
-      'issue',
-    ])
+    expect(stepsForPage('/corp/c/8', storage)).toEqual(CONVERSATION)
   })
 
-  it('starts at Facts when a draft is opened before home', () => {
-    expect(stepsForPage('/corp/c/3', memory())).toEqual([
-      'facts',
-      'situation',
-      'sitrep',
-      'issue',
-    ])
+  it('shows the conversation part when a draft is opened before home', () => {
+    expect(stepsForPage('/corp/c/3', memory())).toEqual(CONVERSATION)
   })
 
   it('stays quiet after the tour is dismissed, until it is reset', () => {
@@ -72,6 +74,6 @@ describe('steps for the page', () => {
     expect(stepsForPage('/corp', storage)).toBeNull()
     expect(stepsForPage('/corp/c/3', storage)).toBeNull()
     resetTour(storage)
-    expect(stepsForPage('/corp', storage)).toEqual(['home-composer'])
+    expect(stepsForPage('/corp', storage)).toEqual(HOME)
   })
 })

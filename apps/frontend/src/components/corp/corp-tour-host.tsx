@@ -4,7 +4,9 @@ import { useEffect, useState, useSyncExternalStore } from 'react'
 import { startCorpTour } from '@/components/corp/corp-tour'
 import {
   CORP_TOUR_RESTART,
+  READY_SELECTOR,
   stepsForPage,
+  tourPage,
 } from '@/components/corp/corp-tour-state'
 
 const DESKTOP_TOUR = '(min-width: 768px)'
@@ -23,15 +25,11 @@ function useDesktopTour() {
   return useSyncExternalStore(subscribeDesktop, desktopSnapshot, () => false)
 }
 
-const FIRST_SELECTOR: Record<string, string> = {
-  'home-composer': '[data-tour="home-composer"]',
-  facts: '[data-tour="facts"]',
-}
-
 /**
  * Starts the corporation walkthrough once the anchor is on the page, and
  * tears it down when the route changes. Narrow screens keep Tips, but the
  * Facts and Sitrep anchors sit behind View record, so the tour stays off.
+ * An issued conversation carries no anchors, so the tour never starts there.
  */
 export function CorpTourHost() {
   const pathname = useRouterState({
@@ -48,17 +46,18 @@ export function CorpTourHost() {
 
   useEffect(() => {
     if (!desktop) return
+    const page = tourPage(pathname)
+    if (page === 'other') return
     const steps = stepsForPage(pathname)
     if (!steps) return
-    const first = FIRST_SELECTOR[steps[0]]
-    if (!first) return
+    const ready = READY_SELECTOR[page]
 
     let cancelled = false
     let tour: { destroy: () => void } | null = null
     const begin = () => {
       if (cancelled || tour) return true
-      if (!document.querySelector(first)) return false
-      tour = startCorpTour(steps)
+      if (!document.querySelector(ready)) return false
+      tour = startCorpTour(page, steps)
       return true
     }
 

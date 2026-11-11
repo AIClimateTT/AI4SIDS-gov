@@ -8,12 +8,15 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
+import { flushSync } from 'react-dom'
 
 import { CaptureRecord } from '@/components/capture/capture-record'
 import { EventConfirmBanner } from '@/components/capture/event-confirm-banner'
 import { SitrepDraftPane } from '@/components/capture/sitrep-draft-pane'
 import { ChatThread } from '@/components/chat/chat-thread'
 import { toChatMessages } from '@/components/chat/messages'
+import { CORP_TOUR_SHOW_TAB } from '@/components/corp/corp-tour-state'
+import type { ArtifactTab } from '@/components/corp/corp-tour-state'
 import {
   createSseConnection,
   type ChatCustomEvent,
@@ -251,7 +254,7 @@ function CaptureChatSession({
           <ResizablePanel defaultSize="50%" minSize="32%" className="min-h-0">
             <div className="m-2 flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-background shadow-sm">
               <ArtifactPane
-                anchors
+                anchors={!isFiled}
                 session={session}
                 events={events}
                 eventTitle={eventTitle}
@@ -340,8 +343,24 @@ function ArtifactPane({
   anchors?: boolean
 }) {
   const autoPreviewedFor = useRef<number | null>(null)
+  const [tab, setTab] = useState<ArtifactTab>('facts')
+
+  // The walkthrough moves between tabs through this event rather than a
+  // click, so passing the Sitrep tab does not build a draft. flushSync puts
+  // the panel on the page before driver looks for its anchor.
+  useEffect(() => {
+    if (!anchors) return
+    const onShow = (event: Event) => {
+      const next = (event as CustomEvent<ArtifactTab>).detail
+      flushSync(() => setTab(next))
+    }
+    window.addEventListener(CORP_TOUR_SHOW_TAB, onShow)
+    return () => window.removeEventListener(CORP_TOUR_SHOW_TAB, onShow)
+  }, [anchors])
 
   function handleTabChange(value: unknown) {
+    if (value !== 'facts' && value !== 'sitrep') return
+    setTab(value)
     if (value !== 'sitrep') return
     if (autoPreviewedFor.current === session.id) return
     if (session.status !== 'draft') return
@@ -352,7 +371,7 @@ function ArtifactPane({
 
   return (
     <Tabs
-      defaultValue="facts"
+      value={tab}
       className="flex h-full min-h-0 flex-col gap-0"
       onValueChange={handleTabChange}
     >
@@ -364,6 +383,7 @@ function ArtifactPane({
           <TabsTrigger
             value="sitrep"
             data-tour={anchors ? 'sitrep-tab' : undefined}
+            data-sitrep={session.sitrep ? 'built' : 'none'}
           >
             Sitrep
           </TabsTrigger>

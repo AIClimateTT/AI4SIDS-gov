@@ -39,7 +39,8 @@ export type CaptureRecordProps = {
   pending?: boolean
   onSave: (payload: CaptureSessionUpdate) => void
   onReview?: () => void
-  /** Marks the situation boxes for the walkthrough. Off on the hidden mobile copy. */
+  /** Marks the situation boxes and the incidents header for the walkthrough.
+   * Off on the hidden mobile copy. */
   anchors?: boolean
 }
 
@@ -209,7 +210,10 @@ export function CaptureRecord({
         <TallyStrip incidents={session.incidents} />
 
         <section className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
+          <div
+            className="flex items-center justify-between gap-2"
+            data-tour={anchors ? 'records' : undefined}
+          >
             <h2 className="text-sm font-semibold text-muted-foreground">
               Incidents ({session.incidents.length})
             </h2>
