@@ -11,8 +11,13 @@ class Base(DeclarativeBase):
 
 
 def make_engine(url: str) -> Engine:
-    connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
-    return create_engine(url, connect_args=connect_args)
+    if url.startswith("sqlite"):
+        return create_engine(url, connect_args={"check_same_thread": False})
+    # A capture turn holds its connection for the whole model call, so the
+    # default pool (5 + 10 overflow) can run dry when a corporation's worth of
+    # officers send at once. 30 per process, two API processes, stays well
+    # under Postgres's default max_connections of 100.
+    return create_engine(url, pool_size=20, max_overflow=10)
 
 
 engine = make_engine(settings.database_url)

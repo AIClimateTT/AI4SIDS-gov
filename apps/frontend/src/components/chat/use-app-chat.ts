@@ -42,7 +42,9 @@ export function useAppChat({
     connection,
     initialMessages,
     threadId,
-    queue: 'drop',
+    // A message sent mid-turn waits its turn and goes out once the run
+    // settles, so the officer can keep typing while the facts are saved.
+    queue: { whenBusy: 'queue', drain: 'fifo' },
     onChunk: (chunk) => {
       if (!chunk || typeof chunk !== 'object' || !('type' in chunk)) return
       if (chunk.type !== 'CUSTOM') return
