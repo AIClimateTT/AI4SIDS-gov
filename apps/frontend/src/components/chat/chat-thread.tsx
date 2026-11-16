@@ -48,7 +48,7 @@ export function ChatThread({
   actions,
   banner,
 }: ChatThreadProps) {
-  const { messages, sendMessage, isLoading, error } = useAppChat({
+  const { messages, sendMessage, isLoading, error, queue } = useAppChat({
     connection,
     initialMessages,
     onCustomEvent,
@@ -71,9 +71,15 @@ export function ChatThread({
     (last?.role === 'user' ||
       (last?.role === 'assistant' && !messageText(last)))
 
+  // The reply streams before the facts are written, so the run is still
+  // going after the bubble fills in. Say so, or it looks finished.
+  const saving = isLoading && !waiting
+  const queued = queue ?? []
+
   function submit() {
     const cleaned = draft.trim()
-    if (!cleaned || disabled || isLoading) return
+    // Sending mid-turn is allowed: useAppChat queues it until the run settles.
+    if (!cleaned || disabled) return
     void sendMessage(cleaned)
     setDraft('')
   }
@@ -100,6 +106,31 @@ export function ChatThread({
                   </Message>
                 </MessageScrollerItem>
               ) : null}
+              {saving ? (
+                <MessageScrollerItem messageId="saving">
+                  <p role="status" className="px-1 text-xs text-muted-foreground">
+                    Still capturing — updating Facts…
+                  </p>
+                </MessageScrollerItem>
+              ) : null}
+              {queued.map((item) => (
+                <MessageScrollerItem key={item.id} messageId={item.id}>
+                  <Message align="end">
+                    <MessageContent>
+                      <Bubble variant="default" className="opacity-60">
+                        <BubbleContent>
+                          <p className="whitespace-pre-wrap">
+                            {typeof item.content === 'string' ? item.content : ''}
+                          </p>
+                        </BubbleContent>
+                      </Bubble>
+                      <p className="text-right text-xs text-muted-foreground">
+                        Queued — sends when this update is saved
+                      </p>
+                    </MessageContent>
+                  </Message>
+                </MessageScrollerItem>
+              ))}
             </MessageScrollerContent>
           </MessageScrollerViewport>
           <MessageScrollerButton />
@@ -111,7 +142,7 @@ export function ChatThread({
           value={draft}
           onChange={setDraft}
           onSubmit={submit}
-          disabled={disabled || isLoading}
+          disabled={disabled}
           placeholder={placeholder}
           error={error?.message}
           actions={actions}
