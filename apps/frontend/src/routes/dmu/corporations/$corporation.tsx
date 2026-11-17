@@ -6,8 +6,11 @@ import { FilingsByEvent } from '@/components/dmu/filings-by-event'
 import { RecordsView } from '@/components/dmu/records-view'
 import { AlertLevelBadge, EmptyState, LoadingBlock, PageHeader } from '@/components/shared'
 import { Button } from '@/components/ui/button'
+import { useIdentity } from '@/hooks/use-identity'
 import { CORPORATION_LABELS, isCanonicalCorporation } from '@/lib/corporations'
 import { formatWhen } from '@/lib/format-when'
+import { isAdmin } from '@/lib/identity'
+import { adminCaptureQueries } from '@/lib/queries/admin-capture'
 import { eventQueries, submissionQueries } from '@/lib/queries/submissions'
 
 type CorporationTab = 'filings' | 'incidents' | 'logs'
@@ -51,6 +54,9 @@ function CorporationPage() {
 
   const filings = useQuery(submissionQueries.list({ corporation }))
   const events = useQuery(eventQueries.list(corporation))
+  const { identity } = useIdentity()
+  const admin = isAdmin(identity)
+  const captureSessions = useQuery(adminCaptureQueries.list(corporation, admin))
 
   const latest = useMemo(
     () =>
@@ -101,6 +107,7 @@ function CorporationPage() {
               corporation={corporation}
               filings={filings.data}
               events={events.data}
+              captureSessions={admin ? (captureSessions.data ?? []) : undefined}
             />
           ) : null}
         </>

@@ -7,7 +7,7 @@ export const Route = createFileRoute('/dmu')({
     await requireAuth({ location })
   },
   component: () => (
-    <div className="mx-auto w-full max-w-6xl space-y-6">
+    <div className="w-full space-y-6 lg:p-2">
       <Outlet />
     </div>
   ),
