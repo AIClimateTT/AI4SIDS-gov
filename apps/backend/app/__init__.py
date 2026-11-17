@@ -1,6 +1,7 @@
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.admin_capture import router as admin_capture_router
 from app.api.auth import router as auth_router
 from app.api.incidents import router as incidents_router
 from app.api.ingest import router as ingest_router
@@ -47,6 +48,7 @@ def create_app() -> FastAPI:
     app.include_router(situation_logs_router, dependencies=dmu_only)
     app.include_router(submissions_router)
     app.include_router(capture_router)
+    app.include_router(admin_capture_router)
     app.include_router(auth_router)
     app.include_router(users_router)
     app.include_router(quality_router, dependencies=dmu_only)
