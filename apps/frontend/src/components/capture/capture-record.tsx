@@ -173,6 +173,7 @@ export function CaptureRecord({
           />
           <SituationField
             label="Alert wording"
+            hint="Only the Met Office alert as issued. Leave blank if there is no alert."
             value={session.alert_detail ?? null}
             placeholder="Flood Alert #2 – Yellow Level – extended until…"
             disabled={disabled}
@@ -190,8 +191,9 @@ export function CaptureRecord({
           />
           <SituationField
             label="Present activity"
+            hint="One line on what your DMU is doing now. Requests go in situation logs."
             value={session.present_activity}
-            placeholder="What is happening now…"
+            placeholder="e.g. Field assessments ongoing"
             disabled={disabled}
             onCommit={(value) =>
               onSave(
@@ -362,12 +364,14 @@ export function CaptureRecord({
 
 function SituationField({
   label,
+  hint,
   value,
   placeholder,
   disabled,
   onCommit,
 }: {
   label: string
+  hint?: string
   value: string | null
   placeholder: string
   disabled?: boolean
@@ -398,6 +402,7 @@ function SituationField({
   return (
     <label className="block space-y-1">
       <span className="text-sm font-medium">{label}</span>
+      {hint ? <span className="block text-xs text-muted-foreground">{hint}</span> : null}
       <Textarea
         aria-label={label}
         value={draft}

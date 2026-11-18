@@ -64,6 +64,7 @@ def generate_working_set_sitrep(
     llm_client: LLMClient,
     request_id: str,
 ) -> GeneratedReport:
+    working = working.without_blank_rows()
     facts = assemble_working_set_facts(
         working, corporation=corporation, event_id=event_id
     )

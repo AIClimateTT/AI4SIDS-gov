@@ -46,3 +46,31 @@ class CaptureSession(Base):
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
+class CaptureTurn(Base):
+    """What the working set looked like after each change to a capture session.
+
+    One row per officer message, manual edit, CSV import, event attach,
+    sitrep preview and issue. The model's raw output is kept so a turn the
+    clerk "could not read" can be diagnosed, and each sitrep generation keeps
+    its own copy instead of overwriting the last. Review data only: nothing
+    reads it back into a filing."""
+
+    __tablename__ = "capture_turns"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    session_id: Mapped[int] = mapped_column(
+        ForeignKey("capture_sessions.id"), nullable=False, index=True
+    )
+    seq: Mapped[int] = mapped_column(Integer, nullable=False)
+    kind: Mapped[str] = mapped_column(String, nullable=False)
+    user_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    assistant_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    raw_output: Mapped[str | None] = mapped_column(Text, nullable=True)
+    parse_ok: Mapped[bool | None] = mapped_column(nullable=True)
+    template_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    working: Mapped[dict] = mapped_column(JSON, nullable=False)
+    missing: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    sitrep_markdown: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)

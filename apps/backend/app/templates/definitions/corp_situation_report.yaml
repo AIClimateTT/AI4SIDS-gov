@@ -1,5 +1,5 @@
 name: corp_situation_report
-version: 101
+version: 102
 title: Corporation Situation Report
 description: One sitrep filing — this conversation's incidents and logs, cited.
 params:
@@ -10,6 +10,9 @@ params:
 data_requirements:
   - module: sitreps
     metric: incident_count
+    params: { corporation: "{corporation}", submission_id: "{submission_id}" }
+  - module: sitreps
+    metric: impact_summary
     params: { corporation: "{corporation}", submission_id: "{submission_id}" }
   - module: sitreps
     metric: incident_register
@@ -39,10 +42,14 @@ narration:
   skills:
     capture: |
       Pipeline in is this turn’s message plus the working set (source of truth).
-      Pipeline out is JSON: confirmation plus the full working set. Confirm what
-      was just captured, then at most two missing-field probes. Incidents are
-      discrete events; logs are operational or resource state. Preserve row_id.
-      Manual fields are settled. Leave a count null when the officer gave no number.
+      Pipeline out is JSON: confirmation plus the full working set. Say only what
+      changed, then at most two plain-word questions. An incident is one hazard at
+      one place: an area (community or streets, with an overall count) or a
+      household (one identified property). Follow-up detail updates the incident
+      it describes; a new place or a separate item is a new incident. Never drop
+      or relocate an incident unless asked. Counts go in their own fields; leave a
+      count null when the officer gave no number. Logs are operational or
+      resource state, including requests. Preserve row_id. Manual fields are settled.
     compose: Not narrated; rendered from data.
   output_sections: []
 render:

@@ -4,6 +4,7 @@ and Survey123 (verified). `source` is the label stored on templates and citation
 from sqlalchemy.orm import Session
 
 from app.core.contracts import Fact
+from app.modules.sitreps.impact_metrics import IMPACT_METRIC_FUNCTIONS
 from app.modules.sitreps.log_metrics import LOG_METRIC_FUNCTIONS
 from app.modules.sitreps.minister_metrics import MINISTER_METRIC_FUNCTIONS
 from app.modules.sitreps.models import SitrepIncident
@@ -16,7 +17,11 @@ SOURCES = ("sitreps", "survey123")
 # Running it on sitreps returns [] so an older report's definition cannot crash,
 # but it is not offered to new templates.
 _SITREP_UNSUPPORTED = frozenset({"data_coverage"})
-_SITREP_OWN_METRICS = {**LOG_METRIC_FUNCTIONS, **MINISTER_METRIC_FUNCTIONS}
+_SITREP_OWN_METRICS = {
+    **LOG_METRIC_FUNCTIONS,
+    **MINISTER_METRIC_FUNCTIONS,
+    **IMPACT_METRIC_FUNCTIONS,
+}
 
 
 def _require_source(source: str) -> None:

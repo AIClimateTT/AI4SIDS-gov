@@ -73,7 +73,9 @@ def test_turn_extracts_incident_and_log_and_summarizes():
     assert working.alert_level == "yellow"
     assert working.incidents[0].community == "Petit Valley"
     assert working.incidents[0].incident_type == "flooding_"
-    assert working.incidents[0].injuries_count == 0
+    # "no injuries" rules injuries out without stating a count of zero.
+    assert working.incidents[0].injuries_occurred is False
+    assert working.incidents[0].injuries_count is None
     assert working.logs[0].quantity == 200
     assert any("date" in item.message.lower() for item in missing)
 

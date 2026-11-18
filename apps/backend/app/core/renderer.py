@@ -141,6 +141,9 @@ def _document_title(template: Template, fact_table: FactTable) -> str:
 def _place(scope: dict[str, str]) -> str:
     community = (scope.get("community") or "").strip()
     street = (scope.get("street") or "").strip()
+    house = (scope.get("house_number") or "").strip()
+    if house:
+        street = f"{house} {street}".strip()
     if community and street:
         return f"{community} / {street}"
     return community or street
@@ -221,6 +224,17 @@ def render_filing(
             parts.extend(["## Situation Summary", ""])
             parts.extend(_md_table(headers(["Type", "Count"]), rows))
 
+    impact = [
+        fact for fact in fact_table.facts if fact.metric == "impact_summary" and fact.value
+    ]
+    if impact:
+        parts.extend(["## Impact", ""])
+        rows = [
+            cited([fact.scope.get("label") or "", _format_number(fact.value)], fact.citation.cid)
+            for fact in impact
+        ]
+        parts.extend(_md_table(headers(["Measure", "Total"]), rows))
+
     stock = [
         fact
         for fact in fact_table.facts
@@ -277,6 +291,7 @@ def render_filing(
                         _place(fact.scope),
                         _humanize(fact.scope.get("type") or ""),
                         fact.scope.get("summary") or "",
+                        fact.scope.get("affected") or "",
                         fact.scope.get("injuries") or "",
                         fact.scope.get("deaths") or "",
                         fact.scope.get("action") or "",
@@ -293,6 +308,7 @@ def render_filing(
                         "Location",
                         "Type",
                         "Description",
+                        "Affected",
                         "Injuries",
                         "Deaths",
                         "Action Taken",

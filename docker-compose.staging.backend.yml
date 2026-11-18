@@ -1,0 +1,88 @@
+# Dokploy app: staging-backend (api + worker)
+# Watch paths: apps/backend/**, docker-compose.staging.backend.yml
+# Requires staging-infra (dmcu-staging-network, postgres-staging) and the
+# production infra (dmcu-app-network, nim-prod) to be up.
+name: dmcu-staging-backend
+
+x-app-env: &app-env
+  APP_ENV: ${APP_ENV:-staging}
+  DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://dmcu:dmcu_staging@postgres-staging:5432/dmcu}
+  DEDUP_SALT: ${DEDUP_SALT:-staging-salt-change-me}
+  LLM_PROVIDER: ${LLM_PROVIDER:-nim}
+  NIM_BASE_URL: ${NIM_BASE_URL:-http://nim-prod:8000}
+  NIM_API_KEY: ${NIM_API_KEY:-none}
+  NIM_MODEL: ${NIM_MODEL:-openai/gpt-oss-20b}
+  NIM_CHAT_MODEL: ${NIM_CHAT_MODEL:-openai/gpt-oss-20b}
+  JOB_BACKEND: ${JOB_BACKEND:-procrastinate}
+  REPORT_TIMEZONE: ${REPORT_TIMEZONE:-America/Port_of_Spain}
+  SURVEY123_TRANSPORT: ${SURVEY123_TRANSPORT:-inprocess}
+  SURVEY123_API_KEY: ${SURVEY123_API_KEY:-none}
+  SURVEY123_API_URL: ${SURVEY123_API_URL:-}
+  SECRET_KEY: ${SECRET_KEY:-change-me-staging-not-production}
+  APP_URL: ${APP_URL:-http://localhost:3001}
+  APP_NAME: ${APP_NAME:-DMCU (Staging)}
+  FROM_EMAIL: ${FROM_EMAIL:-DMCU Staging <noreply@example.com>}
+  RESEND_API_KEY: ${RESEND_API_KEY:-}
+  MAILPIT_URL: ${MAILPIT_URL:-http://localhost:8025}
+  SUPPORT_EMAIL: ${SUPPORT_EMAIL:-support@example.com}
+  BRAND_COLOR: ${BRAND_COLOR:-#111827}
+  EMAIL_LOGO_URL: ${EMAIL_LOGO_URL:-https://example.com/logo.png}
+
+services:
+  backend-staging:
+    container_name: dmcu-staging-backend
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    expose:
+      - "8082"
+    ports:
+      - "127.0.0.1:8001:8082"
+    environment:
+      <<: *app-env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8082/healthcheck')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    networks:
+      - staging-network
+      # Only to reach nim-prod; DATABASE_URL points at postgres-staging.
+      - app-network
+      - dokploy-network
+
+  worker-staging:
+    container_name: dmcu-staging-worker
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    command: ["worker"]
+    depends_on:
+      backend-staging:
+        condition: service_healthy
+    environment:
+      <<: *app-env
+    restart: unless-stopped
+    networks:
+      - staging-network
+      - app-network
+
+networks:
+  staging-network:
+    name: dmcu-staging-network
+    external: true
+  app-network:
+    name: dmcu-app-network
+    external: true
+  dokploy-network:
+    external: true

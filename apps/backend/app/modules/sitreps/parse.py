@@ -171,6 +171,10 @@ def parse_incident_row(
         "Injuries Count": "injuries_count",
         "Deaths Count": "deaths_count",
         "Special Needs Occupants": "special_needs_occupants",
+        "Households Affected": "households_affected",
+        "Persons Affected": "persons_affected",
+        "Persons Displaced": "persons_displaced",
+        "Persons Marooned": "persons_marooned",
     }
     numbers: dict[str, int | None] = {}
     for column, field in numeric_cells.items():
@@ -208,6 +212,21 @@ def parse_incident_row(
             )
         flags[field] = value
 
+    # Optional columns: older templates lack them, and a blank is "not known".
+    access_raw = _clean(row.get("Access Blocked"))
+    access_blocked = parse_corp_bool(access_raw) if access_raw is not None else None
+    if access_raw is not None and access_blocked is None:
+        return None, RowError(
+            row_number=row_number,
+            reason=f"Access Blocked is not yes or no: {access_raw!r}",
+        )
+    scope_raw = (_clean(row.get("Incident Scope")) or "").lower() or None
+    if scope_raw is not None and scope_raw not in ("area", "household"):
+        return None, RowError(
+            row_number=row_number,
+            reason=f"Incident Scope must be area or household: {scope_raw!r}",
+        )
+
     return (
         {
             "row_id": row_id,
@@ -223,6 +242,13 @@ def parse_incident_row(
             "deaths_count": numbers["deaths_count"],
             "building_damage": _clean(row.get("Building Damage")),
             "special_needs_occupants": numbers["special_needs_occupants"],
+            "incident_scope": scope_raw,
+            "house_number": _clean(row.get("House Number")),
+            "households_affected": numbers["households_affected"],
+            "persons_affected": numbers["persons_affected"],
+            "persons_displaced": numbers["persons_displaced"],
+            "persons_marooned": numbers["persons_marooned"],
+            "access_blocked": access_blocked,
             "estimated_damage_cost": cost,
             "action_taken": _clean(row.get("Action Taken")),
             "follow_up_flags": {

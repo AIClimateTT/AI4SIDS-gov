@@ -132,3 +132,9 @@ tasks:
 
 
  
+  # Staging / UAT seeding (stacks are deployed by Dokploy)
+  staging:seed:
+    desc: ERASE staging data and seed the admin and corporation accounts
+    prompt: This erases all staging data. Continue?
+    cmds:
+      - docker exec dmcu-staging-backend python -m app.cli db reset --yes

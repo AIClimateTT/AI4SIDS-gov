@@ -53,7 +53,7 @@ def relief_stock_summary(params: dict, session: Session | None = None, rows=None
             Fact(
                 metric="relief_stock_summary",
                 value=_quantity(row),
-                unit=getattr(row, "unit", None) or "units",
+                unit=getattr(row, "unit", None) or "",
                 scope=build_scope(
                     params,
                     item=item,

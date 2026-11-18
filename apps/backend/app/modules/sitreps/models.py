@@ -36,6 +36,7 @@ LOG_STATUSES = (
     "ongoing",
     "completed",
     "procuring",
+    "requested",
 )
 
 
@@ -130,6 +131,15 @@ class SitrepIncident(Base):
     building_damage: Mapped[str | None] = mapped_column(Text, nullable=True)
     special_needs_occupants: Mapped[int | None] = mapped_column(Integer, nullable=True)
     estimated_damage_cost: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
+
+    # area (aggregate counts for a community or streets) or household (one property).
+    incident_scope: Mapped[str | None] = mapped_column(String, nullable=True)
+    house_number: Mapped[str | None] = mapped_column(String, nullable=True)
+    households_affected: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    persons_affected: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    persons_displaced: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    persons_marooned: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    access_blocked: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
     action_taken: Mapped[str | None] = mapped_column(Text, nullable=True)
     follow_up_flags: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)

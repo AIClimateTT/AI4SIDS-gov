@@ -1,11 +1,11 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.localtime import to_local
 from app.modules.capture.missing import missing_fields
-from app.modules.capture.models import CaptureSession
+from app.modules.capture.models import CaptureSession, CaptureTurn
 from app.modules.capture.schemas import (
     CaptureIncident,
     CaptureLog,
@@ -118,3 +118,60 @@ def save_session(
 
 def session_missing(row: CaptureSession) -> list[MissingField]:
     return missing_fields(working_set_from_session(row))
+
+
+def record_turn(
+    db: Session,
+    row: CaptureSession,
+    kind: str,
+    *,
+    user_message: str | None = None,
+    assistant_message: str | None = None,
+    raw_output: str | None = None,
+    parse_ok: bool | None = None,
+    template_version: int | None = None,
+    sitrep_markdown: str | None = None,
+) -> CaptureTurn:
+    """Snapshot the session's working set as it stands after a change."""
+    seq = (
+        db.scalar(
+            select(func.max(CaptureTurn.seq)).where(CaptureTurn.session_id == row.id)
+        )
+        or 0
+    ) + 1
+    turn = CaptureTurn(
+        session_id=row.id,
+        seq=seq,
+        kind=kind,
+        user_message=user_message,
+        assistant_message=assistant_message,
+        raw_output=raw_output,
+        parse_ok=parse_ok,
+        template_version=template_version,
+        working=working_set_from_session(row).model_dump(mode="json"),
+        missing=[item.model_dump() for item in session_missing(row)],
+        sitrep_markdown=sitrep_markdown,
+        created_at=_now(),
+    )
+    db.add(turn)
+    db.commit()
+    return turn
+
+
+def list_turns(db: Session, session_id: int) -> list[CaptureTurn]:
+    return list(
+        db.scalars(
+            select(CaptureTurn)
+            .where(CaptureTurn.session_id == session_id)
+            .order_by(CaptureTurn.seq)
+        ).all()
+    )
+
+
+def refresh_as_at(row: CaptureSession) -> None:
+    """A sitrep is as at the latest information in it, not when the session
+    opened. Siparia's report, opened Nov 13 and last updated Nov 16, went out
+    as at Nov 13. An as-at the officer typed is theirs and stays."""
+    if "as_at" in (row.manual_fields or []):
+        return
+    row.as_at = to_local(datetime.now(timezone.utc)).replace(tzinfo=None)

@@ -212,7 +212,13 @@ function SitrepRow({ session }: { session: CaptureSession }) {
       className="block"
     >
       <ContentCard
-        title={session.status === 'draft' ? 'Draft sitrep' : 'Filed sitrep'}
+        title={
+          session.status === 'draft'
+            ? 'Draft sitrep'
+            : session.status === 'withdrawn'
+              ? 'Withdrawn sitrep'
+              : 'Filed sitrep'
+        }
         description={`Updated ${formatWhen(session.updated_at)}`}
         action={
           <div className="flex items-center gap-2">
@@ -220,7 +226,11 @@ function SitrepRow({ session }: { session: CaptureSession }) {
             <Badge
               variant={session.status === 'draft' ? 'outline' : 'secondary'}
             >
-              {session.status === 'draft' ? 'Draft' : 'Filed'}
+              {session.status === 'draft'
+                ? 'Draft'
+                : session.status === 'withdrawn'
+                  ? 'Withdrawn'
+                  : 'Filed'}
             </Badge>
           </div>
         }

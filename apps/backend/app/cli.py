@@ -94,6 +94,39 @@ def create_submission_command(
     typer.echo(result.model_dump_json(indent=2))
 
 
+@app.command("withdraw-submission")
+def withdraw_submission_command(
+    submission_id: int,
+    yes: bool = typer.Option(False, "--yes", help="Delete; without it, only show the plan"),
+) -> None:
+    """Remove a filing that should never have reached the register (e.g. test data).
+
+    Deletes its incidents, logs and issued report. The capture session is kept,
+    marked withdrawn, so its transcript can still be exported."""
+    from app.core import report_models  # noqa: F401
+    from app.modules.capture import models as capture_models  # noqa: F401
+    from app.modules.sitreps.withdraw import plan_withdrawal, withdraw_submission
+    from app.quality import models as quality_models  # noqa: F401
+
+    session = SessionLocal()
+    try:
+        plan = plan_withdrawal(session, submission_id)
+        if plan is None:
+            typer.echo(f"submission not found: {submission_id}", err=True)
+            raise typer.Exit(code=1)
+        target = engine.url.render_as_string(hide_password=True)
+        typer.echo(f"database: {target}")
+        for line in plan.lines():
+            typer.echo(line)
+        if not yes:
+            typer.echo("dry run: nothing deleted. Re-run with --yes to withdraw.")
+            return
+        withdraw_submission(session, plan)
+        typer.echo(f"withdrew submission {submission_id}")
+    finally:
+        session.close()
+
+
 @app.command("list-templates")
 def list_templates_command() -> None:
     for template in list_templates():

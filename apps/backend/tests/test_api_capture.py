@@ -307,13 +307,19 @@ def test_file_creates_submission_rows_metrics_can_see(monkeypatch):
 
     from app.modules.sitreps.models import SitrepIncident
 
+    from datetime import timedelta
+
+    from app.modules.capture.guards import today_local
+
+    # The as-at time is the system's (the moment of filing), not the model's.
+    today = today_local()
     Session = sessionmaker(bind=db_engine)
     db = Session()
     facts = run_metric("sitreps", "incident_count",
         {
             "corporation": CORP,
-            "date_from": "2026-08-01",
-            "date_to": "2026-08-31",
+            "date_from": (today - timedelta(days=1)).isoformat(),
+            "date_to": (today + timedelta(days=1)).isoformat(),
         },
         db,
     )

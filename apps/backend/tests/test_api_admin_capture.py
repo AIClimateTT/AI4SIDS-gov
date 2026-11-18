@@ -156,3 +156,73 @@ def test_only_admin_can_export_transcripts(monkeypatch, role, corporation):
     assert listing.status_code == 403
     assert export.status_code == 403
     Base.metadata.drop_all(db_engine)
+
+
+def _transcript(client: TestClient, session_id: int) -> dict:
+    response = client.get(
+        f"/admin/capture/sessions/{session_id}/transcript", params={"format": "json"}
+    )
+    assert response.status_code == 200, response.text
+    return json.loads(response.content)
+
+
+def test_each_officer_turn_is_snapshotted_with_its_changes(monkeypatch):
+    client = make_client(monkeypatch)
+    _event_id, session_id = _draft_with_turn(client)
+
+    turns = _transcript(client, session_id)["turns"]
+
+    assert [turn["kind"] for turn in turns] == ["turn"]
+    turn = turns[0]
+    assert turn["user_message"].startswith("5 houses flooded")
+    assert turn["parse_ok"] is True
+    assert turn["raw_output"]
+    assert turn["template_version"]
+    assert turn["working"]["incidents"][0]["community"] == "Petit Valley"
+    assert any(line.startswith("added incident 1") for line in turn["changes"])
+
+
+def test_unreadable_model_output_is_kept_for_diagnosis(monkeypatch):
+    client = make_client(monkeypatch, responses=["not json at all"])
+    event_id = create_event(client)
+    session_id = create_capture(client, event_id)["id"]
+    client.post(
+        f"/capture/sessions/{session_id}/turns",
+        json={"message": "Reports coming in of one blown off roof at 1:30 pm"},
+    )
+
+    turn = _transcript(client, session_id)["turns"][0]
+
+    assert turn["parse_ok"] is False
+    # The first reply and the one retry are both kept.
+    assert turn["raw_output"] == "not json at all\n\n--- retry ---\nnot json at all"
+    assert turn["changes"] == []
+    md = client.get(
+        f"/admin/capture/sessions/{session_id}/transcript", params={"format": "md"}
+    ).text
+    assert "model output unreadable" in md
+    assert "not json at all" in md
+
+
+def test_manual_edit_and_each_preview_keep_their_own_snapshot(monkeypatch):
+    client = make_client(monkeypatch)
+    _event_id, session_id = _draft_with_turn(client)
+    client.post(f"/capture/sessions/{session_id}/preview")
+    current = client.get(f"/capture/sessions/{session_id}").json()
+    edited = client.put(
+        f"/capture/sessions/{session_id}",
+        json={
+            "alert_level": "orange",
+            "incidents": current["incidents"],
+            "logs": current["logs"],
+        },
+    )
+    assert edited.status_code == 200, edited.text
+    client.post(f"/capture/sessions/{session_id}/preview")
+
+    turns = _transcript(client, session_id)["turns"]
+
+    assert [turn["kind"] for turn in turns] == ["turn", "preview", "edit", "preview"]
+    assert turns[1]["sitrep_markdown"] and turns[3]["sitrep_markdown"]
+    assert "alert_level: 'yellow' → 'orange'" in turns[2]["changes"]
+    assert [turn["seq"] for turn in turns] == [1, 2, 3, 4]
