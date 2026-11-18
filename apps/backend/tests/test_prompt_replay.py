@@ -233,3 +233,14 @@ def test_inline_cases_and_a_draft_prompt(client):
     assert body["result"]["cases"][0]["id"] == "try-once"
     assert body["result"]["summary"]["pass_rate"] == 1.0
     assert client.post("/evals", json={"inline_cases": [{"id": "x"}]}, headers=AUTH).status_code == 400
+
+
+def test_an_unreachable_source_says_why(client, monkeypatch):
+    monkeypatch.setattr(replay.settings, "eval_staging_database_url", "sqlite:////nonexistent/dir/x.db")
+    replay._engine.cache_clear()
+
+    response = client.get("/sessions", params={"source": "staging"}, headers=AUTH)
+
+    replay._engine.cache_clear()
+    assert response.status_code == 502
+    assert "OperationalError" in response.json()["detail"]

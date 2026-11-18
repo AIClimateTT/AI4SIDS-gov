@@ -32,8 +32,9 @@ from pathlib import Path
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
+from sqlalchemy.exc import SQLAlchemyError
 from starlette.background import BackgroundTask
 
 from app.config import settings
@@ -292,6 +293,20 @@ def _source(source: str):
             status_code=404,
             detail=f"unknown source {source!r}; configured: {sorted(replay.source_urls())}",
         ) from exc
+
+
+@app.exception_handler(SQLAlchemyError)
+@app.exception_handler(ImportError)
+async def _database_error(_request: Request, exc: Exception) -> JSONResponse:
+    """A source database that cannot be reached or read: say why (driver,
+    host, login, permission) instead of a bare 500. Messages name the host
+    and user, never the password."""
+    first_line = str(exc).strip().splitlines()[0] if str(exc).strip() else ""
+    logger.exception("source database error")
+    return JSONResponse(
+        status_code=502,
+        content={"detail": f"source database error: {type(exc).__name__}: {first_line}"},
+    )
 
 
 @app.get("/sources", dependencies=[Depends(require_key)])
