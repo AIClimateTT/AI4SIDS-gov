@@ -76,6 +76,21 @@ class Prompt:
         return f"{self.id}@{self.version}"
 
 
+@dataclass(frozen=True)
+class DraftPrompt(Prompt):
+    """Prompt text that is not a locked version: the working copy of the part
+    files, sent to the eval runner to try before it is committed. Never
+    recorded on a turn."""
+
+    @property
+    def ref(self) -> str:
+        return f"{self.id}@draft-{self.hash[:8]}"
+
+
+def draft_prompt(prompt_id: str, text: str) -> DraftPrompt:
+    return DraftPrompt(id=prompt_id, version=0, text=text, hash=prompt_hash(text))
+
+
 def prompt_hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 

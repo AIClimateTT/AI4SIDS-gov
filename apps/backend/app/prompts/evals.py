@@ -69,8 +69,17 @@ class RunResult:
 def load_cases(prompt_id: str, path: Path | None = None) -> list[Case]:
     path = path or EVALS_DIR / prompt_id / "cases.yaml"
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    return cases_from_items(raw["cases"])
+
+
+def cases_from_items(items: list[dict]) -> list[Case]:
+    """Cases from their YAML/JSON form: the test set file, or inline cases
+    sent to the eval runner to try once before they are committed."""
     cases = []
-    for item in raw["cases"]:
+    for item in items:
+        missing = [key for key in ("id", "message", "today", "checks") if key not in item]
+        if missing:
+            raise ValueError(f"case {item.get('id', '?')!r} is missing {missing}")
         today = item["today"]
         cases.append(
             Case(

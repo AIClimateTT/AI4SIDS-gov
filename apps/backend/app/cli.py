@@ -503,7 +503,14 @@ def _runner():
 
 
 def _runner_get(client, path: str, **params):
-    response = client.get(path, params=params or None)
+    import httpx
+
+    params = {key: value for key, value in params.items() if value is not None}
+    try:
+        response = client.get(path, params=params or None)
+    except httpx.TransportError as exc:
+        typer.echo(f"cannot reach the eval runner at {settings.eval_runner_url}: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
     if response.status_code >= 400:
         typer.echo(f"{response.status_code}: {response.text}", err=True)
         raise typer.Exit(code=1)
@@ -526,18 +533,28 @@ def prompts_remote_eval_command(
     version: Optional[int] = typer.Option(None, help="An earlier, frozen version; default current"),
     repeat: int = typer.Option(3, help="Runs per case (1-5)"),
     case: Optional[list[str]] = typer.Option(None, help="Only these case ids"),
+    draft: bool = typer.Option(
+        False, help="Send this checkout's prompt part files as an uncommitted draft instead of a version"
+    ),
+    inline: Optional[Path] = typer.Option(
+        None, help="A YAML file of cases (cases.yaml form) to run instead of the deployed test set"
+    ),
     wait: bool = typer.Option(True, help="Wait for the result and save it locally"),
 ) -> None:
     """Run the test set in prod against NIM; save the result in evals/<id>/results."""
-    import time
+    import yaml
 
     from app.prompts.evals import EVALS_DIR, summary_lines
+    from app.prompts.registry import current
 
+    body: dict = {"prompt_id": prompt_id, "version": version, "repeat": repeat, "cases": case or None}
+    if draft:
+        body["draft_text"] = current(prompt_id).text
+    if inline is not None:
+        loaded = yaml.safe_load(inline.read_text(encoding="utf-8"))
+        body["inline_cases"] = loaded["cases"] if isinstance(loaded, dict) else loaded
     with _runner() as client:
-        response = client.post(
-            "/evals",
-            json={"prompt_id": prompt_id, "version": version, "repeat": repeat, "cases": case or None},
-        )
+        response = client.post("/evals", json=body)
         if response.status_code >= 400:
             typer.echo(f"{response.status_code}: {response.text}", err=True)
             raise typer.Exit(code=1)
@@ -546,7 +563,7 @@ def prompts_remote_eval_command(
         from app.prompts.registry import load_version
 
         try:
-            local_hash = load_version(prompt_id, version).hash
+            local_hash = None if draft else load_version(prompt_id, version).hash
         except ValueError:
             local_hash = None
         typer.echo(f"started {run_id}: {started['total']} turns ({started['prompt_hash'][:12]})")
@@ -559,15 +576,7 @@ def prompts_remote_eval_command(
         if not wait:
             typer.echo(f"fetch later: python -m app.cli prompts remote-result {run_id}")
             return
-        seen = 0
-        while True:
-            state = _runner_get(client, f"/evals/{run_id}")
-            for line in state.get("log", [])[seen:]:
-                typer.echo(f"  {line}")
-            seen = len(state.get("log", [])) or seen
-            if state["status"] != "running":
-                break
-            time.sleep(10)
+        state = _wait_remote(client, run_id)
     _save_remote(state, EVALS_DIR / prompt_id / "results", summary_lines)
 
 
@@ -601,6 +610,11 @@ def prompts_remote_result_command(run_id: str, prompt_id: str = "corp_capture") 
     if state["status"] == "running":
         typer.echo(f"still running: {state['done']}/{state['total']}")
         return
+    if state.get("result", {}).get("kind") == "replay":
+        from app.prompts.replay import replay_lines
+
+        _save_remote(state, EVALS_DIR / "replays", replay_lines)
+        return
     _save_remote(state, EVALS_DIR / prompt_id / "results", summary_lines)
 
 
@@ -611,8 +625,108 @@ def prompts_remote_runs_command() -> None:
         runs = _runner_get(client, "/evals")
     for run in runs[:20]:
         rate = run.get("pass_rate") or (run.get("summary") or {}).get("pass_rate")
-        score = f"{rate:.0%}" if isinstance(rate, (int, float)) else run["status"]
+        if run.get("kind") == "replay":
+            score = f"replay {run.get('prompt', '')}" if run["status"] == "done" else run["status"]
+        else:
+            score = f"{rate:.0%}" if isinstance(rate, (int, float)) else run["status"]
         typer.echo(f"{run['id']}  {score}")
+
+
+def _wait_remote(client, run_id: str) -> dict:
+    import time
+
+    seen = 0
+    while True:
+        state = _runner_get(client, f"/evals/{run_id}")
+        for line in state.get("log", [])[seen:]:
+            typer.echo(f"  {line}")
+        seen = len(state.get("log", [])) or seen
+        if state["status"] != "running":
+            return state
+        time.sleep(10)
+
+
+@prompts_app.command("remote-sessions")
+def prompts_remote_sessions_command(
+    source: str = typer.Option("staging", help="staging or prod"),
+    corp: Optional[str] = typer.Option(None, help="Part of the corporation name, e.g. arima"),
+    since: Optional[str] = typer.Option(None, help="Changed on or after this date, YYYY-MM-DD"),
+    status: Optional[str] = typer.Option(None, help="draft or filed"),
+    limit: int = typer.Option(30),
+) -> None:
+    """Capture chats in a database the eval runner can replay, newest first."""
+    with _runner() as client:
+        rows = _runner_get(client, "/sessions", source=source, corp=corp, since=since, status=status, limit=limit)
+    if not rows:
+        typer.echo("no sessions")
+    for row in rows:
+        state = "filed" if row["filed"] else row["status"]
+        prompts = ", ".join(row["prompts"]) or "-"
+        typer.echo(
+            f"{row['id']:>5}  {row['updated_at']}  {row['corporation'][:24]:<24}  {state:<6}  "
+            f"{row['officer_turns']:>2} turns  {row['incidents']} inc {row['logs']} logs  [{prompts}]"
+        )
+        if row["first_message"]:
+            typer.echo(f"       {row['first_message']}")
+
+
+@prompts_app.command("remote-session")
+def prompts_remote_session_command(
+    session_id: int, source: str = typer.Option("staging", help="staging or prod")
+) -> None:
+    """One chat's turns, to pick which to replay."""
+    with _runner() as client:
+        data = _runner_get(client, f"/sessions/{session_id}", source=source)
+    typer.echo(f"session {data['id']} {data['corporation']} ({'filed' if data['filed'] else data['status']})")
+    for turn in data["turns"]:
+        extra = f" {turn['prompt']}" if turn["prompt"] else ""
+        corrections = f" corrections {turn['interventions']}" if turn["interventions"] else ""
+        typer.echo(f"{turn['seq']:>3} {turn['at']} {turn['kind']}{extra}{corrections}")
+        if turn["user_message"]:
+            typer.echo(f"      {turn['user_message']}")
+
+
+@prompts_app.command("remote-replay")
+def prompts_remote_replay_command(
+    session_id: int,
+    source: str = typer.Option("staging", help="staging or prod"),
+    version: Optional[list[int]] = typer.Option(None, help="Versions to replay with (repeatable); default current"),
+    draft: bool = typer.Option(False, help="Also replay with this checkout's uncommitted prompt files"),
+    mode: str = typer.Option("recorded", help="recorded: each turn from its recorded state; chained: whole chat again"),
+    turn: Optional[list[int]] = typer.Option(None, help="Only these turn seqs (recorded mode)"),
+    prompt_id: str = typer.Option("corp_capture"),
+) -> None:
+    """Replay a recorded chat in prod against NIM and show what each version does.
+
+    Saved to evals/replays/ (git-ignored: it holds real officer messages)."""
+    from app.prompts.evals import EVALS_DIR
+    from app.prompts.registry import current, read_lock
+    from app.prompts.replay import replay_lines
+
+    body: dict = {
+        "source": source,
+        "session_id": session_id,
+        "prompt_id": prompt_id,
+        "versions": version or [],
+        "mode": mode,
+        "turns": turn or None,
+    }
+    if draft:
+        draft_prompt = current(prompt_id)
+        body["draft_text"] = draft_prompt.text
+        locked = read_lock().get(prompt_id, {})
+        same = [f"v{version}" for version, digest in locked.items() if digest == draft_prompt.hash]
+        if same:
+            typer.echo(f"note: the draft is the same text as locked {same[0]}; edit the part files first", err=True)
+    with _runner() as client:
+        response = client.post("/replays", json=body)
+        if response.status_code >= 400:
+            typer.echo(f"{response.status_code}: {response.text}", err=True)
+            raise typer.Exit(code=1)
+        started = response.json()
+        typer.echo(f"started {started['id']}: {started['turns']} turns x {', '.join(started['prompts'])}")
+        state = _wait_remote(client, started["id"])
+    _save_remote(state, EVALS_DIR / "replays", replay_lines)
 
 
 survey123_app = typer.Typer()

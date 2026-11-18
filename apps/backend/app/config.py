@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     eval_runner_api_key: str = ""
     eval_runner_url: str = ""
     eval_results_dir: str = "/data/evals"
+    # Databases the eval runner may read capture chats from, to replay them
+    # (app/prompts/replay.py). Use a read-only role; the runner also opens
+    # every connection read-only. Empty: that source is not offered.
+    eval_staging_database_url: str = ""
+    eval_prod_database_url: str = ""
 
     # Survey123 API
     survey123_api_key: str = "none"

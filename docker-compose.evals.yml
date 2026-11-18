@@ -5,7 +5,12 @@
 #
 # Built from the backend image, so each push redeploys it with the latest
 # prompts and test set. Its own stack: deploying it never restarts NIM or the
-# databases. No database access.
+# databases. Point Dokploy at the staging branch: new prompt versions land
+# there first, and it can still run every earlier frozen version.
+#
+# Replays read capture chats from the staging and prod databases, read-only
+# (EVAL_*_DATABASE_URL; leave one empty to not offer it). Use a read-only
+# Postgres role; see docs/prompt-testing.md.
 name: dmcu-evals
 
 services:
@@ -21,6 +26,8 @@ services:
       # Required: every request must send this as "Authorization: Bearer <key>".
       EVAL_RUNNER_API_KEY: ${EVAL_RUNNER_API_KEY:?set EVAL_RUNNER_API_KEY in Dokploy}
       EVAL_RESULTS_DIR: /data/evals
+      EVAL_STAGING_DATABASE_URL: ${EVAL_STAGING_DATABASE_URL:-}
+      EVAL_PROD_DATABASE_URL: ${EVAL_PROD_DATABASE_URL:-}
       LLM_PROVIDER: nim
       NIM_BASE_URL: ${NIM_BASE_URL:-http://nim-prod:8000}
       NIM_API_KEY: ${NIM_API_KEY:-none}
@@ -44,11 +51,17 @@ services:
       start_period: 20s
     networks:
       - app-network
+      - staging-network
       - dokploy-network
 
 networks:
+  # nim-prod and postgres-prod
   app-network:
     name: dmcu-app-network
+    external: true
+  # postgres-staging
+  staging-network:
+    name: dmcu-staging-network
     external: true
   dokploy-network:
     external: true
