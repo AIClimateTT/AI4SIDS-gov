@@ -37,7 +37,30 @@ export const LOG_STATUS_OPTIONS = [
   { value: 'ongoing', label: 'Ongoing' },
   { value: 'completed', label: 'Completed' },
   { value: 'procuring', label: 'Procuring' },
+  { value: 'requested', label: 'Requested' },
 ] as const
+
+export const INCIDENT_SCOPE_OPTIONS = [
+  { value: 'area', label: 'Area (community or streets)' },
+  { value: 'household', label: 'Household (one property)' },
+] as const
+
+export const YES_NO_OPTIONS = [
+  { value: 'yes', label: 'Yes' },
+  { value: 'no', label: 'No' },
+] as const
+
+export function yesNoToForm(value: boolean | null | undefined): string {
+  if (value === true) return 'yes'
+  if (value === false) return 'no'
+  return ''
+}
+
+export function formToYesNo(value: string): boolean | null {
+  if (value === 'yes') return true
+  if (value === 'no') return false
+  return null
+}
 
 export type IncidentFormValues = {
   community: string
@@ -85,8 +108,10 @@ export function formToCaptureIncident(
   const deathsCount = parseOptionalNumber(form.deaths_count)
   return {
     row_id: rowId,
+    incident_scope: null,
     community: form.community.trim() || null,
     street: form.street.trim() || null,
+    house_number: null,
     incident_type: form.incident_type.trim() || null,
     raw_incident_type: null,
     incident_summary: form.incident_summary.trim() || null,
@@ -97,6 +122,11 @@ export function formToCaptureIncident(
     deaths_count: deathsCount,
     building_damage: null,
     special_needs_occupants: null,
+    households_affected: null,
+    persons_affected: null,
+    persons_displaced: null,
+    persons_marooned: null,
+    access_blocked: null,
     estimated_damage_cost: null,
     action_taken: null,
     relief_supplied: null,

@@ -1,0 +1,29 @@
+# Dokploy app: staging-frontend
+# Watch paths: apps/frontend/**, docker-compose.staging.frontend.yml
+# Requires staging-infra (dmcu-staging-network). Proxies /api to backend-staging.
+name: dmcu-staging-frontend
+
+services:
+  frontend-staging:
+    container_name: dmcu-staging-frontend
+    build:
+      context: ./apps/frontend
+      dockerfile: frontend.Dockerfile
+      args:
+        VITE_API_URL: /api
+    environment:
+      # Without this the image proxies /api to production's backend-prod.
+      BACKEND_UPSTREAM: backend-staging:8082
+    expose:
+      - "8081"
+    restart: unless-stopped
+    networks:
+      - staging-network
+      - dokploy-network
+
+networks:
+  staging-network:
+    name: dmcu-staging-network
+    external: true
+  dokploy-network:
+    external: true

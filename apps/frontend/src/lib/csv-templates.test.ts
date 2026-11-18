@@ -16,7 +16,8 @@ describe('csv templates', () => {
       'Deaths Occurred', 'Deaths Count', 'Building Damage',
       'Special Needs Occupants', 'Estimated Damage Cost', 'Action Taken',
       'Relief Supplied', 'Forwarded To Agency', 'Further Assessment Required',
-      'Other Follow Up',
+      'Other Follow Up', 'Incident Scope', 'House Number', 'Households Affected',
+      'Persons Affected', 'Persons Displaced', 'Persons Marooned', 'Access Blocked',
     ])
   })
 

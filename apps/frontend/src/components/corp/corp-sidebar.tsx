@@ -140,7 +140,12 @@ export function CorpSidebar() {
               ) : (
                 sitreps.map((sitrep) => {
                   const when = new Date(sitrep.as_at)
-                  const label = sitrep.status === 'draft' ? 'Draft' : 'Issued'
+                  const label =
+                    sitrep.status === 'draft'
+                      ? 'Draft'
+                      : sitrep.status === 'withdrawn'
+                        ? 'Withdrawn'
+                        : 'Issued'
                   const stamp = when.toLocaleString(undefined, {
                     day: 'numeric',
                     month: 'short',

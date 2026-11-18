@@ -5,13 +5,17 @@ import { Button } from '@/components/ui/button'
 import { useAppForm } from '@/hooks/form'
 import { incidentPath } from '@/lib/capture-paths'
 import {
+  INCIDENT_SCOPE_OPTIONS,
   INCIDENT_TYPE_OPTIONS,
+  YES_NO_OPTIONS,
   casualtyOccurred,
+  formToYesNo,
   parseOptionalNumber,
+  yesNoToForm,
 } from '@/lib/capture-mapping'
 import { casualtiesUnknown } from '@/lib/capture-tallies'
 import { formatConstant } from '@/lib/format-constant'
-import type { CaptureIncident, CaptureMissingField } from '@/types/dmcu'
+import type { CaptureIncident, CaptureMissingField, IncidentScope } from '@/types/dmcu'
 
 export type IncidentCardProps = {
   incident: CaptureIncident
@@ -29,6 +33,13 @@ const incidentSchema = z.object({
   event_date: z.string(),
   injuries_count: z.string(),
   deaths_count: z.string(),
+  incident_scope: z.string(),
+  house_number: z.string(),
+  households_affected: z.string(),
+  persons_affected: z.string(),
+  persons_displaced: z.string(),
+  persons_marooned: z.string(),
+  access_blocked: z.string(),
 })
 
 type IncidentFormValues = z.infer<typeof incidentSchema>
@@ -53,7 +64,25 @@ const FORM_FIELDS = [
   'event_date',
   'injuries_count',
   'deaths_count',
+  'incident_scope',
+  'house_number',
+  'households_affected',
+  'persons_affected',
+  'persons_displaced',
+  'persons_marooned',
+  'access_blocked',
 ] as const
+
+const COUNT_FIELDS = [
+  'households_affected',
+  'persons_affected',
+  'persons_displaced',
+  'persons_marooned',
+] as const
+
+function countToForm(value: number | null | undefined): string {
+  return value != null ? String(value) : ''
+}
 
 // The incident as form values. Also the "seed": the values the form was last
 // in sync with the record at, which is what tells an officer's edit apart
@@ -74,6 +103,13 @@ function incidentToForm(incident: CaptureIncident): IncidentFormValues {
       incident.injuries_count != null ? String(incident.injuries_count) : '',
     deaths_count:
       incident.deaths_count != null ? String(incident.deaths_count) : '',
+    incident_scope: incident.incident_scope ?? '',
+    house_number: incident.house_number ?? '',
+    households_affected: countToForm(incident.households_affected),
+    persons_affected: countToForm(incident.persons_affected),
+    persons_displaced: countToForm(incident.persons_displaced),
+    persons_marooned: countToForm(incident.persons_marooned),
+    access_blocked: yesNoToForm(incident.access_blocked),
   }
 }
 
@@ -114,6 +150,14 @@ function applyIncidentForm(
     next.deaths_count = deathsCount
     next.deaths_occurred = casualtyOccurred(deathsCount)
   }
+  if (edited('incident_scope')) {
+    next.incident_scope = (form.incident_scope || null) as IncidentScope | null
+  }
+  if (edited('house_number')) next.house_number = form.house_number.trim() || null
+  for (const field of COUNT_FIELDS) {
+    if (edited(field)) next[field] = parseOptionalNumber(form[field])
+  }
+  if (edited('access_blocked')) next.access_blocked = formToYesNo(form.access_blocked)
   return next
 }
 
@@ -121,8 +165,9 @@ function locationLine(incident: CaptureIncident): string {
   return (
     [
       incident.incident_type ? formatConstant(incident.incident_type) : null,
+      incident.incident_scope === 'household' ? 'Household' : null,
       incident.community,
-      incident.street,
+      [incident.house_number, incident.street].filter(Boolean).join(' ') || null,
     ]
       .filter(Boolean)
       .join(' · ') || 'Details still needed'
@@ -130,13 +175,34 @@ function locationLine(incident: CaptureIncident): string {
 }
 
 function statusLine(incident: CaptureIncident): string | null {
-  if (casualtiesUnknown(incident)) return 'Casualties unknown'
   const parts: string[] = []
-  if (incident.injuries_count != null || incident.injuries_occurred != null) {
-    parts.push(`${incident.injuries_count ?? 0} injured`)
+  if (incident.households_affected != null)
+    parts.push(`${incident.households_affected} households`)
+  if (incident.persons_affected != null)
+    parts.push(`${incident.persons_affected} persons affected`)
+  if (incident.persons_displaced != null)
+    parts.push(`${incident.persons_displaced} displaced`)
+  if (incident.persons_marooned != null)
+    parts.push(`${incident.persons_marooned} marooned`)
+  if (incident.access_blocked === true) parts.push('access blocked')
+  if (casualtiesUnknown(incident)) {
+    parts.push('Casualties unknown')
+    return parts.join(' · ')
   }
-  if (incident.deaths_count != null || incident.deaths_occurred != null) {
-    parts.push(`${incident.deaths_count ?? 0} dead`)
+  // "No injuries" without a figure is not a count of zero.
+  if (incident.injuries_count != null) {
+    parts.push(`${incident.injuries_count} injured`)
+  } else if (incident.injuries_occurred === false) {
+    parts.push('no injuries reported')
+  } else if (incident.injuries_occurred === true) {
+    parts.push('injuries, number unknown')
+  }
+  if (incident.deaths_count != null) {
+    parts.push(`${incident.deaths_count} dead`)
+  } else if (incident.deaths_occurred === false) {
+    parts.push('no deaths reported')
+  } else if (incident.deaths_occurred === true) {
+    parts.push('deaths, number unknown')
   }
   if (incident.relief_supplied === true) parts.push('relief given')
   if (incident.further_assessment_required === true)
@@ -158,8 +224,14 @@ function diffIncidentPaths(
   original: CaptureIncident,
   next: CaptureIncident,
 ): string[] {
-  return (Object.keys(original) as (keyof CaptureIncident)[])
-    .filter((field) => field !== 'row_id' && original[field] !== next[field])
+  // Union of both key sets: a record saved before a field existed has no key
+  // for it, and a value typed into that field must still count as an edit.
+  const fields = new Set([...Object.keys(original), ...Object.keys(next)])
+  return ([...fields] as (keyof CaptureIncident)[])
+    .filter(
+      (field) =>
+        field !== 'row_id' && (original[field] ?? null) !== (next[field] ?? null),
+    )
     .map((field) => incidentPath(original.row_id, field))
 }
 
@@ -338,13 +410,41 @@ function IncidentEditForm({
               />
             )}
           </form.AppField>
+          <form.AppField name="incident_scope">
+            {(field) => (
+              <field.SelectField
+                label="Kind"
+                placeholder="Not set"
+                disabled={disabled}
+                options={INCIDENT_SCOPE_OPTIONS.map((option) => ({
+                  value: option.value,
+                  label: option.label,
+                }))}
+              />
+            )}
+          </form.AppField>
           <form.AppField name="community">
             {(field) => (
               <field.TextField label="Community" disabled={disabled} />
             )}
           </form.AppField>
           <form.AppField name="street">
-            {(field) => <field.TextField label="Street" disabled={disabled} />}
+            {(field) => (
+              <field.TextField
+                label="Street"
+                helpText="For an area, list the streets separated by commas"
+                disabled={disabled}
+              />
+            )}
+          </form.AppField>
+          <form.AppField name="house_number">
+            {(field) => (
+              <field.TextField
+                label="House number or LP"
+                helpText="Household incidents only"
+                disabled={disabled}
+              />
+            )}
           </form.AppField>
           <form.AppField name="event_date">
             {(field) => (
@@ -359,6 +459,47 @@ function IncidentEditForm({
           <form.AppField name="deaths_count">
             {(field) => (
               <field.TextField label="Deaths count" disabled={disabled} />
+            )}
+          </form.AppField>
+          <form.AppField name="households_affected">
+            {(field) => (
+              <field.TextField label="Households affected" disabled={disabled} />
+            )}
+          </form.AppField>
+          <form.AppField name="persons_affected">
+            {(field) => (
+              <field.TextField label="Persons affected" disabled={disabled} />
+            )}
+          </form.AppField>
+          <form.AppField name="persons_displaced">
+            {(field) => (
+              <field.TextField
+                label="Persons displaced"
+                helpText="Evacuated or in a shelter"
+                disabled={disabled}
+              />
+            )}
+          </form.AppField>
+          <form.AppField name="persons_marooned">
+            {(field) => (
+              <field.TextField
+                label="Persons marooned"
+                helpText="Stranded or cut off by water"
+                disabled={disabled}
+              />
+            )}
+          </form.AppField>
+          <form.AppField name="access_blocked">
+            {(field) => (
+              <field.SelectField
+                label="Road or access blocked"
+                placeholder="Not known"
+                disabled={disabled}
+                options={YES_NO_OPTIONS.map((option) => ({
+                  value: option.value,
+                  label: option.label,
+                }))}
+              />
             )}
           </form.AppField>
         </div>

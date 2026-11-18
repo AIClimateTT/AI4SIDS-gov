@@ -121,7 +121,7 @@ describe('CaptureRecord', () => {
     expect(
       (screen.getByLabelText('Present activity') as HTMLTextAreaElement)
         .placeholder,
-    ).toMatch(/What is happening now/)
+    ).toMatch(/Field assessments ongoing/)
   })
 
   it('saves overview on blur and pins the manual path', () => {

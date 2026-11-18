@@ -4,12 +4,14 @@ from types import SimpleNamespace
 
 from app.core.contracts import Fact
 from app.modules.capture.schemas import CaptureIncident, CaptureWorkingSet
+from app.modules.sitreps.impact_metrics import IMPACT_METRIC_FUNCTIONS
 from app.modules.sitreps.log_metrics import LOG_METRIC_FUNCTIONS
 from app.modules.sitreps.models import SitrepIncident
 from app.modules.survey123.metrics import METRIC_FUNCTIONS
 
 CORP_INCIDENT_METRICS = (
     "incident_count",
+    "impact_summary",
     "incident_register",
     "casualty_summary",
     "special_needs_count",
@@ -24,7 +26,9 @@ CORP_LOG_METRICS = (
 CORP_SITREP_METRICS = CORP_INCIDENT_METRICS + CORP_LOG_METRICS
 
 # Appear in tables/prose only when the officer recorded a positive figure.
-_OMIT_WHEN_ZERO = frozenset({"special_needs_count", "estimated_damage_total"})
+_OMIT_WHEN_ZERO = frozenset(
+    {"special_needs_count", "estimated_damage_total", "impact_summary"}
+)
 
 
 def _is_presentable(fact: Fact) -> bool:
@@ -60,6 +64,14 @@ def _follow_up_flags(incident: CaptureIncident) -> dict[str, bool]:
     }
 
 
+def _casualty_label(occurred: bool | None, count: int | None) -> str | None:
+    """What the register prints when the officer ruled casualties out without
+    giving a number. Read by incident_register via getattr; DB rows lack it."""
+    if count is None and occurred is False:
+        return "None reported"
+    return None
+
+
 def working_set_incident_rows(
     working: CaptureWorkingSet,
     *,
@@ -82,8 +94,17 @@ def working_set_incident_rows(
             injuries_count=incident.injuries_count,
             deaths_occurred=incident.deaths_occurred,
             deaths_count=incident.deaths_count,
+            injuries_label=_casualty_label(incident.injuries_occurred, incident.injuries_count),
+            deaths_label=_casualty_label(incident.deaths_occurred, incident.deaths_count),
             building_damage=incident.building_damage,
             special_needs_occupants=incident.special_needs_occupants,
+            incident_scope=incident.incident_scope,
+            house_number=incident.house_number,
+            households_affected=incident.households_affected,
+            persons_affected=incident.persons_affected,
+            persons_displaced=incident.persons_displaced,
+            persons_marooned=incident.persons_marooned,
+            access_blocked=incident.access_blocked,
             estimated_damage_cost=_decimal_cost(incident.estimated_damage_cost),
             follow_up_flags=_follow_up_flags(incident),
             validation_status="validated",
@@ -129,6 +150,10 @@ def assemble_working_set_facts(
     params = {"corporation": corporation}
     facts: list[Fact] = []
     for name in CORP_INCIDENT_METRICS:
+        own = IMPACT_METRIC_FUNCTIONS.get(name)
+        if own is not None:
+            facts.extend(own(params, session=None, rows=incidents))
+            continue
         facts.extend(
             METRIC_FUNCTIONS[name](
                 params,

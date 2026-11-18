@@ -36,13 +36,15 @@ from app.modules.capture.store import (
     create_session,
     get_session_row,
     list_sessions,
+    record_turn,
+    refresh_as_at,
     save_session,
     session_messages,
     session_missing,
     working_set_from_session,
 )
 from app.modules.capture.prompt import compose_capture_prompt
-from app.modules.capture.turn import apply_turn, stream_turn
+from app.modules.capture.turn import run_turn, stream_turn
 from app.modules.sitreps.ingest import ingest_submission
 from app.modules.sitreps.models import ALERT_LEVELS, HAZARD_TYPES
 from app.modules.sitreps.store import create_event, get_event, next_sequence_no
@@ -335,6 +337,7 @@ def post_session_event(
         )
 
     save_session(db, row)
+    record_turn(db, row, "event", user_message=f"attached event {row.event_id}")
     return _to_response(row)
 
 
@@ -347,17 +350,35 @@ def post_turn(
 ) -> CaptureSessionResponse:
     row = _load_owned(db, session_id, user)
     _require_draft(row)
-    working, _message, _missing, messages = apply_turn(
+    template = _sitrep_template(db)
+    done = run_turn(
         working_set_from_session(row),
         session_messages(row),
         request.message,
         get_llm_client("chat"),
-        system_prompt=compose_capture_prompt(_sitrep_template(db)),
+        system_prompt=compose_capture_prompt(template),
     )
-    apply_working_set(row, working)
-    row.messages = [item.model_dump(mode="json") for item in messages]
+    apply_working_set(row, done.working)
+    refresh_as_at(row)
+    row.messages = [item.model_dump(mode="json") for item in done.messages]
     save_session(db, row)
+    _record_llm_turn(db, row, done, request.message, template.version)
     return _to_response(row)
+
+
+def _record_llm_turn(
+    db: Session, row: CaptureSession, done, user_message: str, template_version: int
+) -> None:
+    record_turn(
+        db,
+        row,
+        "turn",
+        user_message=user_message.strip(),
+        assistant_message=done.assistant_message,
+        raw_output=done.raw_output,
+        parse_ok=done.parse_ok,
+        template_version=template_version,
+    )
 
 
 @router.post("/capture/sessions/{session_id}/turns/stream")
@@ -376,6 +397,7 @@ def post_turn_stream(
     working = working_set_from_session(row)
     history = session_messages(row)
     llm = get_llm_client("chat")
+    template = _sitrep_template(db)
 
     def events():
         yield _sse(
@@ -396,7 +418,7 @@ def post_turn_stream(
                 history,
                 user_message,
                 llm,
-                system_prompt=compose_capture_prompt(_sitrep_template(db)),
+                system_prompt=compose_capture_prompt(template),
             ):
                 if isinstance(item, str):
                     streamed = True
@@ -420,9 +442,26 @@ def post_turn_stream(
                     }
                 )
             yield _sse({"type": "TEXT_MESSAGE_END", "messageId": message_id})
+            if done.notes:
+                # Corrections to the confirmation just streamed: what the
+                # record actually did, as the clerk's own follow-up.
+                note_id = str(uuid.uuid4())
+                yield _sse(
+                    {"type": "TEXT_MESSAGE_START", "messageId": note_id, "role": "assistant"}
+                )
+                yield _sse(
+                    {
+                        "type": "TEXT_MESSAGE_CONTENT",
+                        "messageId": note_id,
+                        "delta": " ".join(done.notes),
+                    }
+                )
+                yield _sse({"type": "TEXT_MESSAGE_END", "messageId": note_id})
             apply_working_set(row, done.working)
+            refresh_as_at(row)
             row.messages = [item.model_dump(mode="json") for item in done.messages]
             save_session(db, row)
+            _record_llm_turn(db, row, done, user_message, template.version)
             yield _sse(
                 {
                     "type": "CUSTOM",
@@ -484,6 +523,7 @@ def put_session(
     )
     apply_working_set(row, working)
     save_session(db, row)
+    record_turn(db, row, "edit")
     return _to_response(row)
 
 
@@ -512,6 +552,12 @@ async def post_session_csv(
     working, errors = import_csv_rows(before, kind=kind, rows=rows)
     apply_working_set(row, working)
     save_session(db, row)
+    record_turn(
+        db,
+        row,
+        "csv",
+        user_message=f"{kind} CSV {file.filename or ''}: {len(rows)} rows, {len(errors)} rejected",
+    )
     return CsvImportResponse(
         session=_to_response(row),
         kind=kind,
@@ -522,7 +568,7 @@ async def post_session_csv(
 
 
 def _require_event_if_incidents(row: CaptureSession) -> None:
-    working = working_set_from_session(row)
+    working = working_set_from_session(row).without_blank_rows()
     if row.event_id is None and working.incidents:
         raise HTTPException(
             status_code=400,
@@ -549,6 +595,7 @@ def _hazard_type(db: Session, row: CaptureSession) -> str | None:
 
 
 def _generate_preview(db: Session, row: CaptureSession) -> CaptureSession:
+    refresh_as_at(row)
     template = _sitrep_template(db)
     working = working_set_from_session(row)
     generated = generate_working_set_sitrep(
@@ -571,7 +618,7 @@ def ingest_working_set(
     db: Session, row: CaptureSession, *, commit: bool = True
 ) -> SubmissionIngestResult:
     _require_event_if_incidents(row)
-    working = working_set_from_session(row)
+    working = working_set_from_session(row).without_blank_rows()
     incident_rows, log_rows = working_set_to_ingest_rows(working)
     return ingest_submission(
         db,
@@ -591,6 +638,7 @@ def ingest_working_set(
 
 
 def file_working_set(db: Session, row: CaptureSession) -> SubmissionIngestResult:
+    refresh_as_at(row)
     ingest = ingest_working_set(db, row)
     row.status = "filed"
     row.submission_id = ingest.submission_id
@@ -611,6 +659,7 @@ def file_session(
     row = _load_owned(db, session_id, user)
     _require_draft(row)
     ingest = file_working_set(db, row)
+    record_turn(db, row, "file")
     return FileSessionResponse(session=_to_response(row), ingest=ingest)
 
 
@@ -626,7 +675,20 @@ def preview_session(
     row = _load_owned(db, session_id, user)
     _require_draft(row)
     row = _generate_preview(db, row)
+    _record_sitrep(db, row, "preview")
     return _to_response(row)
+
+
+def _record_sitrep(db: Session, row: CaptureSession, kind: str) -> None:
+    record_turn(
+        db,
+        row,
+        kind,
+        template_version=_sitrep_template(db).version,
+        sitrep_markdown=strip_citation_markup(
+            row.sitrep_final_markdown or row.sitrep_markdown or ""
+        ),
+    )
 
 
 @router.post(
@@ -642,6 +704,7 @@ def issue_session(
     row = _load_owned(db, session_id, user)
     _require_draft(row)
     _require_event_if_incidents(row)
+    refresh_as_at(row)
     ingest = ingest_working_set(db, row, commit=False)
     template = _sitrep_template(db)
     generated = generate_working_set_sitrep(
@@ -672,6 +735,7 @@ def issue_session(
         report_id=saved.id,
         source_updated_at=row.updated_at,
     )
+    _record_sitrep(db, row, "issue")
     record_event(
         db,
         workflow="corp_capture_issue",

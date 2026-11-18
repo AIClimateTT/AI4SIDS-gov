@@ -534,6 +534,28 @@ def _scope_text(value) -> str:
     return str(value)
 
 
+_IMPACT_PARTS = (
+    ("households_affected", "household", "households"),
+    ("persons_affected", "person affected", "persons affected"),
+    ("persons_displaced", "displaced", "displaced"),
+    ("persons_marooned", "marooned", "marooned"),
+)
+
+
+def impact_text(row) -> str:
+    """Corp impact counts as one cell: "24 households · 10 marooned · access blocked".
+
+    Read with getattr: Survey123 rows carry none of these and render blank."""
+    parts = []
+    for field, one, many in _IMPACT_PARTS:
+        value = getattr(row, field, None)
+        if value is not None:
+            parts.append(f"{value} {one if value == 1 else many}")
+    if getattr(row, "access_blocked", None) is True:
+        parts.append("access blocked")
+    return " · ".join(parts)
+
+
 def incident_register(params: dict, session: Session | None, model=FieldObservation, rows=None) -> list[Fact]:
     rows = load_metric_rows(params, session, model, rows)
     facts: list[Fact] = []
@@ -557,10 +579,14 @@ def incident_register(params: dict, session: Session | None, model=FieldObservat
                     "date": _scope_text(getattr(row, "event_date", None)),
                     "community": getattr(row, "community", None) or "",
                     "street": getattr(row, "street", None) or "",
+                    "house_number": getattr(row, "house_number", None) or "",
                     "type": incident_type_label(row),
                     "summary": getattr(row, "incident_summary", None) or "",
-                    "injuries": "" if injuries is None else str(injuries),
-                    "deaths": "" if deaths is None else str(deaths),
+                    "affected": impact_text(row),
+                    "injuries": getattr(row, "injuries_label", None)
+                    or ("" if injuries is None else str(injuries)),
+                    "deaths": getattr(row, "deaths_label", None)
+                    or ("" if deaths is None else str(deaths)),
                     "action": getattr(row, "action_taken", None) or "",
                 },
                 breakdown=None,

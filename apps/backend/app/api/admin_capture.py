@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from app.auth.dependencies import require_admin_user
 from app.db import get_session
 from app.modules.capture.models import CaptureSession
-from app.modules.capture.store import get_session_row, list_sessions
+from app.modules.capture.store import get_session_row, list_sessions, list_turns
 from app.modules.capture.transcript import build_transcript, transcript_markdown
 from app.modules.sitreps.store import get_event
 from app.modules.survey123.normalize import CANONICAL_CORPORATIONS
@@ -80,7 +80,7 @@ def get_transcript(
     if row is None:
         raise HTTPException(status_code=404, detail=f"capture session not found: {session_id}")
     event = get_event(db, row.event_id) if row.event_id is not None else None
-    data = build_transcript(row, event)
+    data = build_transcript(row, event, list_turns(db, row.id))
     stamp = row.updated_at.strftime("%Y%m%d-%H%M")
     name = f"capture-{row.corporation}-{row.id}-{row.status}-{stamp}.{format}"
     if format == "md":

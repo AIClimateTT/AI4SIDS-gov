@@ -12,8 +12,10 @@ def _cell(value: object) -> str:
 def incident_to_csv_row(incident: CaptureIncident) -> dict[str, str]:
     return {
         "Row ID": incident.row_id,
+        "Incident Scope": _cell(incident.incident_scope),
         "Community": _cell(incident.community),
         "Street": _cell(incident.street),
+        "House Number": _cell(incident.house_number),
         "Incident Type": _cell(incident.incident_type or incident.raw_incident_type),
         "Date of Event": _cell(incident.event_date),
         "Incident Summary": _cell(incident.incident_summary),
@@ -23,6 +25,11 @@ def incident_to_csv_row(incident: CaptureIncident) -> dict[str, str]:
         "Deaths Count": _cell(incident.deaths_count),
         "Building Damage": _cell(incident.building_damage),
         "Special Needs Occupants": _cell(incident.special_needs_occupants),
+        "Households Affected": _cell(incident.households_affected),
+        "Persons Affected": _cell(incident.persons_affected),
+        "Persons Displaced": _cell(incident.persons_displaced),
+        "Persons Marooned": _cell(incident.persons_marooned),
+        "Access Blocked": _cell(incident.access_blocked),
         "Estimated Damage Cost": _cell(incident.estimated_damage_cost),
         "Action Taken": _cell(incident.action_taken),
         "Relief Supplied": _cell(incident.relief_supplied),

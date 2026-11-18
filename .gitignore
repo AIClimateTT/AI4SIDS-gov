@@ -28,3 +28,4 @@ todos.json
 
 # Real Survey123 exports hold personal data
 apps/backend/survey_0.csv
+.env.staging

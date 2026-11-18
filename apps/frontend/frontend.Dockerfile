@@ -19,7 +19,11 @@ RUN pnpm build
 FROM nginx:alpine
 
 COPY --from=builder /app/dist /usr/share/nginx/html
-COPY nginx-spa.conf /etc/nginx/conf.d/default.conf
+# A template, not a conf: the nginx entrypoint substitutes BACKEND_UPSTREAM
+# into /etc/nginx/conf.d/default.conf when the container starts, so one image
+# serves production and staging.
+COPY nginx-spa.conf /etc/nginx/templates/default.conf.template
+ENV BACKEND_UPSTREAM=backend-prod:8082
 
 EXPOSE 8081
 

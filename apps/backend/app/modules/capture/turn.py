@@ -1,12 +1,23 @@
 import json
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import TypeVar
 
 from pydantic import ValidationError
 
 from app.core.llm import LLMClient
+from app.modules.capture.diff import working_changes
+from app.modules.capture.guards import (
+    echoes_clerk,
+    guard_dropped_rows,
+    guard_event_dates,
+    guard_zero_counts,
+    pinned_field_notes,
+    release_alert_on_new_level,
+    today_local,
+    unchanged_claim_note,
+)
 from app.modules.capture.missing import missing_fields
 from app.modules.capture.model_json import parse_model_json
 from app.modules.capture.numbers import (
@@ -71,7 +82,7 @@ def _is_usable_explicit_id(row_id: str | None) -> bool:
     return bool(row_id) and "." not in row_id and ":" not in row_id
 
 
-def _assign_row_ids(rows: list[RowT]) -> list[RowT]:
+def _assign_row_ids(rows: list[RowT], taken: set[str] | None = None) -> list[RowT]:
     """Give every row a stable, unique row_id, without letting an id-less
     row steal an id that a later row in the same list already owns.
 
@@ -87,6 +98,10 @@ def _assign_row_ids(rows: list[RowT]) -> list[RowT]:
        reserved nor already used.
     """
     reserved: set[str] = {row.row_id for row in rows if _is_usable_explicit_id(row.row_id)}
+    # Ids already on the working set stay theirs even if the model left the
+    # row out: a new row must never take the id of one that went missing,
+    # or restoring the missing row collides with it.
+    reserved |= taken or set()
 
     used: set[str] = set()
     next_id = 1
@@ -110,7 +125,10 @@ def coerce_working_set(raw: dict, previous: CaptureWorkingSet) -> CaptureWorking
     if not isinstance(capture_raw, dict):
         capture_raw = {}
 
-    as_at = capture_raw.get("as_at") or previous.as_at
+    # The as-at time belongs to the system and the officer, not the model: it
+    # is refreshed on each change and pinned when typed. Siparia's sitrep went
+    # out "as at" the moment the session opened, three days earlier.
+    as_at = previous.as_at
     incidents = _assign_row_ids(
         [
             incident
@@ -119,7 +137,8 @@ def coerce_working_set(raw: dict, previous: CaptureWorkingSet) -> CaptureWorking
                 for item in capture_raw.get("incidents") or []
             )
             if incident is not None
-        ]
+        ],
+        {row.row_id for row in previous.incidents},
     )
     logs = _assign_row_ids(
         [
@@ -129,7 +148,8 @@ def coerce_working_set(raw: dict, previous: CaptureWorkingSet) -> CaptureWorking
                 for item in capture_raw.get("logs") or []
             )
             if log is not None
-        ]
+        ],
+        {row.row_id for row in previous.logs},
     )
 
     payload = {
@@ -162,6 +182,11 @@ class TurnComplete:
     assistant_message: str
     missing: list[MissingField]
     messages: list[CaptureMessage]
+    raw_output: str = ""
+    parse_ok: bool = True
+    # Corrections to the clerk's own confirmation, sent as a second message.
+    notes: list[str] = field(default_factory=list)
+    retried: bool = False
 
 
 def _history(messages: list[CaptureMessage] | list[dict]) -> list[CaptureMessage]:
@@ -178,15 +203,26 @@ def _prompt_payload(
 ) -> str:
     gaps = missing_fields(working)
     payload = {
-        "capture": working.model_dump(mode="json"),
+        "capture": working.model_dump(mode="json", exclude={"as_at"}),
         "missing": [item.model_dump() for item in gaps],
         "manual": list(working.manual_fields),
         "messages": [
             {"role": msg.role, "content": msg.content} for msg in history[-12:]
         ],
+        "today": today_local().isoformat(),
         "user_message": cleaned,
+        "echoes_clerk": echoes_clerk(
+            cleaned, [msg.content for msg in history if msg.role == "assistant"]
+        ),
     }
     return json.dumps(payload)
+
+
+_REPAIR = (
+    "\n\nYour previous reply could not be parsed as JSON. Reply again with ONLY "
+    "the JSON object described above: no prose, no code fence. Keep assistant_message "
+    "to one or two short sentences."
+)
 
 
 def _finish_turn(
@@ -194,10 +230,27 @@ def _finish_turn(
     history: list[CaptureMessage],
     user_entry: CaptureMessage,
     raw: str,
+    retry=None,
 ) -> TurnComplete:
+    """Turn the model's reply into the next working set.
+
+    `retry`, when given, re-asks the model once for a reply that parses. A turn
+    that still fails keeps the officer's message and says so, instead of
+    silently losing a report (Chaguanas' blown-off roof)."""
+    retried = False
     try:
         parsed = parse_model_json(raw)
     except ValueError:
+        parsed = None
+        if retry is not None:
+            retried = True
+            retry_raw = retry()
+            raw = f"{raw}\n\n--- retry ---\n{retry_raw}"
+            try:
+                parsed = parse_model_json(retry_raw)
+            except ValueError:
+                parsed = None
+    if parsed is None:
         assistant = CaptureMessage(
             role="assistant",
             content=_UNREADABLE,
@@ -208,24 +261,82 @@ def _finish_turn(
             assistant_message=assistant.content,
             missing=missing_fields(working),
             messages=[*history, user_entry, assistant],
+            raw_output=raw,
+            parse_ok=False,
+            retried=retried,
         )
 
     allowed = extract_numbers(user_entry.content) | numbers_from_working_set(
         working.model_dump(mode="json")
     )
     parsed = strip_invented_numbers(parsed, allowed)
-    next_working = pin_manual_fields(coerce_working_set(parsed, working), working)
+    proposed = coerce_working_set(parsed, working)
+    proposed, date_notes = guard_event_dates(
+        proposed, working, user_entry.content, today_local()
+    )
+    proposed, row_notes = guard_dropped_rows(proposed, working, user_entry.content)
+    proposed = guard_zero_counts(proposed, working, user_entry.content)
+    pin_basis = release_alert_on_new_level(proposed, working)
+    next_working = pin_manual_fields(proposed, pin_basis)
+    # Re-run the schema's own consistency (alert level from wording) on the
+    # pinned result, which model_copy does not.
+    next_working = CaptureWorkingSet.model_validate(next_working.model_dump())
+
     assistant_text = parsed.get("assistant_message")
     if not isinstance(assistant_text, str) or not assistant_text.strip():
         assistant_text = _FALLBACK_ASSISTANT
-    assistant = CaptureMessage(
-        role="assistant", content=assistant_text.strip(), created_at=_now()
+    assistant_text = assistant_text.strip()
+    changes = working_changes(
+        working.model_dump(mode="json"), next_working.model_dump(mode="json")
     )
+    notes = [
+        *pinned_field_notes(proposed, next_working),
+        *row_notes,
+        *date_notes,
+    ]
+    claim = unchanged_claim_note(assistant_text, changes)
+    if claim:
+        notes.insert(0, claim)
+
+    assistant = CaptureMessage(role="assistant", content=assistant_text, created_at=_now())
+    messages = [*history, user_entry, assistant]
+    if notes:
+        messages.append(
+            CaptureMessage(role="assistant", content=" ".join(notes), created_at=_now())
+        )
     return TurnComplete(
         working=next_working,
         assistant_message=assistant.content,
         missing=missing_fields(next_working),
-        messages=[*history, user_entry, assistant],
+        messages=messages,
+        raw_output=raw,
+        notes=notes,
+        retried=retried,
+    )
+
+
+def run_turn(
+    working: CaptureWorkingSet,
+    messages: list[CaptureMessage] | list[dict],
+    user_message: str,
+    llm_client: LLMClient,
+    system_prompt: str | None = None,
+) -> TurnComplete:
+    cleaned = user_message.strip()
+    if not cleaned:
+        raise ValueError("message is required")
+
+    history = _history(messages)
+    user_entry = CaptureMessage(role="user", content=cleaned, created_at=_now())
+    assembled = system_prompt if system_prompt is not None else SCHEMA_AND_ENUMS
+    prompt = _prompt_payload(working, history, cleaned)
+    raw = llm_client.generate(assembled, prompt)
+    return _finish_turn(
+        working,
+        history,
+        user_entry,
+        raw,
+        retry=lambda: llm_client.generate(assembled + _REPAIR, prompt),
     )
 
 
@@ -236,15 +347,7 @@ def apply_turn(
     llm_client: LLMClient,
     system_prompt: str | None = None,
 ) -> tuple[CaptureWorkingSet, str, list[MissingField], list[CaptureMessage]]:
-    cleaned = user_message.strip()
-    if not cleaned:
-        raise ValueError("message is required")
-
-    history = _history(messages)
-    user_entry = CaptureMessage(role="user", content=cleaned, created_at=_now())
-    assembled = system_prompt if system_prompt is not None else SCHEMA_AND_ENUMS
-    raw = llm_client.generate(assembled, _prompt_payload(working, history, cleaned))
-    done = _finish_turn(working, history, user_entry, raw)
+    done = run_turn(working, messages, user_message, llm_client, system_prompt)
     return done.working, done.assistant_message, done.missing, done.messages
 
 
@@ -277,4 +380,10 @@ def stream_turn(
         delta = extractor.feed(chunk)
         if delta:
             yield delta
-    yield _finish_turn(working, history, user_entry, "".join(raw_parts))
+    yield _finish_turn(
+        working,
+        history,
+        user_entry,
+        "".join(raw_parts),
+        retry=lambda: llm_client.generate(assembled + _REPAIR, prompt),
+    )

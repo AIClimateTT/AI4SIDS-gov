@@ -352,10 +352,15 @@ export type FileSubmissionInput = {
   logsFile?: File
 }
 
+export type IncidentScope = 'area' | 'household'
+
 export type CaptureIncident = {
   row_id: string
+  /** area: a community or streets with an overall count; household: one property. */
+  incident_scope?: IncidentScope | null
   community: string | null
   street: string | null
+  house_number?: string | null
   incident_type: string | null
   raw_incident_type: string | null
   incident_summary: string | null
@@ -366,6 +371,11 @@ export type CaptureIncident = {
   deaths_count: number | null
   building_damage: string | null
   special_needs_occupants: number | null
+  households_affected?: number | null
+  persons_affected?: number | null
+  persons_displaced?: number | null
+  persons_marooned?: number | null
+  access_blocked?: boolean | null
   estimated_damage_cost: number | null
   action_taken: string | null
   relief_supplied: boolean | null

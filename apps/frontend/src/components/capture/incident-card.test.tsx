@@ -498,3 +498,67 @@ describe('IncidentEditForm under a live chat turn', () => {
     expect(next.community).toBe('Diego Martin')
   })
 })
+
+describe('IncidentCard impact and household details', () => {
+  it('shows impact counts and does not turn "no injuries" into a zero', () => {
+    render(
+      <IncidentCard
+        incident={{
+          ...incident,
+          incident_scope: 'area',
+          households_affected: 24,
+          persons_marooned: 10,
+          access_blocked: true,
+          injuries_occurred: false,
+          deaths_occurred: false,
+        }}
+        missing={[]}
+        onEdit={vi.fn()}
+        onRemove={vi.fn()}
+      />,
+    )
+
+    expect(
+      screen.getByText(
+        '24 households · 10 marooned · access blocked · no injuries reported · no deaths reported',
+      ),
+    ).toBeTruthy()
+  })
+
+  it('labels a household incident with its house number', () => {
+    render(
+      <IncidentCard
+        incident={{
+          ...incident,
+          incident_scope: 'household',
+          house_number: 'LP 17',
+          street: 'Cameron Road',
+        }}
+        missing={[]}
+        onEdit={vi.fn()}
+        onRemove={vi.fn()}
+      />,
+    )
+
+    expect(
+      screen.getByText('Flooding · Household · Petit Valley · LP 17 Cameron Road'),
+    ).toBeTruthy()
+  })
+
+  it('saves a households count typed into the form as a number', async () => {
+    const onEdit = vi.fn()
+    render(
+      <IncidentCard incident={incident} missing={[]} onEdit={onEdit} onRemove={vi.fn()} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /edit/i }))
+    fireEvent.change(screen.getByLabelText('Households affected'), {
+      target: { value: '14' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /save/i }))
+
+    await waitFor(() => expect(onEdit).toHaveBeenCalled())
+    const [next, paths] = onEdit.mock.calls[0] as [CaptureIncident, string[]]
+    expect(next.households_affected).toBe(14)
+    expect(paths).toEqual(['incident:1.households_affected'])
+  })
+})

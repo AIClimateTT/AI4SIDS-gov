@@ -1,0 +1,36 @@
+# Dokploy app: staging-infra
+# Watch paths: docker-compose.staging.infra.yml
+# Deploy this first. Staging's own database; creates dmcu-staging-network for
+# the staging backend and frontend stacks. Staging has no NIM of its own: it
+# uses production's nim-prod (from docker-compose.infra.yml) over dmcu-app-network.
+name: dmcu-staging-infra
+
+services:
+  postgres-staging:
+    image: postgres:16-alpine
+    container_name: dmcu-staging-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-dmcu}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dmcu_staging}
+      POSTGRES_DB: ${POSTGRES_DB:-dmcu}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5435:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    networks:
+      - staging-network
+
+networks:
+  staging-network:
+    name: dmcu-staging-network
+
+volumes:
+  postgres_data:
+    name: dmcu-staging_postgres_data
