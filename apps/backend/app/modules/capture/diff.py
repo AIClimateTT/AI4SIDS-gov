@@ -16,7 +16,15 @@ def _row_changes(kind: str, before: list[dict], after: list[dict]) -> list[str]:
     out: list[str] = []
     for row_id, row in new.items():
         if row_id not in old:
-            label = row.get("incident_summary") or row.get("statement") or ""
+            label = (
+                row.get("incident_summary")
+                or row.get("statement")
+                or " · ".join(
+                    str(row[key])
+                    for key in ("incident_type", "community", "street")
+                    if row.get(key)
+                )
+            )
             out.append(f"added {kind} {row_id}: {label}")
             continue
         for key, value in row.items():

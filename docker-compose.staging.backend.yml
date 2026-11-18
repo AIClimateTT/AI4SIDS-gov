@@ -6,7 +6,7 @@ name: dmcu-staging-backend
 
 x-app-env: &app-env
   APP_ENV: ${APP_ENV:-staging}
-  DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://dmcu:dmcu_staging@postgres-staging:5432/dmcu}
+  DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://dmcu:dmcu_staging@postgres-staging:5432/dmcu_staging}
   DEDUP_SALT: ${DEDUP_SALT:-staging-salt-change-me}
   LLM_PROVIDER: ${LLM_PROVIDER:-nim}
   NIM_BASE_URL: ${NIM_BASE_URL:-http://nim-prod:8000}

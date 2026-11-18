@@ -1,6 +1,13 @@
 #!/bin/sh
 set -e
 
+if [ "$1" = "evalrunner" ]; then
+  # Prompt eval runner (docker-compose.evals.yml). No database: it runs the
+  # capture pipeline on test cases and talks to NIM.
+  echo "Starting eval runner..."
+  exec uvicorn app.prompts.runner_api:app --host 0.0.0.0 --port 8090 --workers 1
+fi
+
 if [ "$1" = "worker" ]; then
   echo "Starting job worker..."
   exec python -m procrastinate --app=app.jobs.queue.app worker --concurrency=1

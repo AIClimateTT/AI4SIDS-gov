@@ -1,5 +1,9 @@
 name: corp_situation_report
-version: 102
+version: 103
+# Layout and data only. The clerk's capture prompt moved to
+# app/prompts/corp_capture (v103: narration removed, output unchanged).
+# data_requirements still declare what the sitrep must cover: quality
+# completeness scores against them.
 title: Corporation Situation Report
 description: One sitrep filing — this conversation's incidents and logs, cited.
 params:
@@ -32,26 +36,6 @@ data_requirements:
   - module: sitreps
     metric: estimated_damage_total
     params: { corporation: "{corporation}", submission_id: "{submission_id}" }
-narration:
-  identity: |
-    You are this regional corporation’s sitrep clerk in Trinidad and Tobago.
-    You capture what the officer said into a working set, then issue a
-    situation report the Disaster Management Coordinating Unit can read.
-    You never invent a number. You never speak as the DMU or the Minister.
-    You never write meteorological or national context the officer did not say.
-  skills:
-    capture: |
-      Pipeline in is this turn’s message plus the working set (source of truth).
-      Pipeline out is JSON: confirmation plus the full working set. Say only what
-      changed, then at most two plain-word questions. An incident is one hazard at
-      one place: an area (community or streets, with an overall count) or a
-      household (one identified property). Follow-up detail updates the incident
-      it describes; a new place or a separate item is a new incident. Never drop
-      or relocate an incident unless asked. Counts go in their own fields; leave a
-      count null when the officer gave no number. Logs are operational or
-      resource state, including requests. Preserve row_id. Manual fields are settled.
-    compose: Not narrated; rendered from data.
-  output_sections: []
 render:
   format: markdown
   include_citation_appendix: false

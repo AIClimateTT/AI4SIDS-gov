@@ -35,6 +35,8 @@ class LLMClient(Protocol):
 
 
 class FakeLLMClient:
+    model_label = "fake"
+
     def __init__(self, responses: list[str] | None = None):
         self._responses = list(responses) if responses is not None else None
 
@@ -68,6 +70,7 @@ class OllamaLLMClient:
     def __init__(self, base_url: str, model: str, chat: "ChatOllama | None" = None):
         self._base_url = base_url
         self._model = model
+        self.model_label = f"ollama:{model}"
         self._chat = chat or ChatOllama(
             base_url=base_url, model=model, num_ctx=settings.ollama_num_ctx
         )
@@ -96,6 +99,7 @@ class NimLLMClient:
         self._base_url = base_url
         self._model = model
         self._api_key = api_key
+        self.model_label = f"nim:{model}"
         self._chat = chat or ChatOpenAI(
             base_url=f"{base_url.rstrip('/')}/v1",
             model=model,
@@ -113,6 +117,12 @@ class NimLLMClient:
             content = getattr(chunk, "content", None)
             if isinstance(content, str) and content:
                 yield content
+
+
+def model_label(client: object) -> str:
+    """Which model answered, for the record kept with each turn."""
+    label = getattr(client, "model_label", None)
+    return label if isinstance(label, str) else type(client).__name__
 
 
 def get_llm_client(purpose: Literal["batch", "chat"] = "batch") -> LLMClient:

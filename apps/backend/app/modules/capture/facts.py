@@ -69,6 +69,9 @@ def _casualty_label(occurred: bool | None, count: int | None) -> str | None:
     giving a number. Read by incident_register via getattr; DB rows lack it."""
     if count is None and occurred is False:
         return "None reported"
+    if count is None and occurred is None:
+        # Unknown is not zero; a blank cell read as a rendering fault.
+        return "Not confirmed"
     return None
 
 

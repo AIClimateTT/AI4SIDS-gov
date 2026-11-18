@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.localtime import to_local
 from app.modules.capture.missing import missing_fields
 from app.modules.capture.models import CaptureSession, CaptureTurn
+from app.prompts.registry import Prompt
 from app.modules.capture.schemas import (
     CaptureIncident,
     CaptureLog,
@@ -131,6 +132,10 @@ def record_turn(
     parse_ok: bool | None = None,
     template_version: int | None = None,
     sitrep_markdown: str | None = None,
+    prompt: Prompt | None = None,
+    model: str | None = None,
+    retried: bool | None = None,
+    interventions: dict[str, int] | None = None,
 ) -> CaptureTurn:
     """Snapshot the session's working set as it stands after a change."""
     seq = (
@@ -148,6 +153,12 @@ def record_turn(
         raw_output=raw_output,
         parse_ok=parse_ok,
         template_version=template_version,
+        prompt_id=prompt.id if prompt else None,
+        prompt_version=prompt.version if prompt else None,
+        prompt_hash=prompt.hash if prompt else None,
+        model=model,
+        retried=retried,
+        interventions=interventions,
         working=working_set_from_session(row).model_dump(mode="json"),
         missing=[item.model_dump() for item in session_missing(row)],
         sitrep_markdown=sitrep_markdown,

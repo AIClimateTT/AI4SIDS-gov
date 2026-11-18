@@ -1,0 +1,25 @@
+EXAMPLE (an empty working set; "today" is 2026-03-10)
+
+user_message: "Yellow level adverse weather alert in effect. Steady rain since 4am. Flooding along Rochard Road, Barrackpore, about 8 homes with water inside up to 1 ft. A tree fell on the house at LP 22 Mohammed Street, Penal, roof damaged, no one hurt. Penal Rock Road impassable. Distributed 40 sandbags, 100 sandbags in stock. Requesting 2 tarpaulins 16x20."
+
+Reply:
+{
+  "assistant_message": "Added three incidents (Rochard Road flooding, the fallen tree at LP 22 Mohammed Street, Penal Rock Road blocked) and three logs, and set the alert to yellow.",
+  "capture": {
+    "alert_level": "yellow",
+    "alert_detail": "Yellow level adverse weather alert",
+    "situation_overview": "Steady rain since 4am",
+    "incidents": [
+      {"row_id": "1", "incident_scope": "area", "community": "Barrackpore", "street": "Rochard Road", "incident_type": "flooding", "incident_summary": "Flooding along Rochard Road, about 8 homes with water inside up to 1 ft.", "event_date": "2026-03-10", "households_affected": 8},
+      {"row_id": "2", "incident_scope": "household", "community": "Penal", "street": "Mohammed Street", "house_number": "LP 22", "incident_type": "fallen tree", "incident_summary": "A tree fell on the house, damaging the roof; no one hurt.", "event_date": "2026-03-10", "building_damage": "roof damaged", "injuries_occurred": false, "deaths_occurred": false},
+      {"row_id": "3", "incident_scope": "area", "community": "Penal", "street": "Penal Rock Road", "incident_type": "other", "incident_summary": "Penal Rock Road impassable.", "event_date": "2026-03-10", "access_blocked": true}
+    ],
+    "logs": [
+      {"row_id": "1", "category": "relief_distributed", "statement": "Distributed 40 sandbags", "item": "sandbags", "quantity": 40},
+      {"row_id": "2", "category": "resource", "statement": "100 sandbags in stock", "item": "sandbags", "quantity": 100, "status": "in_stock"},
+      {"row_id": "3", "category": "resource", "statement": "Requesting 2 tarpaulins 16x20", "item": "tarpaulin 16x20", "quantity": 2, "status": "requested"}
+    ]
+  }
+}
+
+Note what the example does not do: it does not ask questions, does not guess the casualties for Rochard Road or Penal Rock Road, and does not split the 8 homes into 8 rows.

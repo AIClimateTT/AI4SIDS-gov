@@ -1,0 +1,38 @@
+# The corp sitrep clerk: turns an officer's message into the capture working set.
+#
+# Editing any part file, or a list it pulls in from code ({{...}}), changes
+# the prompt. Bump `version`, add a changelog entry saying why and what
+# evidence prompted it, then run `python -m app.cli prompts lock`.
+# tests/test_prompt_registry.py fails until you do.
+id: corp_capture
+version: 2
+model_hint: openai/gpt-oss-20b (NIM); gemma3:4b in local dev
+description: Corp officer chat → incidents, situation logs and session fields as JSON.
+parts:
+  - identity.txt
+  - rules.txt
+  - example.txt
+changelog:
+  - version: 2
+    date: 2026-11-18
+    why: >-
+      Questions moved to code (the model was asking from a missing list one
+      turn stale, and asked nothing on Chaguanas' opening message). Time of day
+      ("since 2am") dates an incident today. incident_summary required, so
+      detail without a field (water depth) is kept. situation_overview and
+      present_activity defined. Blocked roads are incidents with
+      access_blocked, never logs. Log statements must read alone. Omitted
+      row fields now keep their value (code change), so replies can be
+      shorter. One worked example added. The skill paragraph that restated
+      the rules was dropped. The user JSON no longer carries "missing".
+    evidence: >-
+      Staging session 1 (Chaguanas, 2026-11-18): blank dates, Untitled
+      incidents, "2 feet" lost, Montrose road filed as an activity, no
+      questions asked. Nov 16 UAT transcripts (2 16x20 tarpaulins read as 20).
+  - version: 1
+    date: 2026-11-18
+    why: >-
+      Baseline. Moved unchanged from corp_situation_report template v102
+      (identity, skills.capture) and app/modules/capture/prompt.py
+      (schema and rules) into the prompt registry.
+    evidence: Rules as of the Nov 2026 UAT fixes (area/household incidents, date guard, alert wording).

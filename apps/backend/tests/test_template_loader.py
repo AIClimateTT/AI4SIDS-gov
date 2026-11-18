@@ -56,10 +56,19 @@ def test_template_validates_from_dict():
 
 def test_template_rejects_missing_required_field():
     raw = make_minimal_template_dict()
-    del raw["narration"]
+    del raw["render"]
 
     with pytest.raises(ValidationError):
         Template.model_validate(raw)
+
+
+def test_template_without_narration_is_rendered_from_data_alone():
+    raw = make_minimal_template_dict()
+    del raw["narration"]
+
+    template = Template.model_validate(raw)
+
+    assert template.narration.output_sections == []
 
 
 def test_load_template_reads_and_validates_yaml_file(tmp_path):

@@ -12,7 +12,7 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-dmcu}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dmcu_staging}
-      POSTGRES_DB: ${POSTGRES_DB:-dmcu}
+      POSTGRES_DB: ${POSTGRES_DB:-dmcu_staging}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:

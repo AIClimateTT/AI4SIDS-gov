@@ -44,7 +44,16 @@ _WORD_RE = re.compile(r"[a-z]+")
 _DAY_RE = re.compile(r"\b(\d{1,2})(?:st|nd|rd|th)?\b")
 _NUMERIC_DATE_RE = re.compile(r"\b(\d{1,4})[/.-](\d{1,2})[/.-](\d{1,4})\b")
 _TODAY_RE = re.compile(r"\b(today|tonight|this (?:morning|afternoon|evening)|now|currently)\b")
-_YESTERDAY_RE = re.compile(r"\b(yesterday|last night)\b")
+# A time of day with no date ("since 2am", "at 1:30 pm", "around midday") is
+# a report about today. Chaguanas' Nov 18 test lost both dates to this.
+_TIME_OF_DAY_RE = re.compile(
+    r"(?<![\d/.-])\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.m\.|p\.m\.)(?![a-z])"
+    r"|\b(?:midday|noon|midnight|this hour|earlier)\b"
+)
+_YESTERDAY_RE = re.compile(r"\b(yesterday)\b")
+# Either day: flooding "since last night", reported the next morning, may be
+# dated the night it began or the day it is being dealt with.
+_EITHER_DAY_RE = re.compile(r"\b(last night|overnight)\b")
 _REMOVAL_RE = re.compile(
     r"\b(remove|delete|drop|scratch|cancel|ignore|disregard|duplicate|"
     r"not an incident|no longer|take (?:it|that) off)\b",
@@ -71,10 +80,12 @@ def dates_in(message: str, today: date) -> set[date]:
     """Every calendar day the message names, in the forms officers use."""
     text = message.lower()
     found: set[date] = set()
-    if _TODAY_RE.search(text):
+    if _TODAY_RE.search(text) or _TIME_OF_DAY_RE.search(text):
         found.add(today)
     if _YESTERDAY_RE.search(text):
         found.add(today - timedelta(days=1))
+    if _EITHER_DAY_RE.search(text):
+        found |= {today, today - timedelta(days=1)}
     for a, b, c in _NUMERIC_DATE_RE.findall(text):
         first, second, third = int(a), int(b), int(c)
         # 2026-11-16 or 16/11/2026 (Trinidad writes day first).
@@ -136,7 +147,7 @@ def guard_event_dates(
             row = row.model_copy(update={"event_date": old})
             if before is None:
                 notes.append(
-                    f"I left the date blank on incident {row.row_id}: that message did not say when it happened."
+                    f"I left the date blank on incident {row.row_id}: that message did not say what day it happened."
                 )
         rows.append(row)
     return proposed.model_copy(update={"incidents": rows}), notes

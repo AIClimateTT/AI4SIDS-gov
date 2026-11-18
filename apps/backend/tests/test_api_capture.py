@@ -195,7 +195,9 @@ def test_turn_extracts_incident_and_log(monkeypatch):
     assert body["incidents"][0]["community"] == "Petit Valley"
     assert body["incidents"][0]["incident_type"] == "flooding_"
     assert body["logs"][0]["quantity"] == 200
-    assert "5 houses" in body["messages"][-1]["content"]
+    assert "5 houses" in body["messages"][-2]["content"]
+    # Then the clerk asks, from code, for what the turn left missing.
+    assert body["messages"][-1]["content"] == "What day did the flooding at Petit Valley happen?"
     assert any("date" in item["message"].lower() for item in body["missing"])
 
 

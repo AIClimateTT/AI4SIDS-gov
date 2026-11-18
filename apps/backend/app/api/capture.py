@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from app.core.contracts import RowErrorInfo, SubmissionIngestResult
-from app.core.llm import get_llm_client
+from app.core.llm import get_llm_client, model_label
 from app.core.renderer import strip_citation_markup
 from app.core.report_store import add_report
 from app.core.template_catalog import get_template
@@ -43,8 +43,9 @@ from app.modules.capture.store import (
     session_missing,
     working_set_from_session,
 )
-from app.modules.capture.prompt import compose_capture_prompt
-from app.modules.capture.turn import run_turn, stream_turn
+from app.modules.capture.prompt import CAPTURE_PROMPT_ID
+from app.prompts.registry import Prompt, resolve as resolve_prompt
+from app.modules.capture.turn import follow_up_text, run_turn, stream_turn
 from app.modules.sitreps.ingest import ingest_submission
 from app.modules.sitreps.models import ALERT_LEVELS, HAZARD_TYPES
 from app.modules.sitreps.store import create_event, get_event, next_sequence_no
@@ -350,24 +351,33 @@ def post_turn(
 ) -> CaptureSessionResponse:
     row = _load_owned(db, session_id, user)
     _require_draft(row)
-    template = _sitrep_template(db)
+    prompt = _session_prompt(db, row)
+    llm = get_llm_client("chat")
     done = run_turn(
         working_set_from_session(row),
         session_messages(row),
         request.message,
-        get_llm_client("chat"),
-        system_prompt=compose_capture_prompt(template),
+        llm,
+        system_prompt=prompt.text,
     )
     apply_working_set(row, done.working)
     refresh_as_at(row)
     row.messages = [item.model_dump(mode="json") for item in done.messages]
     save_session(db, row)
-    _record_llm_turn(db, row, done, request.message, template.version)
+    _record_llm_turn(db, row, done, request.message, prompt, model_label(llm))
     return _to_response(row)
 
 
+def _session_prompt(db: Session, row: CaptureSession) -> Prompt:
+    """The capture prompt this session runs on. Pinned on first use so the
+    whole conversation runs on one version, even across a deploy."""
+    prompt = resolve_prompt(db, CAPTURE_PROMPT_ID, row.prompt_hash)
+    row.prompt_hash = prompt.hash
+    return prompt
+
+
 def _record_llm_turn(
-    db: Session, row: CaptureSession, done, user_message: str, template_version: int
+    db: Session, row: CaptureSession, done, user_message: str, prompt: Prompt, model: str
 ) -> None:
     record_turn(
         db,
@@ -377,7 +387,10 @@ def _record_llm_turn(
         assistant_message=done.assistant_message,
         raw_output=done.raw_output,
         parse_ok=done.parse_ok,
-        template_version=template_version,
+        prompt=prompt,
+        model=model,
+        retried=done.retried,
+        interventions=done.interventions,
     )
 
 
@@ -397,7 +410,7 @@ def post_turn_stream(
     working = working_set_from_session(row)
     history = session_messages(row)
     llm = get_llm_client("chat")
-    template = _sitrep_template(db)
+    prompt = _session_prompt(db, row)
 
     def events():
         yield _sse(
@@ -418,7 +431,7 @@ def post_turn_stream(
                 history,
                 user_message,
                 llm,
-                system_prompt=compose_capture_prompt(template),
+                system_prompt=prompt.text,
             ):
                 if isinstance(item, str):
                     streamed = True
@@ -442,9 +455,10 @@ def post_turn_stream(
                     }
                 )
             yield _sse({"type": "TEXT_MESSAGE_END", "messageId": message_id})
-            if done.notes:
-                # Corrections to the confirmation just streamed: what the
-                # record actually did, as the clerk's own follow-up.
+            follow_up = follow_up_text(done)
+            if follow_up:
+                # Corrections to the confirmation just streamed (what the
+                # record actually did), then what is still missing.
                 note_id = str(uuid.uuid4())
                 yield _sse(
                     {"type": "TEXT_MESSAGE_START", "messageId": note_id, "role": "assistant"}
@@ -453,7 +467,7 @@ def post_turn_stream(
                     {
                         "type": "TEXT_MESSAGE_CONTENT",
                         "messageId": note_id,
-                        "delta": " ".join(done.notes),
+                        "delta": follow_up,
                     }
                 )
                 yield _sse({"type": "TEXT_MESSAGE_END", "messageId": note_id})
@@ -461,7 +475,7 @@ def post_turn_stream(
             refresh_as_at(row)
             row.messages = [item.model_dump(mode="json") for item in done.messages]
             save_session(db, row)
-            _record_llm_turn(db, row, done, user_message, template.version)
+            _record_llm_turn(db, row, done, user_message, prompt, model_label(llm))
             yield _sse(
                 {
                     "type": "CUSTOM",

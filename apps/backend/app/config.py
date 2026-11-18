@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     otp_length: int = 6
     otp_ttl_minutes: int = 10
     llm_provider: Literal["fake", "ollama", "nim"] = "ollama"
+    # Run an earlier prompt version for new sessions, e.g. "corp_capture@1".
+    # See app/prompts/registry.py.
+    prompt_overrides: str = ""
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "gemma3:4b"
     ollama_chat_model: str = "gemma3:4b"
@@ -38,6 +41,17 @@ class Settings(BaseSettings):
     report_timezone: str = "America/Port_of_Spain"
     app_env: str = "development"
     dedup_salt: str = "dev-salt-change-in-production"
+
+    # Eval runner (app/prompts/runner_api.py): the service needs the key; a
+    # laptop calling it needs the URL and the same key.
+    eval_runner_api_key: str = ""
+    eval_runner_url: str = ""
+    eval_results_dir: str = "/data/evals"
+    # Databases the eval runner may read capture chats from, to replay them
+    # (app/prompts/replay.py). Use a read-only role; the runner also opens
+    # every connection read-only. Empty: that source is not offered.
+    eval_staging_database_url: str = ""
+    eval_prod_database_url: str = ""
 
     # Survey123 API
     survey123_api_key: str = "none"
