@@ -138,3 +138,30 @@ tasks:
     prompt: This erases all staging data. Continue?
     cmds:
       - docker exec dmcu-staging-backend python -m app.cli db reset --yes
+
+  remote:eval:
+    desc: Run the capture test set in prod against NIM (eval runner) and save the result here. VERSION=1 for v1, REPEAT=n
+    dir: apps/backend
+    vars:
+      VERSION: '{{.VERSION | default ""}}'
+      REPEAT: '{{.REPEAT | default "3"}}'
+    cmds:
+      - uv run python -m app.cli prompts remote-eval corp_capture --repeat {{.REPEAT}} {{if .VERSION}}--version {{.VERSION}}{{end}}
+
+  remote:runs:
+    desc: List recent eval runs in prod
+    dir: apps/backend
+    cmds:
+      - uv run python -m app.cli prompts remote-runs
+
+  remote:info:
+    desc: Which prompt versions and model the prod eval runner has deployed
+    dir: apps/backend
+    cmds:
+      - uv run python -m app.cli prompts remote-info
+
+  prompts:check:
+    desc: Fail if a prompt changed without a version bump
+    dir: apps/backend
+    cmds:
+      - uv run python -m app.cli prompts check

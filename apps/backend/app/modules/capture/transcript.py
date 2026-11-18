@@ -8,20 +8,28 @@ from app.core.localtime import to_local
 from app.core.renderer import strip_citation_markup
 from app.modules.capture.diff import working_changes
 from app.modules.capture.models import CaptureSession, CaptureTurn
+from app.modules.capture.questions import incident_type_display
 from app.modules.capture.store import session_missing, working_set_from_session
 from app.modules.sitreps.models import Event
 
-TRANSCRIPT_VERSION = 2
+TRANSCRIPT_VERSION = 3
 
 _ROLE_LABELS = {"user": "Officer", "assistant": "Clerk"}
 
 _INCIDENT_LABELS = {
+    "incident_scope": "Scope",
     "community": "Community",
     "street": "Street",
+    "house_number": "House number",
     "incident_type": "Type",
     "raw_incident_type": "Type (as typed)",
     "incident_summary": "Summary",
     "event_date": "Date of event",
+    "households_affected": "Households affected",
+    "persons_affected": "Persons affected",
+    "persons_displaced": "Persons displaced",
+    "persons_marooned": "Persons marooned",
+    "access_blocked": "Access blocked",
     "injuries_occurred": "Injuries occurred",
     "injuries_count": "Injuries",
     "deaths_occurred": "Deaths occurred",
@@ -63,6 +71,13 @@ def _turns(turns: list[CaptureTurn]) -> list[dict]:
                 "parse_ok": turn.parse_ok,
                 "raw_output": turn.raw_output,
                 "template_version": turn.template_version,
+                "prompt": (
+                    f"{turn.prompt_id}@{turn.prompt_version}" if turn.prompt_id else None
+                ),
+                "prompt_hash": turn.prompt_hash,
+                "model": turn.model,
+                "retried": turn.retried,
+                "interventions": turn.interventions or {},
                 "changes": working_changes(previous, turn.working),
                 "working": turn.working,
                 "missing": turn.missing,
@@ -136,6 +151,12 @@ def _value(value: object) -> str:
     return str(value)
 
 
+def _display(key: str, value: object) -> object:
+    if key == "incident_type" and isinstance(value, str):
+        return incident_type_display(value)
+    return value
+
+
 def _line(label: str, value: object) -> str:
     return f"- **{label}:** {_value(value) if value not in (None, '') else '—'}"
 
@@ -189,7 +210,7 @@ def transcript_markdown(data: dict) -> str:
     for incident in incidents:
         out.append(f"### Row {incident.get('row_id') or '?'}")
         out += [
-            _line(label, incident.get(key))
+            _line(label, _display(key, incident.get(key)))
             for key, label in _INCIDENT_LABELS.items()
             if incident.get(key) not in (None, "")
         ]
@@ -249,9 +270,12 @@ def _turns_markdown(turns: list[dict]) -> list[str]:
         ]
     for turn in turns:
         flag = " · **model output unreadable**" if turn["parse_ok"] is False else ""
-        version = (
-            f" · template v{turn['template_version']}" if turn["template_version"] else ""
-        )
+        if turn.get("prompt"):
+            version = f" · {turn['prompt']} · {turn.get('model') or 'model unknown'}"
+        elif turn["template_version"]:
+            version = f" · template v{turn['template_version']}"
+        else:
+            version = ""
         out += [f"### {turn['seq']}. {turn['kind']} · {_local(turn['created_at'])}{version}{flag}", ""]
         if turn["user_message"]:
             out += [_quote(turn["user_message"]), ""]
@@ -260,6 +284,12 @@ def _turns_markdown(turns: list[dict]) -> list[str]:
         changes = turn["changes"]
         out += [f"- {line}" for line in changes] or ["- No change to the working set"]
         out.append("")
+        corrections = turn.get("interventions") or {}
+        if corrections or turn.get("retried"):
+            parts = [f"{name.replace('_', ' ')} {count}" for name, count in sorted(corrections.items())]
+            if turn.get("retried"):
+                parts.insert(0, "retried once")
+            out += [f"Corrections to the model's reply: {', '.join(parts)}", ""]
         if turn["parse_ok"] is False and turn["raw_output"]:
             out += ["Raw model output:", "", "```", turn["raw_output"], "```", ""]
         if turn["sitrep_markdown"]:

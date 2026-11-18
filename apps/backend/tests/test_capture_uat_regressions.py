@@ -16,7 +16,7 @@ from app.modules.capture.schemas import (
     CaptureWorkingSet,
     clean_place,
 )
-from app.modules.capture.turn import run_turn
+from app.modules.capture.turn import follow_up_text, run_turn
 
 TODAY = date(2026, 11, 16)
 DEV_DB_PATH = Path(__file__).parent.parent / "dev.db"
@@ -107,7 +107,10 @@ def test_a_new_incident_gets_no_date_the_message_did_not_give():
 
     cedros = next(row for row in done.working.incidents if row.community == "Cedros")
     assert cedros.event_date is None
-    assert any("date blank on incident 2" in note for note in done.notes)
+    # The clerk asks for the date instead of noting it left it blank.
+    assert any(
+        q.startswith("What day did") and "Cedros" in q for q in done.questions
+    )
 
 
 def test_a_date_the_officer_states_is_accepted():
@@ -254,7 +257,8 @@ def test_a_typed_value_the_model_tried_to_change_is_reported():
 
     assert done.working.present_activity == "Assessments ongoing"
     assert any("Present activity was typed in the form" in note for note in done.notes)
-    assert done.messages[-1].content == " ".join(done.notes)
+    assert done.messages[-1].content == follow_up_text(done)
+    assert done.messages[-1].content.startswith(" ".join(done.notes))
 
 
 def test_claiming_a_capture_that_changed_nothing_is_corrected():

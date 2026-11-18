@@ -4,6 +4,9 @@ from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
+# Turns point at prompt_versions by hash; registering the table here keeps it
+# in every metadata that has the capture tables.
+from app.prompts import models as _prompt_models  # noqa: F401
 
 
 class CaptureSession(Base):
@@ -44,6 +47,9 @@ class CaptureSession(Base):
     sitrep_source_updated_at: Mapped[datetime | None] = mapped_column(
         DateTime, nullable=True
     )
+    # The capture prompt this conversation runs on (prompt_versions.hash),
+    # pinned at its first turn.
+    prompt_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
@@ -69,7 +75,16 @@ class CaptureTurn(Base):
     assistant_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     raw_output: Mapped[str | None] = mapped_column(Text, nullable=True)
     parse_ok: Mapped[bool | None] = mapped_column(nullable=True)
+    # Report layout version, on sitrep previews and issues.
     template_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Officer turns: which prompt and model produced this reply.
+    prompt_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+    prompt_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    prompt_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    model: Mapped[str | None] = mapped_column(String, nullable=True)
+    retried: Mapped[bool | None] = mapped_column(nullable=True)
+    # Guard name -> how many corrections it made to the model's reply.
+    interventions: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     working: Mapped[dict] = mapped_column(JSON, nullable=False)
     missing: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     sitrep_markdown: Mapped[str | None] = mapped_column(Text, nullable=True)

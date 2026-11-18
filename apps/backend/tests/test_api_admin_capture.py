@@ -68,7 +68,7 @@ def test_admin_lists_drafts_and_filed_sessions_for_a_corporation(monkeypatch):
     row = rows[0]
     assert row["status"] == "draft"
     assert row["event_id"] == event_id
-    assert row["message_count"] == 3
+    assert row["message_count"] == 4  # greeting, officer, confirmation, question
     assert row["officer_message_count"] == 1
     # The list is a register, not a view of the draft's contents.
     assert "incidents" not in row
@@ -92,7 +92,7 @@ def test_transcript_json_carries_chat_facts_and_sitrep(monkeypatch):
     assert body["session"]["id"] == session_id
     assert body["session"]["status"] == "draft"
     assert body["event"]["title"] == "Adverse Weather August 2026"
-    assert [m["role"] for m in body["messages"]] == ["assistant", "user", "assistant"]
+    assert [m["role"] for m in body["messages"]] == ["assistant", "user", "assistant", "assistant"]
     assert body["capture"]["incidents"][0]["community"] == "Petit Valley"
     assert body["capture"]["logs"][0]["quantity"] == 200
     assert body["sitrep"]["final_markdown"]
@@ -177,7 +177,11 @@ def test_each_officer_turn_is_snapshotted_with_its_changes(monkeypatch):
     assert turn["user_message"].startswith("5 houses flooded")
     assert turn["parse_ok"] is True
     assert turn["raw_output"]
-    assert turn["template_version"]
+    # Officer turns name the prompt that produced them; layout versions are
+    # for sitrep previews.
+    assert turn["prompt"].startswith("corp_capture@")
+    assert turn["prompt_hash"]
+    assert turn["template_version"] is None
     assert turn["working"]["incidents"][0]["community"] == "Petit Valley"
     assert any(line.startswith("added incident 1") for line in turn["changes"])
 

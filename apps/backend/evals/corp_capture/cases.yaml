@@ -1,0 +1,329 @@
+# Test set for the corp capture prompt (app/prompts/corp_capture).
+#
+# Each case is one officer message from a UAT transcript, with the working set
+# and chat it arrived on. Checks describe what a correct capture looks like;
+# see app/prompts/evals.py for the spec syntax. Run with
+#   python -m app.cli prompts eval corp_capture --repeat 3
+#
+# Messages are as typed by the officers (typos kept: they are part of the
+# test). The transcripts held no names or phone numbers; house numbers in the
+# Nov 18 case are invented. Add a case whenever UAT finds a new failure, with
+# the transcript it came from in `source`.
+
+cases:
+  # --- Chaguanas, staging, Nov 18 -------------------------------------------
+  - id: chaguanas-mixed-opening
+    source: transcripts/2026-11-18 chaguanas session 1, turn 1 (staging test message)
+    today: 2026-11-18
+    message: >-
+      Heavy rainfall since 2am under the TTMS orange level flood alert. Flooding in
+      Enterprise along Ramsaran Street, about 12 houses affected with water up to 2
+      feet. Also one house at #14 Caroni Savannah Road, Charlieville had its roof blown
+      off, family of 4 displaced, no injuries. Montrose Main Road impassable near the
+      market. Distributed 150 sandbags so far, 300 remaining.
+    checks:
+      - {kind: parsed}
+      - {kind: field, path: alert_level, expect: {is: orange}}
+      - {kind: field, path: alert_detail, expect: orange}
+      - {kind: field, path: situation_overview, expect: {present: true}, name: overview captured}
+      - {kind: count, rows: incidents, where: {street: Ramsaran}, equals: 1, name: 12 houses stay one incident}
+      - kind: row
+        rows: incidents
+        where: {street: Ramsaran}
+        expect: {incident_scope: {is: area}, households_affected: 12, event_date: "{today}"}
+      - kind: row
+        rows: incidents
+        where: {street: Ramsaran}
+        expect: {incident_summary: {any_of: ["2 feet", "2 ft", "2ft", "two feet"]}}
+        name: water depth kept in summary
+      - kind: row
+        rows: incidents
+        where: {street: Caroni Savannah}
+        expect: {incident_scope: {is: household}, house_number: "14", persons_displaced: 4, injuries_occurred: false, event_date: "{today}"}
+      - {kind: row, rows: incidents, where: {street: Montrose}, expect: {access_blocked: true}, name: blocked road is an incident}
+      - {kind: none, rows: logs, where: {statement: impassable}, name: blocked road is not a log}
+      - {kind: row, rows: logs, where: {quantity: 300}, expect: {item: sandbag, category: {is: resource}}, name: 300 sandbags in stock}
+      - {kind: row, rows: logs, where: {quantity: 150}, expect: {item: sandbag, category: {is: relief_distributed}}, name: 150 sandbags distributed}
+      - {kind: every, rows: incidents, expect: {incident_summary: {present: true}}, name: every incident has a summary}
+      - {kind: asks, about: injuries, name: asks about Ramsaran casualties}
+
+  # --- Chaguanas, Nov 16 UAT --------------------------------------------------
+  - id: chaguanas-bynoe-opening
+    source: transcripts/2026-11-16 chaguanas session 11, turn 1
+    today: 2026-11-16
+    message: >-
+      Flooding reported in Bynoe trace Enterprise whereby the main access is blocked
+      preventing access for vehicles. Number of impacted households is yet unknown. A
+      request for field officers on scene. Sandbags also being requested by some households.
+    checks:
+      - {kind: parsed}
+      - {kind: count, rows: incidents, equals: 1}
+      - kind: row
+        rows: incidents
+        where: {street: Bynoe}
+        expect: {community: Enterprise, incident_type: flooding, access_blocked: true, households_affected: null}
+      - {kind: row, rows: logs, where: {statement: field officer}, expect: {status: {is: requested}}}
+      - {kind: row, rows: logs, where: {statement: sandbag}, expect: {status: {is: requested}}}
+      - {kind: asks, about: what day, name: asks for the date}
+
+  - id: chaguanas-bynoe-field-report
+    source: transcripts/2026-11-16 chaguanas session 11, turn 5
+    today: 2026-11-16
+    prior: &bynoe
+      alert_level: yellow
+      alert_detail: yellow alert issued by MET Office
+      incidents:
+        - row_id: "1"
+          incident_scope: area
+          community: Enterprise
+          street: Bynoe Trace
+          incident_type: flooding_
+          incident_summary: Flooding in Bynoe Trace, Enterprise; main access blocked to vehicles.
+          event_date: "2026-11-16"
+          access_blocked: true
+          injuries_occurred: false
+          deaths_occurred: false
+      logs:
+        - {row_id: "1", category: personnel, statement: Request for field officers on scene, item: field officers, status: requested}
+        - {row_id: "2", category: resource, statement: Sandbags being requested by some households, item: sandbags, status: requested}
+    message: >-
+      Field Officers are on site and have now reported 24 homes impacted with damages to
+      appliances and furniture in 14 homes, yard flooding in 8 homes. 2 homes are
+      requesting evacuation with 4 persons in each home.
+    checks:
+      - {kind: parsed}
+      - {kind: count, rows: incidents, equals: 1, name: update stays one incident}
+      - kind: row
+        rows: incidents
+        where: {street: Bynoe}
+        expect: {households_affected: 24, event_date: "2026-11-16", access_blocked: true, injuries_occurred: false}
+      - kind: row
+        rows: incidents
+        where: {street: Bynoe}
+        expect: {incident_summary: {any_of: [appliance, furniture]}}
+        name: damage detail kept in summary
+      - {kind: count, rows: logs, equals: 2, name: earlier logs kept}
+
+  - id: chaguanas-roof-at-time
+    source: transcripts/2026-11-16 chaguanas session 11, turn 7 (was unreadable in UAT)
+    today: 2026-11-16
+    prior: *bynoe
+    message: Reports coming in of one blown off roof at 1:30 pm
+    checks:
+      - {kind: parsed}
+      - {kind: count, rows: incidents, equals: 2}
+      - {kind: row, rows: incidents, where: {incident_type: blown_off_roof}, expect: {event_date: "{today}"}, name: time of day dates it today}
+      - {kind: row, rows: incidents, where: {street: Bynoe}, expect: {event_date: "2026-11-16", community: Enterprise}}
+      - {kind: asks, about: where is, name: asks where the roof is}
+
+  - id: chaguanas-tarp-and-ttfs
+    source: transcripts/2026-11-16 chaguanas session 11, turn 8
+    today: 2026-11-16
+    prior: *bynoe
+    message: There are no injuries. request for a tarpaulin at bynoe trace and assistance from ttfs
+    checks:
+      - {kind: parsed}
+      - {kind: count, rows: incidents, equals: 1}
+      - {kind: row, rows: incidents, where: {street: Bynoe}, expect: {injuries_occurred: false, injuries_count: null}}
+      - {kind: row, rows: logs, where: {item: tarpaulin}, expect: {status: {is: requested}}}
+      - {kind: row, rows: logs, where: {statement: ttfs}, expect: {status: {is: requested}}}
+
+  - id: chaguanas-tarp-size
+    source: transcripts/2026-11-16 chaguanas session 11, turn 9 (UAT read "2 16*20" as 20)
+    today: 2026-11-16
+    prior:
+      <<: *bynoe
+      logs:
+        - {row_id: "1", category: personnel, statement: Request for field officers on scene, item: field officers, status: requested}
+        - {row_id: "2", category: resource, statement: Request for a tarpaulin at Bynoe Trace, item: tarpaulin, status: requested}
+    history:
+      - {role: user, content: There are no injuries. request for a tarpaulin at bynoe trace and assistance from ttfs}
+      - {role: assistant, content: "Captured request for a tarpaulin at Bynoe trace. What quantity of tarpaulin is needed?"}
+    message: 2 16* 20 tarpaulin
+    checks:
+      - {kind: parsed}
+      - {kind: count, rows: logs, where: {item: tarpaulin}, equals: 1, name: same request updated}
+      - {kind: row, rows: logs, where: {item: tarpaulin}, expect: {quantity: 2, item: "16"}, name: 2 tarpaulins of size 16x20}
+
+  - id: chaguanas-second-street
+    source: transcripts/2026-11-16 chaguanas session 11, turn 11
+    today: 2026-11-16
+    prior: *bynoe
+    message: Reports of flooding coming from Enterprise Street. 4 households impacted
+    checks:
+      - {kind: parsed}
+      - {kind: count, rows: incidents, equals: 2, name: new street is a new incident}
+      - {kind: row, rows: incidents, where: {street: Enterprise Street}, expect: {households_affected: 4, incident_scope: {is: area}}}
+      - {kind: row, rows: incidents, where: {street: Bynoe}, expect: {households_affected: null}, name: count not copied onto Bynoe}
+
+  # --- Couva-Tabaquite-Talparo, Nov 16 UAT ------------------------------------
+  - id: couva-gasparillo-opening
+    source: transcripts/2026-11-16 couva session 13, turn 1
+    today: 2026-11-16
+    message: >-
+      On novemer 16, 2026 gasparillo is currently flooded with street and flash flooding
+      with gopaul ave being impassable at this time
+    checks:
+      - {kind: parsed}
+      - {kind: row, rows: incidents, where: {community: Gasparillo}, expect: {event_date: "2026-11-16", incident_type: flooding}}
+      - {kind: row, rows: incidents, where: {street: Gopaul}, expect: {access_blocked: true}, name: Gopaul Ave blocked}
+      - {kind: every, rows: incidents, expect: {incident_summary: {present: true}}}
+
+  - id: couva-depth-update
+    source: transcripts/2026-11-16 couva session 13, turn 5
+    today: 2026-11-16
+    prior: &gasparillo
+      alert_level: yellow
+      incidents:
+        - row_id: "1"
+          incident_scope: area
+          community: Gasparillo
+          street: Gopaul Ave
+          incident_type: flooding_
+          incident_summary: Gasparillo flooded with street and flash flooding; Gopaul Ave impassable.
+          event_date: "2026-11-16"
+          access_blocked: true
+    message: 16 home affecting with water inside home from 6 inches of water to 2 ft of water in homes
+    checks:
+      - {kind: parsed}
+      - {kind: count, rows: incidents, equals: 1}
+      - {kind: row, rows: incidents, where: {community: Gasparillo}, expect: {households_affected: 16, access_blocked: true}}
+      - kind: row
+        rows: incidents
+        where: {community: Gasparillo}
+        expect: {incident_summary: {any_of: ["6 inch", "2 ft", "2 feet"]}}
+        name: water depth kept in summary
+
+  - id: couva-no-casualties
+    source: transcripts/2026-11-16 couva session 13, turn 3
+    today: 2026-11-16
+    prior: *gasparillo
+    history:
+      - {role: assistant, content: "Were there any injuries or deaths at the flooding at Gopaul Ave?"}
+    message: "no"
+    checks:
+      - {kind: parsed}
+      - {kind: row, rows: incidents, where: {community: Gasparillo}, expect: {injuries_occurred: false, deaths_occurred: false, injuries_count: null, deaths_count: null}}
+
+  - id: couva-assessments-ongoing
+    source: transcripts/2026-11-16 couva session 13, turn 6
+    today: 2026-11-16
+    prior: *gasparillo
+    message: assessments are currently ongoing
+    checks:
+      - {kind: parsed}
+      - {kind: count, rows: incidents, equals: 1, name: no new incident}
+      - kind: any
+        name: recorded as activity
+        checks:
+          - {kind: field, path: present_activity, expect: assess}
+          - {kind: row, rows: logs, where: {statement: assess}, expect: {category: {any_of: [{is: activity}, {is: personnel}]}}}
+
+  # --- Point Fortin, Nov 16 UAT ------------------------------------------------
+  - id: point-fortin-unnamed-place
+    source: transcripts/2026-11-16 point fortin session 12, turn 1 (generic UAT message)
+    today: 2026-11-16
+    message: >-
+      Fictional flooding in a community in your corporation. One road is reported
+      affected; the number of households is not yet known. An inspection team has been
+      requested. No injuries have been confirmed.
+    checks:
+      - {kind: parsed}
+      - kind: row
+        rows: incidents
+        where: {incident_type: flooding}
+        expect: {community: null, street: null, households_affected: null, injuries_count: null}
+        name: no invented place or counts
+      - {kind: row, rows: logs, where: {statement: inspection}, expect: {status: {is: requested}}}
+      - {kind: asks, about: where is}
+
+  - id: point-fortin-people-counts
+    source: transcripts/2026-11-16 point fortin session 12, turn 4
+    today: 2026-11-16
+    message: >-
+      Major flooding incident in Tom Village and St. Paul Lane Point Fortin with 55
+      people affected, 10 marooned. no deaths or injuries confirmed
+    checks:
+      - {kind: parsed}
+      - {kind: count, rows: incidents, equals: 1, name: one overall count stays one incident}
+      - kind: row
+        rows: incidents
+        where: {incident_type: flooding}
+        expect: {persons_affected: 55, persons_marooned: 10, injuries_count: null, deaths_count: null, households_affected: null}
+
+  - id: point-fortin-alert-wording
+    source: transcripts/2026-11-16 point fortin session 12, turn 6
+    today: 2026-11-16
+    prior:
+      alert_level: none
+      incidents:
+        - {row_id: "1", incident_scope: area, community: Tom Village, street: St. Paul Lane, incident_type: flooding_, incident_summary: Major flooding in Tom Village and St. Paul Lane., event_date: "2026-11-16", persons_affected: 55, persons_marooned: 10}
+    history:
+      - {role: assistant, content: "Has the Met Office issued an alert for your region, and at what level?"}
+    message: "Adverse Weather Red Level #1"
+    checks:
+      - {kind: parsed}
+      - {kind: field, path: alert_level, expect: {is: red}}
+      - {kind: field, path: alert_detail, expect: red level}
+      - {kind: count, rows: incidents, equals: 1}
+      - {kind: row, rows: incidents, where: {community: Tom Village}, expect: {persons_affected: 55, persons_marooned: 10}, name: counts survive an alert-only message}
+
+  # --- Port of Spain / Sangre Grande, Nov 16 UAT -------------------------------
+  - id: pos-low-lying-community
+    source: transcripts/2026-11-16 port of spain session 10, turn 1 (generic UAT message)
+    today: 2026-11-16
+    message: >-
+      flooding is reported in a low-lying community in our corporation. One roadway is
+      affected. The number of affected households is not yet known. An inspection team
+      has been requested. No injuries have been confirmed.
+    checks:
+      - {kind: parsed}
+      - {kind: row, rows: incidents, where: {incident_type: flooding}, expect: {community: null, households_affected: null}}
+      - {kind: asks, about: where is}
+
+  - id: sangre-grande-coalmine
+    source: transcripts/2026-11-16 sangre grande session 8, turn 1
+    today: 2026-11-16
+    message: >-
+      Flooding is reported in Coalmine area in our corporation. One roadway is affected.
+      The number of affected households is not yet known. An inspection team has been
+      requested. No injuries have been confirmed.
+    checks:
+      - {kind: parsed}
+      - {kind: row, rows: incidents, where: {community: Coalmine}, expect: {households_affected: null, injuries_count: null}}
+      - {kind: row, rows: logs, where: {statement: inspection}, expect: {status: {is: requested}}}
+
+  # --- San Fernando, Nov 16 UAT -----------------------------------------------
+  - id: san-fernando-date-answer
+    source: transcripts/2026-11-16 san fernando session 14, turn 3
+    today: 2026-11-16
+    prior:
+      incidents:
+        - {row_id: "1", incident_scope: area, community: Marabella, street: Union Road, incident_type: flooding_, incident_summary: Flooding at Union Road, Marabella.}
+        - {row_id: "2", incident_scope: area, community: Marabella, street: Union Park East Road, incident_type: flooding_, incident_summary: Flooding at Union Park East Road, Marabella.}
+    history:
+      - {role: assistant, content: "What day did the flooding at Union Road and the flooding at Union Park East Road happen?"}
+    message: Flooding occurred on 16/11/2026
+    checks:
+      - {kind: parsed}
+      - {kind: count, rows: incidents, equals: 2}
+      - {kind: row, rows: incidents, where: {street: Union Park East}, expect: {event_date: "2026-11-16"}}
+
+  # --- Siparia, Nov 16 UAT -----------------------------------------------------
+  - id: siparia-cedros-no-date-carry
+    source: transcripts/2026-11-16 siparia session 6, turn 2 (UAT stamped it Oct 4)
+    today: 2026-11-16
+    prior:
+      incidents:
+        - {row_id: "1", incident_scope: area, community: Fullerton, street: null, incident_type: flooding_, incident_summary: Heavy thundershowers caused significant flooding across low-lying communities including Fullerton Cedros and Woodland., event_date: "2026-10-04"}
+    message: >-
+      Due to thunderstorms in the Cedros area, there are confirmed reports of flooding
+      affecting several houses. At least 14 houses affected. Cedros Street1, Cedros Street
+      2 and Cedros street 3 affected. Field officers mobilized to conduct assessments. No
+      relief items distributed to homes as yet. There is flooding inn the oadways as well.
+    checks:
+      - {kind: parsed}
+      - {kind: count, rows: incidents, where: {households_affected: 14}, equals: 1, name: 14 houses are one incident}
+      - {kind: row, rows: incidents, where: {households_affected: 14}, expect: {incident_scope: {is: area}, event_date: {not: "2026-10-04"}}}
+      - {kind: row, rows: incidents, where: {community: Fullerton}, expect: {event_date: "2026-10-04"}, name: earlier report untouched}
+      - {kind: none, rows: logs, where: {category: {is: relief_distributed}, quantity: {present: true}}, name: "no relief yet is not a distribution"}

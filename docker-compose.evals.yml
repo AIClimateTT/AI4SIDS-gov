@@ -1,0 +1,58 @@
+# Dokploy app: prompt eval runner
+# Watch paths: apps/backend/**, docker-compose.evals.yml
+# Requires prod infra (dmcu-app-network, nim-prod). Attach a domain to
+# eval-runner, port 8090, in Dokploy (HTTPS). See app/prompts/runner_api.py.
+#
+# Built from the backend image, so each push redeploys it with the latest
+# prompts and test set. Its own stack: deploying it never restarts NIM or the
+# databases. No database access.
+name: dmcu-evals
+
+services:
+  eval-runner:
+    container_name: dmcu-eval-runner
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    command: ["evalrunner"]
+    expose:
+      - "8090"
+    environment:
+      # Required: every request must send this as "Authorization: Bearer <key>".
+      EVAL_RUNNER_API_KEY: ${EVAL_RUNNER_API_KEY:?set EVAL_RUNNER_API_KEY in Dokploy}
+      EVAL_RESULTS_DIR: /data/evals
+      LLM_PROVIDER: nim
+      NIM_BASE_URL: ${NIM_BASE_URL:-http://nim-prod:8000}
+      NIM_API_KEY: ${NIM_API_KEY:-none}
+      NIM_MODEL: ${NIM_MODEL:-openai/gpt-oss-20b}
+      NIM_CHAT_MODEL: ${NIM_CHAT_MODEL:-openai/gpt-oss-20b}
+      REPORT_TIMEZONE: ${REPORT_TIMEZONE:-America/Port_of_Spain}
+    volumes:
+      - eval_results:/data/evals
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8090/health')",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - app-network
+      - dokploy-network
+
+networks:
+  app-network:
+    name: dmcu-app-network
+    external: true
+  dokploy-network:
+    external: true
+
+volumes:
+  eval_results:
+    name: dmcu-evals_results

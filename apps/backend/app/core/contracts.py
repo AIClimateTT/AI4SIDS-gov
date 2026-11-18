@@ -70,14 +70,15 @@ class DataRequirement(BaseModel):
 
 
 class NarrationSkills(BaseModel):
-    capture: str = ""
-    compose: str
+    # Conversational prompts (corp capture) live in app/prompts, versioned
+    # on their own; a template only narrates its report.
+    compose: str = ""
 
 
 class NarrationConfig(BaseModel):
-    identity: str
-    skills: NarrationSkills
-    output_sections: list[str]
+    identity: str = ""
+    skills: NarrationSkills = NarrationSkills()
+    output_sections: list[str] = []
 
     @classmethod
     def of(
@@ -85,12 +86,11 @@ class NarrationConfig(BaseModel):
         compose: str = "p",
         *,
         identity: str = "test",
-        capture: str = "",
         output_sections: list[str] | None = None,
     ) -> "NarrationConfig":
         return cls(
             identity=identity,
-            skills=NarrationSkills(capture=capture, compose=compose),
+            skills=NarrationSkills(compose=compose),
             output_sections=["headline"] if output_sections is None else output_sections,
         )
 
@@ -108,7 +108,8 @@ class Template(BaseModel):
     description: str
     params: list[TemplateParam]
     data_requirements: list[DataRequirement]
-    narration: NarrationConfig
+    # Absent for reports rendered from data alone (no model prose).
+    narration: NarrationConfig = NarrationConfig()
     render: RenderConfig
 
 
